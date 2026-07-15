@@ -31,3 +31,16 @@ def test_interval_crosses_midnight():
 
     assert start == datetime(2026, 7, 14, 23, 55)
     assert end == datetime(2026, 7, 15, 0, 5)
+
+
+def test_interval_boundaries_are_inclusive_at_start_and_exclusive_at_end():
+    schedule = Schedule("1", "10:00", 10, 13)
+
+    assert schedule.interval_at(datetime(2026, 7, 14, 10, 0)) == (
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+    )
+    assert schedule.interval_at(datetime(2026, 7, 14, 10, 10)) == (
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+    )

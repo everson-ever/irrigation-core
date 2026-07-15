@@ -3,7 +3,7 @@
 ## Metadata
 
 ```yaml
-status: backlog
+status: done
 priority: high
 type: test
 ```
@@ -106,25 +106,25 @@ The application supports scheduled irrigation, but the complete runtime flow mus
 
 ### Unit tests
 
-- [ ] A schedule is recognized as running inside its configured interval and not outside it.
-- [ ] Exact start and end boundaries produce the expected running state.
-- [ ] A midnight-crossing schedule calculates the correct active interval.
+- [x] A schedule is recognized as running inside its configured interval and not outside it.
+- [x] Exact start and end boundaries produce the expected running state.
+- [x] A midnight-crossing schedule calculates the correct active interval.
 
 ### Integration tests
 
-- [ ] An enabled schedule turns the configured valve on automatically at its scheduled time.
-- [ ] The controller turns the valve off automatically after the configured duration.
-- [ ] Schedule and valve statuses are persisted after both transitions.
-- [ ] Automatic start and stop events are written to irrigation history.
-- [ ] A late scheduler cycle starts an active schedule without waiting for the exact minute.
+- [x] An enabled schedule turns the configured valve on automatically at its scheduled time.
+- [x] The controller turns the valve off automatically after the configured duration.
+- [x] Schedule and valve statuses are persisted after both transitions.
+- [x] Automatic start and stop events are written to irrigation history.
+- [x] A late scheduler cycle starts an active schedule without waiting for the exact minute.
 
 ### Regression tests
 
-- [ ] Disabled schedules never turn a valve on.
-- [ ] Repeated scheduler cycles do not duplicate starts or history entries.
-- [ ] Overlapping schedules do not turn a shared valve off before the final schedule ends.
-- [ ] An interrupted active schedule reactivates hardware when the interval is still valid.
-- [ ] Manual valve behavior remains unchanged.
+- [x] Disabled schedules never turn a valve on.
+- [x] Repeated scheduler cycles do not duplicate starts or history entries.
+- [x] Overlapping schedules do not turn a shared valve off before the final schedule ends.
+- [x] An interrupted active schedule reactivates hardware when the interval is still valid.
+- [x] Manual valve behavior remains unchanged.
 
 ### Test data and fixtures
 
@@ -136,28 +136,28 @@ The application supports scheduled irrigation, but the complete runtime flow mus
 
 The task is complete when:
 
-- [ ] The complete automatic scheduling flow is covered from start through stop.
-- [ ] Tests prove that the valve turns on at the correct time and off at the correct end time.
-- [ ] Any defect found during validation is corrected and covered by a regression test.
-- [ ] Persisted schedule and valve states are verified after each transition.
-- [ ] Automatic history records are verified.
-- [ ] Relevant late-start, disabled, overlapping, interrupted, and midnight-crossing cases are covered.
-- [ ] No physical hardware or nondeterministic time waits are required.
-- [ ] Existing behavior remains unchanged outside the defined validation scope.
-- [ ] Formatting, linting, type checks, and the full test suite pass.
+- [x] The complete automatic scheduling flow is covered from start through stop.
+- [x] Tests prove that the valve turns on at the correct time and off at the correct end time.
+- [x] Any defect found during validation is corrected and covered by a regression test.
+- [x] Persisted schedule and valve states are verified after each transition.
+- [x] Automatic history records are verified.
+- [x] Relevant late-start, disabled, overlapping, interrupted, and midnight-crossing cases are covered.
+- [x] No physical hardware or nondeterministic time waits are required.
+- [x] Existing behavior remains unchanged outside the defined validation scope.
+- [x] Formatting, linting, type checks, and the full test suite pass.
 
 ## Implementation checklist
 
-- [ ] Confirm the task number and filename.
-- [ ] Inspect all files listed in the impact analysis.
-- [ ] Reassess the affected files before coding and update this task if needed.
-- [ ] Add or update specs before changing production code.
-- [ ] Implement the smallest coherent test and, when needed, production fix required by the specs.
-- [ ] Add regression coverage for every problem found during validation.
-- [ ] Run focused checks.
-- [ ] Run the full validation suite.
-- [ ] Validate the implementation against every acceptance criterion.
-- [ ] Move the issue to `done` only after implementation and validation pass.
+- [x] Confirm the task number and filename.
+- [x] Inspect all files listed in the impact analysis.
+- [x] Reassess the affected files before coding and update this task if needed.
+- [x] Add or update specs before changing production code.
+- [x] Implement the smallest coherent test and, when needed, production fix required by the specs.
+- [x] Add regression coverage for every problem found during validation.
+- [x] Run focused checks.
+- [x] Run the full validation suite.
+- [x] Validate the implementation against every acceptance criterion.
+- [x] Move the issue to `done` only after implementation and validation pass.
 
 ## Notes
 
