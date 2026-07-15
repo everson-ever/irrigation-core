@@ -6,7 +6,7 @@ services:
     init: true
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     working_dir: /app
-    command: irrigacao run
+    command: /opt/venv/bin/irrigacao run
     environment:
       IRRIGATION_DATA_DIR: /app/data
       IRRIGATION_GPIO_DRIVER: mock
