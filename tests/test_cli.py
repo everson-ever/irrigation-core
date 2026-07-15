@@ -94,6 +94,54 @@ def test_schedule_update_without_weekdays_preserves_selection(capsys, tmp_path):
     assert output["weekdays"] == ["mon", "wed"]
 
 
+def test_schedule_enabled_updates_record(capsys, tmp_path):
+    execute(["schedule", "create", "06:30,15,13"])
+    capsys.readouterr()
+
+    disable_exit_code = execute(["schedule", "enabled", "1,0"])
+    disabled_output = json.loads(capsys.readouterr().out)
+    disabled_schedule = json.loads((tmp_path / "schedules.json").read_text())
+
+    enable_exit_code = execute(["schedule", "enabled", "1,1"])
+    enabled_output = json.loads(capsys.readouterr().out)
+    enabled_schedule = json.loads((tmp_path / "schedules.json").read_text())
+
+    assert disable_exit_code == 0
+    assert disabled_output["enabled"] == 0
+    assert disabled_schedule["enabled"] == 0
+    assert enable_exit_code == 0
+    assert enabled_output["enabled"] == 1
+    assert enabled_schedule["enabled"] == 1
+
+
+def test_schedule_enabled_rejects_invalid_flag_without_changing_record(
+    capsys, tmp_path
+):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "06:30",
+                "duration_minutes": "15",
+                "valve_pin": "13",
+                "status": 0,
+                "enabled": 1,
+                "weekdays": ["mon"],
+            }
+        )
+        + "\n"
+    )
+
+    exit_code = execute(["schedule", "enabled", "1,2"])
+    captured = capsys.readouterr()
+    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+
+    assert exit_code == 2
+    assert "enabled must be 0 or 1" in captured.err
+    assert schedule["enabled"] == 1
+
+
 def test_schedule_create_rejects_empty_weekdays(capsys):
     exit_code = execute(["schedule", "create", "06:30,15,13,"])
     err = capsys.readouterr().err

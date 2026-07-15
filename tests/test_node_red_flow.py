@@ -84,6 +84,17 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
         "scope.schedule_form.weekdays = scope.normalizeWeekdays(schedule.weekdays)"
         in (schedule_template)
     )
+    assert "scope.schedule_form.enabled = scope.isScheduleEnabled(schedule)" in (
+        schedule_template
+    )
+    assert 'name="enabled"' in schedule_template
+    assert 'ng-model="schedule_form.enabled"' in schedule_template
+    assert 'ng-change="send({payload:toggleEnabled(schedule_form)})"' in (
+        schedule_template
+    )
+    assert "scope.toggleEnabled = function(schedule)" in schedule_template
+    assert 'ui_action: "toggle_enabled"' in schedule_template
+    assert "enabled: schedule.enabled ? 1 : 0" in schedule_template
     assert "hasSelectedWeekday(schedule_form.weekdays)" in schedule_template
     assert "weekdays: scope.normalizeWeekdays(schedule.weekdays)" in schedule_template
     assert "selectedWeekdays" in update_formatter["func"]
@@ -104,6 +115,50 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "if (!output)" in update_success["func"]
     assert update_success["wires"] == [["7c602e02.7e8c7", "d98e5f28.7a7c9"]]
     assert update_error["wires"] == [[nodes["25072c26.808454"]["id"]]]
+
+
+def test_schedule_enabled_toggle_has_flow_wiring_and_error_feedback():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+    action_router = nodes["d4f14a77.92f3b1"]
+    enabled_formatter = nodes["e7a2d5c1.4b8f9a"]
+    enabled_exec = nodes["f3c91a2b.6d4e8f"]
+    enabled_success = nodes["a4d7e9c2.18b6f3"]
+    enabled_error = nodes["d2b6f7a8.9e1c4d"]
+
+    assert "<th>Agendamento</th>" in schedule_template
+    assert 'data-label="Agendamento"' in schedule_template
+    assert "scope.isScheduleEnabled = function(schedule)" in schedule_template
+    assert 'ng-if="isScheduleEnabled(schedule)">Ativo' in schedule_template
+    assert 'ng-if="!isScheduleEnabled(schedule)">Inativo' in schedule_template
+    assert 'msg.topic === "schedule_enabled"' in schedule_template
+    assert "scope.applyEnabledFeedback(msg.payload)" in schedule_template
+    assert "scope.schedules[i].enabled = enabled ? 1 : 0" in schedule_template
+    assert "scope.editing_state.enabled_submitting = true" in schedule_template
+    assert "Atualizando liga/desliga..." in schedule_template
+    assert 'msg.topic === "schedule_enabled_error"' in schedule_template
+
+    assert action_router["outputs"] == 4
+    assert 'payload.ui_action === "toggle_enabled"' in action_router["func"]
+    assert "msg.payload = { id: payload.id, enabled: payload.enabled }" in (
+        action_router["func"]
+    )
+    assert action_router["wires"][3] == ["e7a2d5c1.4b8f9a"]
+
+    assert "const { id, enabled } = msg.payload || {}" in enabled_formatter["func"]
+    assert "`${id},${value}`" in enabled_formatter["func"]
+    assert enabled_formatter["wires"] == [["f3c91a2b.6d4e8f"]]
+    assert enabled_exec["command"] == "/opt/irrigation/bin/irrigation schedule enabled"
+    assert enabled_exec["addpay"] is True
+    assert enabled_exec["wires"][0] == ["a4d7e9c2.18b6f3"]
+    assert enabled_exec["wires"][1] == ["d2b6f7a8.9e1c4d"]
+    assert 'msg.topic = "schedule_enabled"' in enabled_success["func"]
+    assert "JSON.parse(output)" in enabled_success["func"]
+    assert enabled_success["wires"] == [["25072c26.808454", "7c602e02.7e8c7"]]
+    assert 'msg.topic = "schedule_enabled_error"' in enabled_error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in enabled_error["func"]
+    assert enabled_error["wires"] == [["25072c26.808454"]]
 
 
 def test_schedule_forms_display_cli_validation_errors():
