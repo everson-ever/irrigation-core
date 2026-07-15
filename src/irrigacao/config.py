@@ -1,0 +1,29 @@
+"""Centralized settings loaded from environment variables."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    data_dir: Path
+    pump_pin: int = 15
+    poll_interval: float = 2.0
+    gpio_driver: str = "rpi"
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        return cls(
+            data_dir=Path(
+                os.getenv("IRRIGATION_DATA_DIR", Path.cwd() / "data")
+            ).resolve(),
+            pump_pin=int(os.getenv("IRRIGATION_PUMP_PIN", "15")),
+            poll_interval=float(os.getenv("IRRIGATION_POLL_INTERVAL", "2")),
+            gpio_driver=os.getenv("IRRIGATION_GPIO_DRIVER", "rpi").lower(),
+        )
+
+    def file_path(self, name: str) -> Path:
+        return self.data_dir / name
