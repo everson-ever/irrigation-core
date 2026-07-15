@@ -53,18 +53,21 @@ Files use JSON Lines format (one JSON object per line). Writes use locking and
 atomic replacement to reduce the risk of corruption when Node-RED and the
 scheduler access data concurrently.
 
-## Default hardware
+## Hardware configuration
 
-The project uses physical pin numbering (`GPIO.BOARD`). The initial
-configuration in [`data/valves.json`](data/valves.json) is:
+The project uses physical pin numbering (`GPIO.BOARD`). Deployment packages
+ship with an empty `data/valves.json`, because the valve pins are only known
+after the system is wired. Add one JSON object per line after installation, for
+example:
 
-| Function | Physical pin |
-|---|---:|
-| Section 1 solenoid valve | 13 |
-| Section 2 solenoid valve | 11 |
-| Pump | 15 |
+```jsonl
+{"id":"1","pin":"13","status":0,"section":"Front garden","manually_turned_off":0}
+{"id":"2","pin":"11","status":0,"section":"Back garden","manually_turned_off":0}
+```
 
-Adapt `data/valves.json` and `IRRIGATION_PUMP_PIN` to the real installation.
+The values above are examples, not recommended defaults. Configure the pump pin
+separately with `IRRIGATION_PUMP_PIN`, using the physical pin selected during
+installation.
 Use proper relay/transistor modules: GPIO pins must not power the pump or
 solenoid valves directly. Also confirm the electrical logic of your relay before
 energizing the circuit; this implementation treats high level as on.

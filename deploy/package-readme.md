@@ -58,12 +58,18 @@ file needed to install it — **without the Python source code**.
 
 ## Default data
 
-`data/` ships with placeholder values, not a real installation's history:
+`data/` ships without installation-specific valve pins or history:
 
-- `valves.json`: two valves already registered — pin 13 as "Section 1" and
-  pin 11 as "Section 2" (matching the pump on pin 15, see the main
-  [README](../README.md#default-hardware)). Edit this file to match your
-  wiring and section names before going live.
+- `valves.json`: empty. After wiring the system, add one JSON object per line
+  using physical pin numbering (`GPIO.BOARD`), for example:
+
+  ```jsonl
+  {"id":"1","pin":"13","status":0,"section":"Front garden","manually_turned_off":0}
+  {"id":"2","pin":"11","status":0,"section":"Back garden","manually_turned_off":0}
+  ```
+
+  These pin numbers are only examples. Replace them with the physical pins used
+  in the installation.
 - `schedules.json` and `history*.json`: empty.
 - `settings.json`: default manual watering duration of 5 minutes.
 
@@ -87,5 +93,8 @@ IRRIGATION_GPIO_DRIVER=rpi
 IRRIGATION_PUMP_PIN=15
 IRRIGATION_POLL_INTERVAL=5
 ```
+
+Set `IRRIGATION_PUMP_PIN` to the physical pin chosen for the pump relay; it is
+configured separately and must not be added to `valves.json`.
 
 Restart the service after editing the file.
