@@ -1,0 +1,1151 @@
+<style>
+:root {
+  --ir-green: #11877d;
+  --ir-green-dark: #0d756c;
+  --ir-green-soft: #e8f7f2;
+  --ir-ink: #071a18;
+  --ir-muted: #6c7476;
+  --ir-line: #e1e5e5;
+  --ir-canvas: #edf1f3;
+  --ir-panel: #f8fafb;
+  --ir-white: #fff;
+  --ir-danger: #ef4545;
+}
+
+body.nr-dashboard-theme {
+  background: var(--ir-canvas) !important;
+  color: var(--ir-ink);
+  font-family: Inter, Roboto, Arial, sans-serif;
+}
+
+#nr-dashboard md-toolbar,
+#nr-dashboard md-sidenav { display: none !important; }
+#nr-dashboard md-content { overflow-x: hidden !important; }
+.nr-dashboard-theme .masonry-container {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+.nr-dashboard-theme ui-card-panel {
+  position: relative !important;
+  inset: auto !important;
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+.nr-dashboard-theme .nr-dashboard-cardpanel,
+.nr-dashboard-theme .nr-dashboard-cardcontainer {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  background: transparent !important;
+}
+.nr-dashboard-theme md-card.nr-dashboard-template {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.nr-dashboard-theme .nr-dashboard-template .ir-shell p,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h1,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h2,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h3,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h4,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal p,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal h2 {
+  background-color: transparent !important;
+}
+.nr-dashboard-theme .nr-dashboard-template .ir-shell svg path,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal svg path { fill: none !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-eyebrow,
+.nr-dashboard-theme .nr-dashboard-template .ir-next-card-label { color: var(--ir-green) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-subtitle,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal-text { color: var(--ir-muted) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-title,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal-title { color: var(--ir-ink) !important; }
+
+.ir-shell, .ir-shell * { box-sizing: border-box !important; }
+.ir-shell {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+  background: var(--ir-panel);
+  box-shadow: none;
+}
+.ir-topbar {
+  display: flex;
+  height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  background: var(--ir-green);
+  color: #fff;
+}
+.ir-brand, .ir-system, .ir-brand-mark, .ir-online {
+  display: flex;
+  align-items: center;
+}
+.ir-brand { gap: 12px; font-size: 16px; font-weight: 800; }
+.ir-brand-mark { gap: 10px; }
+.ir-brand svg { width: 21px; height: 21px; }
+.ir-menu-icon { opacity: .95; }
+.ir-system { gap: 14px; }
+.ir-online {
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ir-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6df0a9;
+  box-shadow: 0 0 0 4px rgba(109, 240, 169, .13);
+}
+.ir-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .16);
+  font-size: 11px;
+  font-weight: 800;
+}
+.ir-layout { display: flex; min-height: calc(100vh - 60px); }
+.ir-sidebar {
+  display: flex;
+  width: 240px;
+  flex: 0 0 240px;
+  flex-direction: column;
+  padding: 22px 14px;
+  border-right: 1px solid var(--ir-line);
+  background: #f6f8f9;
+}
+.ir-nav-label {
+  margin: 0 10px 10px;
+  color: #9aa2a4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.ir-nav { display: grid; gap: 3px; }
+.ir-nav-button {
+  display: flex;
+  width: 100%;
+  height: 41px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: transparent;
+  color: #13211f;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+.ir-nav-button:hover { background: #edf2f1; }
+.ir-nav-button.is-active { background: var(--ir-green); color: #fff; }
+.ir-nav-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.ir-next-card {
+  margin-top: auto;
+  padding: 16px 14px;
+  border: 1px solid var(--ir-line);
+  border-radius: 11px;
+  background: #fff;
+}
+.ir-next-card-label {
+  margin: 0 0 8px;
+  color: var(--ir-green);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ir-green) !important;
+}
+.ir-next-card strong { display: block; font-size: 20px; line-height: 1.1; }
+.ir-next-card span { display: block; margin-top: 6px; color: var(--ir-muted); font-size: 12px; }
+.ir-content { min-width: 0; flex: 1; padding: clamp(28px, 3vw, 52px) clamp(24px, 4vw, 64px) 52px; }
+.ir-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+}
+.ir-eyebrow {
+  margin: 0 0 5px;
+  color: var(--ir-green);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ir-green) !important;
+}
+.ir-title { margin: 0; color: #071614 !important; font-size: 31px; font-weight: 850; line-height: 1.05; }
+.ir-subtitle { margin: 8px 0 0; color: var(--ir-muted) !important; font-size: 14px; }
+.ir-primary-button, .ir-secondary-button, .ir-icon-button, .ir-danger-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+.ir-primary-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 10px;
+  padding: 0 18px;
+  background: var(--ir-green);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(17, 135, 125, .22);
+}
+.ir-primary-button:hover { background: var(--ir-green-dark); }
+.ir-primary-button:disabled, .ir-secondary-button:disabled, .ir-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+.ir-primary-button svg { width: 16px; height: 16px; }
+.ir-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+.ir-stat {
+  min-height: 82px;
+  padding: 17px 18px;
+  border: 1px solid var(--ir-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.ir-stat-label { display: block; margin-bottom: 7px; color: var(--ir-muted); font-size: 12px; }
+.ir-stat-value { color: #071614; font-size: 23px; font-weight: 850; line-height: 1; }
+.ir-stat-value small { margin-left: 5px; color: #858d8f; font-size: 11px; font-weight: 500; }
+.ir-stat-value .ir-live-dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: #24b985; box-shadow: 0 0 0 4px #e2f7ef; vertical-align: 3px; }
+.ir-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+.ir-search {
+  position: relative;
+  width: 340px;
+  flex: 0 1 340px;
+  width: 340px !important;
+}
+.ir-search svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 17px;
+  height: 17px;
+  color: #8a9293;
+  transform: translateY(-50%);
+}
+.ir-search input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  padding: 0 13px 0 38px;
+  outline: 0;
+  background: #fff;
+  color: var(--ir-ink);
+  font-size: 14px;
+}
+.ir-search input:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
+.ir-segmented {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  background: #fff;
+}
+.ir-segmented button {
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+  background: transparent;
+  color: #0d1b19;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ir-segmented button.is-active { background: #071a18; color: #fff; }
+.ir-secondary-button {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-left: auto;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  padding: 0 14px;
+  background: #fff;
+  color: #182321;
+  font-size: 12px;
+}
+.ir-secondary-button svg { width: 15px; height: 15px; }
+.ir-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 12px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ir-feedback.is-error { border: 1px solid #ffd1d1; background: #fff0f0; color: #c92f2f; }
+.ir-feedback.is-loading { border: 1px solid #ccece2; background: #edf9f5; color: var(--ir-green-dark); }
+.ir-feedback button { border: 0; background: transparent; color: inherit; cursor: pointer; font-weight: 800; }
+.ir-table-wrap {
+  margin-top: 14px;
+  overflow: visible;
+  border: 1px solid var(--ir-line);
+  border-radius: 13px;
+  background: #fff;
+}
+.ir-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.ir-table th {
+  height: 42px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--ir-line);
+  background: #f5f7f8;
+  color: #697173;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.ir-table th:first-child { border-radius: 12px 0 0; }
+.ir-table th:last-child { border-radius: 0 12px 0 0; }
+.ir-table td {
+  height: 84px;
+  padding: 12px 13px;
+  border-bottom: 1px solid #edf0f0;
+  color: #101b19;
+  font-size: 13px;
+  vertical-align: middle;
+}
+.ir-table tr:last-child td { border-bottom: 0; }
+.ir-table tr.is-watering td { background: linear-gradient(90deg, #f1fbf7, #fff); }
+.ir-time { display: block; color: #071614; font-size: 17px; font-weight: 850; }
+.ir-time-note { display: block; margin-top: 3px; color: #8a9293; font-size: 10px; }
+.ir-time-note.is-live { color: #16a472; font-weight: 800; }
+.ir-section { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.ir-section-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: #e7f4f1;
+  color: var(--ir-green);
+}
+.ir-section-icon svg { width: 17px; height: 17px; }
+.ir-section-copy { min-width: 0; }
+.ir-section-copy strong { display: block; overflow: hidden; color: #101b19; font-size: 13px; line-height: 1.15; text-overflow: ellipsis; }
+.ir-section-copy span { display: block; margin-top: 3px; color: #92999b; font-size: 10px; }
+.ir-days { display: flex; flex-wrap: wrap; gap: 4px; }
+.ir-day {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 5px;
+  background: #eef1f1;
+  color: #a1a7a8;
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.ir-day.is-active { background: var(--ir-green); color: #fff; }
+.ir-every-day { color: #687173; font-size: 12px; }
+.ir-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.ir-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .85; }
+.ir-status-on { background: #e2f7ef; color: #0a9569; }
+.ir-status-off { background: #f0f2f2; color: #858d8f; }
+.ir-status-watering { background: #e2f7ef; color: #099b6c; }
+.ir-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+}
+.ir-row-actions { position: relative; display: flex; align-items: center; gap: 7px; }
+.ir-danger-button {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #ffe9e9;
+  color: #e33a3a;
+  font-size: 11px;
+}
+.ir-icon-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f1f4f4;
+  color: #14211f;
+}
+.ir-icon-button svg { width: 16px; height: 16px; }
+.ir-switch { position: relative; display: inline-flex; width: 37px; height: 22px; flex: 0 0 auto; }
+.ir-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.ir-switch-slider { position: absolute; inset: 0; border-radius: 999px; background: #dce1e1; cursor: pointer; transition: .15s ease; }
+.ir-switch-slider::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+  transition: .15s ease;
+}
+.ir-switch input:checked + .ir-switch-slider { background: var(--ir-green); }
+.ir-switch input:checked + .ir-switch-slider::before { transform: translateX(15px); }
+.ir-action-menu {
+  position: absolute;
+  top: 39px;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  width: 155px;
+  padding: 5px;
+  border: 1px solid var(--ir-line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(12, 31, 28, .16);
+}
+.ir-action-menu button {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: #172320;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: left;
+}
+.ir-action-menu button:hover { background: #f1f5f4; }
+.ir-action-menu button.is-danger { color: #dc3636; }
+.ir-empty {
+  display: grid;
+  min-height: 280px;
+  margin-top: 14px;
+  place-items: center;
+  border: 1px dashed #cfd6d5;
+  border-radius: 13px;
+  background: #fff;
+  text-align: center;
+}
+.ir-empty-icon { color: var(--ir-green); }
+.ir-empty-icon svg { width: 38px; height: 38px; }
+.ir-empty h2 { margin: 12px 0 0; font-size: 18px; }
+.ir-empty p { margin: 7px 0 0; color: var(--ir-muted); font-size: 13px; }
+.ir-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 20, 18, .48);
+  backdrop-filter: blur(3px);
+}
+.ir-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border: 1px solid var(--ir-line);
+  border-radius: 15px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(5, 25, 22, .22);
+}
+.ir-modal.is-small { width: min(430px, 100%); }
+.ir-modal-title { margin: 0; color: var(--ir-ink) !important; font-size: 23px; line-height: 1.15; }
+.ir-modal-text { margin: 8px 0 20px; color: var(--ir-muted) !important; font-size: 13px; line-height: 1.5; }
+.ir-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.ir-field label { display: block; margin-bottom: 7px; color: #26312f; font-size: 12px; font-weight: 800; }
+.ir-field input, .ir-field select {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #d4dada;
+  border-radius: 9px;
+  padding: 0 12px;
+  outline: 0;
+  background: #fff;
+  color: var(--ir-ink);
+  font-size: 14px;
+}
+.ir-field input:focus, .ir-field select:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
+.ir-field-wide { grid-column: 1 / -1; }
+.ir-weekdays { display: flex; flex-wrap: wrap; gap: 7px; }
+.ir-weekday {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ir-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f8faf9;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+.ir-weekday input { width: auto; height: auto; margin: 0; accent-color: var(--ir-green); }
+.ir-edit-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid var(--ir-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #f7faf9;
+}
+.ir-edit-switch strong { display: block; font-size: 13px; }
+.ir-edit-switch span { display: block; margin-top: 3px; color: var(--ir-muted); font-size: 11px; }
+.ir-modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.ir-modal-actions .ir-secondary-button { margin-left: 0; }
+.ir-modal-actions .ir-danger-button { height: 38px; }
+
+@media (max-width: 1050px) {
+  .ir-content { padding-right: 24px; padding-left: 24px; }
+  .ir-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ir-table th, .ir-table td { padding-right: 9px; padding-left: 9px; }
+}
+@media (max-width: 820px) {
+  .ir-layout { min-height: calc(100vh - 60px); }
+  .ir-sidebar { display: none; }
+  .ir-content { padding: 24px 18px 38px; }
+  .ir-heading { align-items: flex-start; }
+  .ir-toolbar { flex-wrap: wrap; }
+  .ir-search { width: 100%; flex-basis: 100%; }
+  .ir-search { width: 100% !important; }
+  .ir-secondary-button { margin-left: 0; }
+  .ir-table-wrap { overflow-x: auto; }
+  .ir-table { min-width: 850px; }
+}
+@media (max-width: 560px) {
+  .ir-topbar { height: 56px; padding: 0 14px; }
+  .ir-brand { gap: 9px; }
+  .ir-system { gap: 8px; }
+  .ir-online { padding: 6px 8px; }
+  .ir-avatar { display: none; }
+  .ir-content { padding: 22px 14px 34px; }
+  .ir-heading { display: block; }
+  .ir-title { font-size: 27px; }
+  .ir-heading .ir-primary-button { width: 100%; margin-top: 18px; }
+  .ir-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 20px; }
+  .ir-stat { min-height: 76px; padding: 14px; }
+  .ir-stat-value { font-size: 20px; }
+  .ir-segmented { width: 100%; }
+  .ir-segmented button { flex: 1; padding: 0 7px; }
+  .ir-secondary-button { width: 100%; }
+  .ir-table-wrap { overflow: visible; border: 0; background: transparent; }
+  .ir-table { min-width: 0; }
+  .ir-table thead { display: none; }
+  .ir-table, .ir-table tbody, .ir-table tr, .ir-table td { display: block; width: 100%; }
+  .ir-table tr { margin-bottom: 10px; overflow: visible; border: 1px solid var(--ir-line); border-radius: 12px; background: #fff; }
+  .ir-table td { display: flex; height: auto; min-height: 50px; align-items: center; justify-content: space-between; gap: 15px; padding: 10px 13px; border-bottom: 1px solid #edf0f0; text-align: right; }
+  .ir-table tr.is-watering td { background: #f5fcf9; }
+  .ir-table td::before { content: attr(data-label); color: #8a9293; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+  .ir-table td:nth-child(3) { align-items: flex-start; }
+  .ir-table td:last-child { border-bottom: 0; }
+  .ir-row-actions { justify-content: flex-end; }
+  .ir-action-menu { right: 0; }
+  .ir-edit-grid { grid-template-columns: 1fr; }
+  .ir-field-wide { grid-column: auto; }
+  .ir-modal { padding: 20px 16px; }
+  .ir-modal-actions { display: grid; grid-template-columns: 1fr; }
+  .ir-modal-actions button { width: 100%; }
+}
+</style>
+
+<section class="ir-shell">
+  <header class="ir-topbar">
+    <div class="ir-brand">
+      <svg class="ir-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span class="ir-brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg>
+        <span>Irriga</span>
+      </span>
+    </div>
+    <div class="ir-system">
+      <div class="ir-online"><span class="ir-online-dot"></span>Sistema online</div>
+      <span class="ir-avatar">IR</span>
+    </div>
+  </header>
+
+  <div class="ir-layout">
+    <aside class="ir-sidebar">
+      <p class="ir-nav-label">Irrigação</p>
+      <nav class="ir-nav" aria-label="Navegação principal">
+        <button type="button" class="ir-nav-button is-active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+          Agendamentos
+        </button>
+        <a class="ir-nav-button" href="#!/1" ng-click="navigateToTab(1, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Novo agendamento
+        </a>
+        <a class="ir-nav-button" href="#!/2" ng-click="navigateToTab(2, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Histórico
+        </a>
+        <a class="ir-nav-button" href="#!/3" ng-click="navigateToTab(3, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/><path d="M8 13h3M13 13h3M8 17h3"/></svg>
+          Tempo padrão
+        </a>
+      </nav>
+
+      <div class="ir-next-card">
+        <p class="ir-next-card-label">Próxima rega</p>
+        <strong>{{ nextWateringCountdown() }}</strong>
+        <span>{{ nextWateringSection() }}</span>
+      </div>
+    </aside>
+
+    <main class="ir-content">
+      <div class="ir-heading">
+        <div>
+          <p class="ir-eyebrow">Irrigação</p>
+          <h1 class="ir-title">Agendamentos</h1>
+          <p class="ir-subtitle">Horários configurados para ligar as seções automaticamente.</p>
+        </div>
+        <a class="ir-primary-button" href="#!/1" ng-click="navigateToTab(1, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Novo agendamento
+        </a>
+      </div>
+
+      <div class="ir-stats">
+        <article class="ir-stat">
+          <span class="ir-stat-label">Ativos</span>
+          <div class="ir-stat-value">{{ activeScheduleCount() }}<small>agendamentos</small></div>
+        </article>
+        <article class="ir-stat">
+          <span class="ir-stat-label">Regando agora</span>
+          <div class="ir-stat-value"><span class="ir-live-dot" ng-if="wateringNowCount() > 0"></span>{{ wateringNowCount() }}<small>{{ wateringNowCount() === 1 ? "válvula" : "válvulas" }}</small></div>
+        </article>
+        <article class="ir-stat">
+          <span class="ir-stat-label">Água hoje</span>
+          <div class="ir-stat-value">{{ scheduledMinutesToday() }}<small>min programados</small></div>
+        </article>
+        <article class="ir-stat">
+          <span class="ir-stat-label">Próxima rega</span>
+          <div class="ir-stat-value">{{ nextWateringTime() }}<small>{{ nextWateringShortSection() }}</small></div>
+        </article>
+      </div>
+
+      <div class="ir-feedback is-error" ng-if="schedule_error">
+        <span>{{ schedule_error }}</span>
+        <button type="button" ng-click="dismissScheduleError()">Fechar</button>
+      </div>
+      <div class="ir-feedback is-loading" ng-if="editing_state.submitting">Salvando alterações...</div>
+      <div class="ir-feedback is-loading" ng-if="editing_state.enabled_submitting">Atualizando liga/desliga...</div>
+
+      <div class="ir-toolbar">
+        <label class="ir-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" ng-model="search_query" placeholder="Buscar seção ou horário..." aria-label="Buscar seção ou horário">
+        </label>
+        <div class="ir-segmented" aria-label="Filtrar agendamentos">
+          <button type="button" ng-class="{'is-active': schedule_filter === 'all'}" ng-click="schedule_filter = 'all'">Todos</button>
+          <button type="button" ng-class="{'is-active': schedule_filter === 'active'}" ng-click="schedule_filter = 'active'">Ativos</button>
+          <button type="button" ng-class="{'is-active': schedule_filter === 'paused'}" ng-click="schedule_filter = 'paused'">Pausados</button>
+        </div>
+        <button type="button" class="ir-secondary-button" ng-click="toggleSort()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+          Ordenar
+        </button>
+      </div>
+
+      <div class="ir-table-wrap" ng-if="!editing_state.editing && schedules.length > 0">
+        <table class="ir-table" id="table" border="0">
+          <colgroup><col style="width:14%"><col style="width:11%"><col style="width:24%"><col style="width:18%"><col style="width:18%"><col style="width:15%"></colgroup>
+          <thead>
+            <tr>
+              <th>Horário</th>
+              <th>Duração</th>
+              <th>Seção / válvula</th>
+              <th>Dias</th>
+              <th>Agendamento</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="schedule in visibleSchedules() track by schedule.id" ng-class="{'is-watering': sectionStatus(schedule) === 1}">
+              <td data-label="Horário">
+                <span class="ir-time">{{ schedule.time }}</span>
+                <span class="ir-time-note is-live" ng-if="sectionStatus(schedule) === 1">regando agora</span>
+                <span class="ir-time-note" ng-if="sectionStatus(schedule) !== 1">{{ scheduleDayNote(schedule) }}</span>
+              </td>
+              <td data-label="Duração">{{ schedule.duration_minutes }} min</td>
+              <td data-label="Seção">
+                <div class="ir-section">
+                  <span class="ir-section-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg>
+                  </span>
+                  <span class="ir-section-copy"><strong>{{ sectionName(schedule) }}</strong><span>Válvula {{ schedule.valve_pin }}</span></span>
+                </div>
+              </td>
+              <td data-label="Dias">
+                <span class="ir-sr-only" data-label="Dias">{{ formatWeekdays(schedule.weekdays) }}</span>
+                <span class="ir-every-day" ng-if="isEveryday(schedule.weekdays)">Todos os dias</span>
+                <div class="ir-days" ng-if="!isEveryday(schedule.weekdays)">
+                  <span class="ir-day" ng-repeat="weekday in weekday_options track by weekday.id" ng-class="{'is-active': isWeekdaySelected(schedule.weekdays, weekday.id)}">{{ weekday.label.charAt(0) }}</span>
+                </div>
+                <span class="ir-sr-only">{{ formatWeekdays(schedule.weekdays) }}</span>
+              </td>
+              <td data-label="Agendamento">
+                <span class="ir-sr-only" ng-if="isScheduleEnabled(schedule)">Ativo</span>
+                <span class="ir-sr-only" ng-if="!isScheduleEnabled(schedule)">Inativo</span>
+                <span class="ir-sr-only" ng-if="sectionStatus(schedule) === 0">Desligada</span>
+                <span class="ir-sr-only" ng-if="sectionStatus(schedule) === 1">Ligada</span>
+                <span class="ir-status ir-status-watering" ng-if="sectionStatus(schedule) === 1">Regando agora</span>
+                <span class="ir-status ir-status-on" ng-if="sectionStatus(schedule) !== 1 && isScheduleEnabled(schedule)">Ativo</span>
+                <span class="ir-status ir-status-off" ng-if="sectionStatus(schedule) !== 1 && !isScheduleEnabled(schedule)">Inativo</span>
+              </td>
+              <td data-label="Ações">
+                <div class="ir-row-actions">
+                  <button type="button" class="ir-danger-button" ng-if="sectionStatus(schedule) === 1" ng-disabled="manual_pending[schedule.id]" ng-click="send({payload:turnScheduleOff(schedule)})">
+                    <span>□</span>{{ manual_pending[schedule.id] === "off" ? "Desligando..." : "Desligar agora" }}
+                  </button>
+                  <label class="ir-switch" ng-if="sectionStatus(schedule) !== 1" title="Ativar ou pausar agendamento">
+                    <input type="checkbox" ng-checked="isScheduleEnabled(schedule)" ng-disabled="editing_state.enabled_submitting" ng-click="send({payload:toggleScheduleEnabled(schedule)})">
+                    <span class="ir-switch-slider"></span>
+                  </label>
+                  <button type="button" class="ir-icon-button" aria-label="Editar agendamento" ng-click="send({payload:sendData(schedule)})">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 20 4.2-1 10.6-10.6a2 2 0 0 0-2.8-2.8L5.4 16.2 4 20Z"/><path d="m14.8 6.8 2.8 2.8"/></svg>
+                  </button>
+                  <button type="button" class="ir-icon-button" aria-label="Mais ações" ng-click="toggleActionMenu(schedule, $event)">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                  </button>
+                  <div class="ir-action-menu" ng-if="action_menu_id === schedule.id">
+                    <button type="button" ng-if="sectionStatus(schedule) !== 1" ng-disabled="manual_pending[schedule.id]" ng-click="openManualDuration(schedule)">{{ manual_pending[schedule.id] === "on" ? "Ligando..." : "Ligar agora" }}</button>
+                    <button type="button" class="is-danger" ng-click="openDeleteConfirmation(schedule)">Excluir agendamento</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ir-empty" ng-if="!editing_state.editing && schedules.length === 0">
+        <div>
+          <div class="ir-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></div>
+          <h2>Nenhum agendamento cadastrado</h2>
+          <p>Crie um novo horário para automatizar a irrigação de uma seção.</p>
+        </div>
+      </div>
+
+      <div class="ir-empty" ng-if="!editing_state.editing && schedules.length > 0 && visibleSchedules().length === 0">
+        <div><h2>Nenhum resultado encontrado</h2><p>Tente alterar a busca ou o filtro selecionado.</p></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<div class="ir-modal-backdrop" ng-if="manual_state.open" ng-click="closeManualDuration()">
+  <div class="ir-modal is-small" ng-click="$event.stopPropagation()">
+    <p class="ir-eyebrow">Acionamento manual</p>
+    <h2 class="ir-modal-title">Ligar {{ manual_state.section }}</h2>
+    <p class="ir-modal-text">Confirme ou altere por quantos minutos a irrigação deve ficar ligada agora.</p>
+    <div class="ir-field"><label>Tempo ligado agora (min)</label><input type="number" min="1" step="1" ng-model="manual_state.duration_minutes"></div>
+    <div class="ir-modal-actions">
+      <button type="button" class="ir-secondary-button" ng-click="closeManualDuration()">Cancelar</button>
+      <button type="button" class="ir-primary-button" ng-disabled="!manual_state.duration_minutes || manual_state.duration_minutes < 1" ng-click="send({payload:confirmManualDuration()})">Ligar agora</button>
+    </div>
+  </div>
+</div>
+
+<div class="ir-modal-backdrop" ng-if="delete_state.open" ng-click="closeDeleteConfirmation()">
+  <div class="ir-modal is-small" ng-click="$event.stopPropagation()">
+    <p class="ir-eyebrow">Excluir agendamento</p>
+    <h2 class="ir-modal-title">Confirmar exclusão?</h2>
+    <p class="ir-modal-text">O agendamento das {{ delete_state.time }} para {{ delete_state.section }} será removido. Esta ação não pode ser desfeita.</p>
+    <div class="ir-modal-actions">
+      <button type="button" class="ir-secondary-button" ng-click="closeDeleteConfirmation()">Cancelar</button>
+      <button type="button" class="ir-danger-button" ng-click="send({payload:confirmDeleteSchedule()})">Excluir agendamento</button>
+    </div>
+  </div>
+</div>
+
+<form ng-show="editing_state.editing" class="ir-modal-backdrop" id="form-editSchedule" ng-click="cancelEdit()">
+  <div class="ir-modal" ng-click="$event.stopPropagation()">
+    <p class="ir-eyebrow">Edição</p>
+    <h2 class="ir-modal-title">Editar agendamento</h2>
+    <p class="ir-modal-text">Atualize o horário, a duração, a seção e os dias da semana.</p>
+    <div class="ir-edit-grid">
+      <div class="ir-field"><label>Horário</label><input type="time" name="time" ng-model="schedule_form.time"></div>
+      <div class="ir-field"><label>Tempo ligado (min)</label><input type="number" min="1" name="duration_minutes" ng-model="schedule_form.duration_minutes"></div>
+      <div class="ir-field ir-field-wide">
+        <label>Seção / válvula</label>
+        <select name="valve_pin" ng-model="schedule_form.valve_pin"><option ng-repeat="valve in valves track by valve.pin" ng-value="+valve.pin">{{ valve.section }} · Válvula {{ valve.pin }}</option></select>
+      </div>
+      <div class="ir-field ir-field-wide">
+        <div class="ir-edit-switch">
+          <div><strong>Agendamento automático</strong><span>{{ schedule_form.enabled ? "Ligado" : "Desligado" }} — controla a execução automática.</span></div>
+          <label class="ir-switch"><input type="checkbox" name="enabled" ng-model="schedule_form.enabled" ng-disabled="editing_state.enabled_submitting" ng-change="send({payload:toggleEnabled(schedule_form)})"><span class="ir-switch-slider"></span></label>
+        </div>
+      </div>
+      <div class="ir-field ir-field-wide">
+        <label>Dias da semana</label>
+        <div class="ir-weekdays">
+          <label class="ir-weekday"><input type="checkbox" ng-checked="isEveryday(schedule_form.weekdays)" ng-click="selectEveryday(schedule_form)"> Todos os dias</label>
+          <label class="ir-weekday" ng-repeat="weekday in weekday_options track by weekday.id"><input type="checkbox" ng-checked="isWeekdaySelected(schedule_form.weekdays, weekday.id)" ng-click="toggleWeekday(schedule_form, weekday.id)"> {{ weekday.label }}</label>
+        </div>
+      </div>
+    </div>
+    <div class="ir-modal-actions">
+      <button type="button" class="ir-secondary-button" ng-disabled="editing_state.submitting" ng-click="cancelEdit()">Cancelar</button>
+      <button type="button" class="ir-primary-button" ng-disabled="editing_state.submitting || !schedule_form.time || !schedule_form.duration_minutes || !schedule_form.valve_pin || !hasSelectedWeekday(schedule_form.weekdays)" ng-click="send({payload:editSchedule(schedule_form)})">{{ editing_state.submitting ? "Salvando..." : "Salvar alterações" }}</button>
+    </div>
+  </div>
+</form>
+
+<script>
+(function(scope) {
+  scope.schedules = scope.schedules || [];
+  scope.valves = scope.valves || [];
+  scope.weekday_options = [
+    { id: "mon", label: "Seg" },
+    { id: "tue", label: "Ter" },
+    { id: "wed", label: "Qua" },
+    { id: "thu", label: "Qui" },
+    { id: "fri", label: "Sex" },
+    { id: "sat", label: "Sáb" },
+    { id: "sun", label: "Dom" }
+  ];
+  scope.schedule_form = scope.schedule_form || { id: "", time: "", duration_minutes: "", valve_pin: "", status: "", enabled: true, weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
+  scope.editing_state = scope.editing_state || { editing: false, submitting: false, enabled_submitting: false };
+  scope.manual_state = scope.manual_state || { open: false, schedule: null, section: "", duration_minutes: 10 };
+  scope.manual_pending = scope.manual_pending || {};
+  scope.manual_pending_timers = scope.manual_pending_timers || {};
+  scope.manual_pending_timeout_ms = 15000;
+  scope.delete_state = scope.delete_state || { open: false, schedule: null, time: "", section: "" };
+  scope.schedule_error = scope.schedule_error || null;
+  scope.schedule_filter = scope.schedule_filter || "all";
+  scope.search_query = scope.search_query || "";
+  scope.sort_ascending = scope.sort_ascending !== false;
+  scope.action_menu_id = scope.action_menu_id || null;
+
+  scope.$watch("msg", function(msg) {
+    if (!msg) return;
+    if (msg.topic === "schedule_error" || msg.topic === "schedule_update_error" || msg.topic === "schedule_enabled_error") {
+      scope.editing_state.submitting = false;
+      scope.editing_state.enabled_submitting = false;
+      scope.schedule_error = msg.payload || null;
+      return;
+    }
+    if (msg.topic === "schedule_enabled") {
+      scope.applyEnabledFeedback(msg.payload);
+      return;
+    }
+    if (msg.topic === "manual_feedback") {
+      scope.applyManualFeedback(msg.payload);
+      return;
+    }
+    if (!Array.isArray(msg.payload)) return;
+    if (msg.topic === "valves") {
+      scope.valves = msg.payload;
+      return;
+    }
+    scope.schedule_error = null;
+    scope.schedules = msg.payload;
+    if (scope.editing_state.submitting) {
+      scope.editing_state.submitting = false;
+      scope.editing_state.editing = false;
+    }
+    scope.editing_state.enabled_submitting = false;
+  });
+
+  scope.navigateToTab = function(index, event) {
+    if (event) event.preventDefault();
+    window.location.hash = "#!/" + index;
+    window.location.reload();
+  };
+  scope.findValve = function(schedule) {
+    var pin = String(schedule.valve_pin || "");
+    for (var i = 0; i < scope.valves.length; i += 1) {
+      if (String(scope.valves[i].pin) === pin) return scope.valves[i];
+    }
+    return null;
+  };
+  scope.sectionName = function(schedule) {
+    var valve = scope.findValve(schedule);
+    return valve && valve.section ? valve.section : "Válvula " + schedule.valve_pin;
+  };
+  scope.sectionLabel = function(schedule) {
+    var valve = scope.findValve(schedule);
+    if (valve && valve.section) return valve.section + " (Válvula " + valve.pin + ")";
+    return "Válvula " + schedule.valve_pin;
+  };
+  scope.normalizeWeekdays = function(values) {
+    if (!Array.isArray(values)) return scope.weekday_options.map(function(weekday) { return weekday.id; });
+    return scope.weekday_options.map(function(weekday) { return weekday.id; }).filter(function(id) { return values.indexOf(id) !== -1; });
+  };
+  scope.hasSelectedWeekday = function(values) { return scope.normalizeWeekdays(values).length > 0; };
+  scope.isEveryday = function(values) { return scope.normalizeWeekdays(values).length === scope.weekday_options.length; };
+  scope.isWeekdaySelected = function(values, id) { return scope.normalizeWeekdays(values).indexOf(id) !== -1; };
+  scope.selectEveryday = function(form) { form.weekdays = scope.weekday_options.map(function(weekday) { return weekday.id; }); };
+  scope.toggleWeekday = function(form, id) {
+    var values = scope.normalizeWeekdays(form.weekdays);
+    var index = values.indexOf(id);
+    if (index === -1) values.push(id); else values.splice(index, 1);
+    form.weekdays = scope.normalizeWeekdays(values);
+  };
+  scope.formatWeekdays = function(values) {
+    var selected = scope.normalizeWeekdays(values);
+    if (selected.length === scope.weekday_options.length) return "Todos os dias";
+    if (!selected.length) return "Nenhum dia";
+    return scope.weekday_options.filter(function(weekday) { return selected.indexOf(weekday.id) !== -1; }).map(function(weekday) { return weekday.label; }).join(", ");
+  };
+  scope.isScheduleEnabled = function(schedule) {
+    if (!schedule || !Object.prototype.hasOwnProperty.call(schedule, "enabled")) return true;
+    return schedule.enabled === true || Number(schedule.enabled) === 1;
+  };
+  scope.sectionStatus = function(schedule) {
+    if (!Object.prototype.hasOwnProperty.call(schedule, "status")) return null;
+    return schedule.status === true || Number(schedule.status) === 1 ? 1 : 0;
+  };
+  scope.activeScheduleCount = function() { return scope.schedules.filter(scope.isScheduleEnabled).length; };
+  scope.wateringNowCount = function() { return scope.schedules.filter(function(schedule) { return scope.sectionStatus(schedule) === 1; }).length; };
+  scope.currentWeekdayId = function(date) { return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][date.getDay()]; };
+  scope.scheduledMinutesToday = function() {
+    var today = scope.currentWeekdayId(new Date());
+    return scope.schedules.reduce(function(total, schedule) {
+      return total + (scope.isScheduleEnabled(schedule) && scope.isWeekdaySelected(schedule.weekdays, today) ? (parseInt(schedule.duration_minutes, 10) || 0) : 0);
+    }, 0);
+  };
+  scope.nextWatering = function() {
+    var now = new Date();
+    var candidate = null;
+    scope.schedules.forEach(function(schedule) {
+      if (!scope.isScheduleEnabled(schedule) || !schedule.time) return;
+      var parts = String(schedule.time).split(":");
+      for (var offset = 0; offset <= 7; offset += 1) {
+        var date = new Date(now);
+        date.setDate(now.getDate() + offset);
+        date.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+        if (date <= now || !scope.isWeekdaySelected(schedule.weekdays, scope.currentWeekdayId(date))) continue;
+        if (!candidate || date < candidate.date) candidate = { schedule: schedule, date: date };
+        break;
+      }
+    });
+    return candidate;
+  };
+  scope.nextWateringTime = function() { var next = scope.nextWatering(); return next ? next.schedule.time : "--:--"; };
+  scope.nextWateringShortSection = function() { var next = scope.nextWatering(); return next ? scope.sectionName(next.schedule) : "sem previsão"; };
+  scope.nextWateringSection = function() { var next = scope.nextWatering(); return next ? scope.sectionName(next.schedule) + " · " + next.schedule.time : "Nenhuma rega programada"; };
+  scope.nextWateringCountdown = function() {
+    var next = scope.nextWatering();
+    if (!next) return "--";
+    var minutes = Math.max(1, Math.round((next.date.getTime() - Date.now()) / 60000));
+    var days = Math.floor(minutes / 1440);
+    var hours = Math.floor((minutes % 1440) / 60);
+    var mins = minutes % 60;
+    if (days) return "em " + days + "d " + hours + "h";
+    if (hours) return "em " + hours + "h " + mins + "min";
+    return "em " + mins + "min";
+  };
+  scope.scheduleDayNote = function(schedule) {
+    if (!scope.isScheduleEnabled(schedule)) return "pausado";
+    var today = scope.currentWeekdayId(new Date());
+    return scope.isWeekdaySelected(schedule.weekdays, today) ? "hoje" : "próxima execução";
+  };
+  scope.visibleSchedules = function() {
+    var query = String(scope.search_query || "").toLowerCase().trim();
+    var filtered = scope.schedules.filter(function(schedule) {
+      var enabled = scope.isScheduleEnabled(schedule);
+      if (scope.schedule_filter === "active" && !enabled) return false;
+      if (scope.schedule_filter === "paused" && enabled) return false;
+      if (!query) return true;
+      return (String(schedule.time || "") + " " + scope.sectionLabel(schedule)).toLowerCase().indexOf(query) !== -1;
+    });
+    return filtered.slice().sort(function(a, b) {
+      var result = String(a.time || "").localeCompare(String(b.time || ""));
+      return scope.sort_ascending ? result : -result;
+    });
+  };
+  scope.toggleSort = function() { scope.sort_ascending = !scope.sort_ascending; };
+  scope.toggleActionMenu = function(schedule, event) {
+    if (event) event.stopPropagation();
+    scope.action_menu_id = scope.action_menu_id === schedule.id ? null : schedule.id;
+  };
+
+  scope.clearManualPending = function(id) {
+    if (id === null || id === undefined) return;
+    var key = String(id);
+    if (scope.manual_pending_timers[key]) { clearTimeout(scope.manual_pending_timers[key]); delete scope.manual_pending_timers[key]; }
+    delete scope.manual_pending[key];
+  };
+  scope.startManualPending = function(schedule, action) {
+    if (!schedule || schedule.id === null || schedule.id === undefined) return;
+    var key = String(schedule.id);
+    scope.clearManualPending(key);
+    scope.manual_pending[key] = action;
+    scope.manual_pending_timers[key] = setTimeout(function() {
+      if (typeof scope.$applyAsync === "function") scope.$applyAsync(function() { scope.clearManualPending(key); }); else scope.clearManualPending(key);
+    }, scope.manual_pending_timeout_ms);
+  };
+  scope.applyManualFeedback = function(payload) {
+    if (!payload || !payload.id) return;
+    for (var i = 0; i < scope.schedules.length; i += 1) {
+      if (String(scope.schedules[i].id) === String(payload.id)) scope.schedules[i].status = payload.action === "on" ? 1 : 0;
+    }
+    scope.clearManualPending(payload.id);
+  };
+  scope.applyEnabledFeedback = function(payload) {
+    if (!payload || !payload.id) return;
+    var enabled = payload.enabled === true || Number(payload.enabled) === 1;
+    for (var i = 0; i < scope.schedules.length; i += 1) {
+      if (String(scope.schedules[i].id) === String(payload.id)) scope.schedules[i].enabled = enabled ? 1 : 0;
+    }
+    if (String(scope.schedule_form.id) === String(payload.id)) scope.schedule_form.enabled = enabled;
+    scope.editing_state.enabled_submitting = false;
+  };
+  scope.sendId = function(id) { return { ui_action: "delete", id: id }; };
+  scope.openDeleteConfirmation = function(schedule) {
+    scope.action_menu_id = null;
+    scope.delete_state.open = true;
+    scope.delete_state.schedule = schedule;
+    scope.delete_state.time = schedule.time || "--:--";
+    scope.delete_state.section = scope.sectionLabel(schedule);
+  };
+  scope.closeDeleteConfirmation = function() { scope.delete_state.open = false; scope.delete_state.schedule = null; };
+  scope.dismissScheduleError = function() { scope.schedule_error = null; };
+  scope.confirmDeleteSchedule = function() {
+    var schedule = scope.delete_state.schedule;
+    if (!schedule) return null;
+    scope.closeDeleteConfirmation();
+    return scope.sendId(schedule.id);
+  };
+  scope.cancelEdit = function() {
+    if (scope.editing_state.submitting) return;
+    scope.editing_state.editing = false;
+    scope.editing_state.submitting = false;
+    scope.editing_state.enabled_submitting = false;
+  };
+  scope.toEditTimeValue = function(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    var match = String(value).match(/^(\d{2}):(\d{2})/);
+    if (!match) return null;
+    var date = new Date();
+    date.setHours(parseInt(match[1], 10), parseInt(match[2], 10), 0, 0);
+    return date;
+  };
+  scope.formatEditTime = function(value) {
+    if (!value) return "";
+    if (typeof value === "string" && /^\d{2}:\d{2}/.test(value)) return value.slice(0, 5);
+    var date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) return "";
+    return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  };
+  scope.sendData = function(schedule) {
+    scope.schedule_error = null;
+    scope.editing_state.submitting = false;
+    scope.schedule_form.id = schedule.id;
+    scope.schedule_form.time = scope.toEditTimeValue(schedule.time);
+    scope.schedule_form.duration_minutes = parseInt(schedule.duration_minutes, 10) || null;
+    scope.schedule_form.valve_pin = parseInt(schedule.valve_pin, 10) || null;
+    scope.schedule_form.weekdays = scope.normalizeWeekdays(schedule.weekdays);
+    scope.schedule_form.status = schedule.status;
+    scope.schedule_form.enabled = scope.isScheduleEnabled(schedule);
+    scope.editing_state.editing = true;
+    return null;
+  };
+  scope.toggleEnabled = function(schedule) {
+    scope.schedule_error = null;
+    scope.editing_state.enabled_submitting = true;
+    return { ui_action: "toggle_enabled", id: schedule.id, enabled: schedule.enabled ? 1 : 0 };
+  };
+  scope.toggleScheduleEnabled = function(schedule) {
+    scope.schedule_error = null;
+    scope.editing_state.enabled_submitting = true;
+    return { ui_action: "toggle_enabled", id: schedule.id, enabled: scope.isScheduleEnabled(schedule) ? 0 : 1 };
+  };
+  scope.editSchedule = function(schedule) {
+    scope.schedule_error = null;
+    scope.editing_state.submitting = true;
+    return { ui_action: "edit", id: schedule.id, time: scope.formatEditTime(schedule.time), duration_minutes: schedule.duration_minutes, valve_pin: schedule.valve_pin, weekdays: scope.normalizeWeekdays(schedule.weekdays), status: schedule.status };
+  };
+  scope.openManualDuration = function(schedule) {
+    scope.action_menu_id = null;
+    scope.manual_state.open = true;
+    scope.manual_state.schedule = schedule;
+    scope.manual_state.section = scope.sectionLabel(schedule);
+    scope.manual_state.duration_minutes = parseInt(schedule.duration_minutes, 10) || 10;
+  };
+  scope.closeManualDuration = function() { scope.manual_state.open = false; scope.manual_state.schedule = null; };
+  scope.confirmManualDuration = function() {
+    var schedule = scope.manual_state.schedule;
+    var duration = parseInt(scope.manual_state.duration_minutes, 10);
+    if (!schedule || !duration || duration < 1 || scope.manual_pending[schedule.id]) return null;
+    scope.startManualPending(schedule, "on");
+    scope.closeManualDuration();
+    return { ui_action: "manual", action: "on", id: schedule.id, valve_pin: schedule.valve_pin, duration_minutes: duration };
+  };
+  scope.turnScheduleOff = function(schedule) {
+    if (!schedule || scope.manual_pending[schedule.id]) return null;
+    scope.startManualPending(schedule, "off");
+    return { ui_action: "manual", action: "off", id: schedule.id, valve_pin: schedule.valve_pin };
+  };
+})(scope);
+</script>

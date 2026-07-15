@@ -1,0 +1,392 @@
+<style>
+:root {
+  --ir-green: #11877d;
+  --ir-green-dark: #0d756c;
+  --ir-ink: #071a18;
+  --ir-muted: #6c7476;
+  --ir-line: #e1e5e5;
+  --ir-canvas: #edf1f3;
+  --ir-panel: #f8fafb;
+  --ir-white: #fff;
+}
+
+body.nr-dashboard-theme {
+  background: var(--ir-canvas) !important;
+  color: var(--ir-ink);
+  font-family: Inter, Roboto, Arial, sans-serif;
+}
+#nr-dashboard md-toolbar,
+#nr-dashboard md-sidenav { display: none !important; }
+#nr-dashboard md-content { overflow-x: hidden !important; }
+.nr-dashboard-theme .masonry-container { width: 100% !important; max-width: none !important; margin: 0 !important; }
+.nr-dashboard-theme ui-card-panel { position: relative !important; inset: auto !important; display: block !important; width: 100% !important; margin: 0 !important; }
+.nr-dashboard-theme .nr-dashboard-cardpanel,
+.nr-dashboard-theme .nr-dashboard-cardcontainer { width: 100% !important; height: auto !important; min-height: 0 !important; background: transparent !important; }
+.nr-dashboard-theme md-card.nr-dashboard-template {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell p,
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell h1,
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell h2,
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell h3,
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell h4 { background-color: transparent !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-history-shell svg path { fill: none !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-eyebrow,
+.nr-dashboard-theme .nr-dashboard-template .ir-side-card-label { color: var(--ir-green) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-title { color: var(--ir-ink) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-subtitle { color: var(--ir-muted) !important; }
+
+.ir-history-shell, .ir-history-shell * { box-sizing: border-box !important; }
+.ir-history-shell {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ir-panel);
+}
+.ir-topbar {
+  display: flex;
+  height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  background: var(--ir-green);
+  color: #fff;
+}
+.ir-brand, .ir-system, .ir-brand-mark, .ir-online { display: flex; align-items: center; }
+.ir-brand { gap: 12px; color: #fff; font-size: 16px; font-weight: 800; text-decoration: none; }
+.ir-brand-mark { gap: 10px; }
+.ir-brand svg { width: 21px; height: 21px; }
+.ir-system { gap: 14px; }
+.ir-online { gap: 7px; padding: 7px 11px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-size: 12px; font-weight: 700; }
+.ir-online-dot { width: 8px; height: 8px; border-radius: 50%; background: #6df0a9; box-shadow: 0 0 0 4px rgba(109, 240, 169, .13); }
+.ir-avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .16); font-size: 11px; font-weight: 800; }
+.ir-layout { display: flex; min-height: calc(100vh - 60px); }
+.ir-sidebar {
+  display: flex;
+  width: 240px;
+  flex: 0 0 240px;
+  flex-direction: column;
+  padding: 22px 14px;
+  border-right: 1px solid var(--ir-line);
+  background: #f6f8f9;
+}
+.ir-nav-label { margin: 0 10px 10px; color: #9aa2a4; font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.ir-nav { display: grid; gap: 3px; }
+.ir-nav-button {
+  display: flex;
+  width: 100%;
+  height: 41px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: transparent;
+  color: #13211f;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+.ir-nav-button:hover { background: #edf2f1; }
+.ir-nav-button.is-active { background: var(--ir-green); color: #fff; }
+.ir-nav-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.ir-side-card { margin-top: auto; padding: 16px 14px; border: 1px solid var(--ir-line); border-radius: 11px; background: #fff; }
+.ir-side-card-label { margin: 0 0 8px; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.ir-side-card strong { display: block; font-size: 20px; line-height: 1.1; }
+.ir-side-card span { display: block; margin-top: 6px; color: var(--ir-muted); font-size: 12px; }
+.ir-content { min-width: 0; flex: 1; padding: clamp(28px, 3vw, 52px) clamp(24px, 4vw, 64px) 52px; }
+.ir-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; }
+.ir-eyebrow { margin: 0 0 5px; font-size: 11px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.ir-title { margin: 0; font-size: 31px; font-weight: 850; line-height: 1.05; }
+.ir-subtitle { margin: 8px 0 0; font-size: 14px; }
+.ir-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+.ir-stat { min-height: 82px; padding: 17px 18px; border: 1px solid var(--ir-line); border-radius: 12px; background: #fff; }
+.ir-stat-label { display: block; margin-bottom: 7px; color: var(--ir-muted); font-size: 12px; }
+.ir-stat-value { color: #071614; font-size: 23px; font-weight: 850; line-height: 1; }
+.ir-stat-value small { margin-left: 5px; color: #858d8f; font-size: 11px; font-weight: 500; }
+.ir-filter-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--ir-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.ir-field label { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; color: #26312f; font-size: 11px; font-weight: 850; }
+.ir-field label svg { width: 14px; height: 14px; color: var(--ir-green); }
+.ir-input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  padding: 0 12px;
+  outline: 0;
+  background: #fff;
+  color: var(--ir-ink);
+  font: inherit;
+  font-size: 13px;
+}
+.ir-input:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
+.ir-actions { display: flex; gap: 9px; }
+.ir-primary-button, .ir-secondary-button {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 0 15px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+.ir-primary-button { border: 0; background: var(--ir-green); color: #fff; box-shadow: 0 5px 12px rgba(17, 135, 125, .2); }
+.ir-primary-button:hover { background: var(--ir-green-dark); }
+.ir-secondary-button { border: 1px solid #d9dede; background: #fff; color: #172321; }
+.ir-primary-button svg, .ir-secondary-button svg { width: 15px; height: 15px; }
+.ir-results-toolbar { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.ir-results-title { margin: 0; color: var(--ir-ink) !important; font-size: 16px; font-weight: 850; }
+.ir-results-count { padding: 5px 9px; border-radius: 999px; background: #e4f5f1; color: var(--ir-green-dark); font-size: 10px; font-weight: 850; }
+.ir-search { position: relative; width: 310px; margin-left: auto; }
+.ir-search svg { position: absolute; top: 50%; left: 13px; width: 16px; height: 16px; color: #899193; transform: translateY(-50%); }
+.ir-search input { width: 100%; height: 38px; border: 1px solid #d9dede; border-radius: 9px; padding: 0 12px 0 36px; outline: 0; background: #fff; color: var(--ir-ink); font-size: 13px; }
+.ir-search input:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
+.ir-table-wrap { margin-top: 12px; overflow: hidden; border: 1px solid var(--ir-line); border-radius: 13px; background: #fff; }
+.ir-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.ir-table th { height: 42px; padding: 0 14px; border-bottom: 1px solid var(--ir-line); background: #f5f7f8; color: #697173; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
+.ir-table td { height: 64px; padding: 10px 14px; border-bottom: 1px solid #edf0f0; color: #101b19; font-size: 12px; vertical-align: middle; }
+.ir-table tr:last-child td { border-bottom: 0; }
+.ir-table tbody tr:hover td { background: #f8fbfa; }
+.ir-valve { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.ir-valve-icon { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: 9px; background: #e5f4f1; color: var(--ir-green); }
+.ir-valve-icon svg { width: 16px; height: 16px; }
+.ir-valve strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.ir-date { display: block; font-weight: 800; }
+.ir-date-note { display: block; margin-top: 3px; color: #92999b; font-size: 10px; }
+.ir-time { font-size: 14px; font-weight: 800; }
+.ir-duration { color: #687173; }
+.ir-mode { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 9px; font-size: 10px; font-weight: 850; white-space: nowrap; }
+.ir-mode::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ir-mode-automatic { background: #e2f7ef; color: #099b6c; }
+.ir-mode-manual { background: #eef1f7; color: #65728a; }
+.ir-empty { display: grid; min-height: 280px; margin-top: 12px; place-items: center; border: 1px dashed #cfd6d5; border-radius: 13px; background: #fff; text-align: center; }
+.ir-empty svg { width: 38px; height: 38px; color: var(--ir-green); }
+.ir-empty h2 { margin: 12px 0 0; color: var(--ir-ink) !important; font-size: 18px; }
+.ir-empty p { margin: 7px 0 0; color: var(--ir-muted) !important; font-size: 13px; }
+
+@media (max-width: 1050px) {
+  .ir-content { padding-right: 24px; padding-left: 24px; }
+  .ir-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ir-filter-card { grid-template-columns: 1fr 1fr; }
+  .ir-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+@media (max-width: 820px) {
+  .ir-sidebar { display: none; }
+  .ir-content { padding: 24px 18px 38px; }
+  .ir-results-toolbar { flex-wrap: wrap; }
+  .ir-search { width: 100%; margin-left: 0; }
+  .ir-table-wrap { overflow-x: auto; }
+  .ir-table { min-width: 760px; }
+}
+@media (max-width: 560px) {
+  .ir-topbar { height: 56px; padding: 0 14px; }
+  .ir-system { gap: 8px; }
+  .ir-online { padding: 6px 8px; }
+  .ir-avatar { display: none; }
+  .ir-content { padding: 22px 14px 34px; }
+  .ir-title { font-size: 27px; }
+  .ir-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 20px; }
+  .ir-stat { min-height: 76px; padding: 14px; }
+  .ir-stat-value { font-size: 20px; }
+  .ir-filter-card { grid-template-columns: 1fr; padding: 14px; }
+  .ir-actions { grid-column: auto; display: grid; grid-template-columns: 1fr 1fr; }
+  .ir-actions button { width: 100%; }
+  .ir-table-wrap { overflow: visible; border: 0; background: transparent; }
+  .ir-table { min-width: 0; }
+  .ir-table thead { display: none; }
+  .ir-table, .ir-table tbody, .ir-table tr, .ir-table td { display: block; width: 100%; }
+  .ir-table tr { margin-bottom: 10px; overflow: hidden; border: 1px solid var(--ir-line); border-radius: 12px; background: #fff; }
+  .ir-table td { display: flex; height: auto; min-height: 48px; align-items: center; justify-content: space-between; gap: 15px; padding: 10px 13px; border-bottom: 1px solid #edf0f0; text-align: right; }
+  .ir-table td::before { content: attr(data-label); color: #8a9293; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+  .ir-table td:last-child { border-bottom: 0; }
+  .ir-valve { justify-content: flex-end; }
+}
+</style>
+
+<section class="ir-history-shell">
+  <header class="ir-topbar">
+    <a class="ir-brand" href="#!/0" ng-click="navigateToTab(0, $event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span class="ir-brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg><span>Irriga</span></span>
+    </a>
+    <div class="ir-system"><div class="ir-online"><span class="ir-online-dot"></span>Sistema online</div><span class="ir-avatar">IR</span></div>
+  </header>
+
+  <div class="ir-layout">
+    <aside class="ir-sidebar">
+      <p class="ir-nav-label">Irrigação</p>
+      <nav class="ir-nav" aria-label="Navegação principal">
+        <a class="ir-nav-button" href="#!/0" ng-click="navigateToTab(0, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Agendamentos
+        </a>
+        <a class="ir-nav-button" href="#!/1" ng-click="navigateToTab(1, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Novo agendamento
+        </a>
+        <a class="ir-nav-button is-active" href="#!/2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico
+        </a>
+        <a class="ir-nav-button" href="#!/3" ng-click="navigateToTab(3, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/><path d="M8 13h3M13 13h3M8 17h3"/></svg>Tempo padrão
+        </a>
+      </nav>
+      <div class="ir-side-card">
+        <p class="ir-side-card-label">Registros exibidos</p>
+        <strong>{{ history_records.length }}</strong>
+        <span>{{ filter_description }}</span>
+      </div>
+    </aside>
+
+    <main class="ir-content">
+      <div class="ir-heading">
+        <div><p class="ir-eyebrow">Irrigação</p><h1 class="ir-title">Histórico</h1><p class="ir-subtitle">Consulte os acionamentos realizados e acompanhe o uso das seções.</p></div>
+      </div>
+
+      <div class="ir-stats">
+        <article class="ir-stat"><span class="ir-stat-label">Registros</span><div class="ir-stat-value">{{ history_records.length }}<small>acionamentos</small></div></article>
+        <article class="ir-stat"><span class="ir-stat-label">Automáticos</span><div class="ir-stat-value">{{ automaticCount() }}<small>execuções</small></div></article>
+        <article class="ir-stat"><span class="ir-stat-label">Manuais</span><div class="ir-stat-value">{{ manualCount() }}<small>execuções</small></div></article>
+        <article class="ir-stat"><span class="ir-stat-label">Tempo irrigado</span><div class="ir-stat-value">{{ totalMinutes() }}<small>minutos</small></div></article>
+      </div>
+
+      <form class="ir-filter-card">
+        <div class="ir-field">
+          <label for="start_date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Data inicial</label>
+          <input class="ir-input" type="date" id="start_date" ng-model="start_date">
+        </div>
+        <div class="ir-field">
+          <label for="end_date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Data final</label>
+          <input class="ir-input" type="date" id="end_date" ng-model="end_date">
+        </div>
+        <div class="ir-actions">
+          <button type="button" class="ir-secondary-button" ng-click="filterToday()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoje</button>
+          <button type="button" class="ir-primary-button" ng-click="filterRange()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Pesquisar</button>
+        </div>
+      </form>
+
+      <div class="ir-results-toolbar">
+        <h2 class="ir-results-title">Acionamentos</h2><span class="ir-results-count">{{ visibleHistory().length }} registros</span>
+        <label class="ir-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" ng-model="history_query" placeholder="Buscar seção ou modo..." aria-label="Buscar histórico"></label>
+      </div>
+
+      <div class="ir-table-wrap" ng-if="history_records.length > 0 && visibleHistory().length > 0">
+        <table class="ir-table" id="table" border="0">
+          <colgroup><col style="width:25%"><col style="width:15%"><col style="width:10%"><col style="width:10%"><col style="width:12%"><col style="width:13%"><col style="width:15%"></colgroup>
+          <thead><tr><th>Seção / válvula</th><th>Data</th><th>Início</th><th>Fim</th><th>Duração</th><th>Dia</th><th>Modo</th></tr></thead>
+          <tbody>
+            <tr ng-repeat="log in visibleHistory() track by (log.id || $index)">
+              <td data-label="Válvula"><div class="ir-valve"><span class="ir-valve-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span><strong>{{ log.valve }}</strong></div></td>
+              <td data-label="Data"><span class="ir-date">{{ formatDate(log.date) }}</span><span class="ir-date-note">{{ relativeDate(log.date) }}</span></td>
+              <td data-label="Início"><span class="ir-time">{{ log.start }}</span></td>
+              <td data-label="Fim"><span class="ir-time">{{ log.end }}</span></td>
+              <td data-label="Duração"><span class="ir-duration">{{ durationMinutes(log) }} min</span></td>
+              <td data-label="Dia">{{ translateWeekday(log.weekday) }}</td>
+              <td data-label="Modo"><span class="ir-mode" ng-class="isAutomatic(log) ? 'ir-mode-automatic' : 'ir-mode-manual'">{{ modeLabel(log) }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ir-empty" ng-if="history_records.length === 0 || visibleHistory().length === 0">
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><h2>Nenhum histórico encontrado</h2><p>Altere o período ou a busca para consultar outros acionamentos.</p></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<script type="text/javascript" charset="utf-8">
+(function(scope) {
+  scope.start_date = scope.start_date || "";
+  scope.end_date = scope.end_date || "";
+  scope.history_query = scope.history_query || "";
+  scope.history_records = scope.history_records || [];
+  scope.filter_description = scope.filter_description || "período atual";
+
+  scope.$watch("msg", function(msg) {
+    if (msg && Array.isArray(msg.payload)) scope.history_records = msg.payload;
+  });
+
+  scope.navigateToTab = function(index, event) {
+    if (event) event.preventDefault();
+    window.location.hash = "#!/" + index;
+    window.location.reload();
+  };
+  scope.inputValue = function(id) {
+    var input = document.getElementById(id);
+    return input ? input.value : "";
+  };
+  scope.historyRange = function() { return { action: "range", start_date: scope.inputValue("start_date"), end_date: scope.inputValue("end_date") }; };
+  scope.historyDay = function() { return { action: "day" }; };
+  scope.filterRange = function() {
+    scope.filter_description = scope.inputValue("start_date") && scope.inputValue("end_date") ? "período selecionado" : "todos os registros";
+    scope.send({ payload: scope.historyRange() });
+  };
+  scope.filterToday = function() {
+    scope.filter_description = "registros de hoje";
+    scope.send({ payload: scope.historyDay() });
+  };
+  scope.isAutomatic = function(log) { return String(log && log.mode || "").toLowerCase().indexOf("automatic") !== -1; };
+  scope.automaticCount = function() { return scope.history_records.filter(scope.isAutomatic).length; };
+  scope.manualCount = function() { return scope.history_records.length - scope.automaticCount(); };
+  scope.durationMinutes = function(log) {
+    var start = String(log && log.start || "").split(":");
+    var end = String(log && log.end || "").split(":");
+    if (start.length < 2 || end.length < 2) return 0;
+    var startMinutes = (parseInt(start[0], 10) || 0) * 60 + (parseInt(start[1], 10) || 0);
+    var endMinutes = (parseInt(end[0], 10) || 0) * 60 + (parseInt(end[1], 10) || 0);
+    if (endMinutes < startMinutes) endMinutes += 1440;
+    return Math.max(0, endMinutes - startMinutes);
+  };
+  scope.totalMinutes = function() { return scope.history_records.reduce(function(total, log) { return total + scope.durationMinutes(log); }, 0); };
+  scope.formatDate = function(value) {
+    var match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? match[3] + "/" + match[2] + "/" + match[1] : value;
+  };
+  scope.relativeDate = function(value) {
+    var today = new Date();
+    var yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    var local = function(date) { return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0"); };
+    if (value === local(today)) return "hoje";
+    if (value === local(yesterday)) return "ontem";
+    return "";
+  };
+  scope.translateWeekday = function(value) {
+    var labels = { monday: "Segunda", tuesday: "Terça", wednesday: "Quarta", thursday: "Quinta", friday: "Sexta", saturday: "Sábado", sunday: "Domingo" };
+    return labels[String(value || "").toLowerCase()] || value;
+  };
+  scope.modeLabel = function(log) { return scope.isAutomatic(log) ? "Automático" : "Manual"; };
+  scope.visibleHistory = function() {
+    var query = String(scope.history_query || "").toLowerCase().trim();
+    if (!query) return scope.history_records;
+    return scope.history_records.filter(function(log) {
+      return (String(log.valve || "") + " " + String(log.mode || "") + " " + scope.translateWeekday(log.weekday)).toLowerCase().indexOf(query) !== -1;
+    });
+  };
+})(scope);
+</script>

@@ -1,0 +1,556 @@
+<style>
+:root {
+  --ir-green: #11877d;
+  --ir-green-dark: #0d756c;
+  --ir-ink: #071a18;
+  --ir-muted: #697274;
+  --ir-line: #dde2e2;
+  --ir-canvas: #edf1f3;
+  --ir-panel: #f9fbfc;
+  --ir-white: #fff;
+}
+
+body.nr-dashboard-theme {
+  background: var(--ir-canvas) !important;
+  color: var(--ir-ink);
+  font-family: Inter, Roboto, Arial, sans-serif;
+}
+#nr-dashboard md-toolbar,
+#nr-dashboard md-sidenav { display: none !important; }
+#nr-dashboard md-content { overflow-x: hidden !important; }
+.nr-dashboard-theme .masonry-container { width: 100% !important; max-width: none !important; margin: 0 !important; }
+.nr-dashboard-theme ui-card-panel { position: relative !important; inset: auto !important; display: block !important; width: 100% !important; margin: 0 !important; }
+.nr-dashboard-theme .nr-dashboard-cardpanel,
+.nr-dashboard-theme .nr-dashboard-cardcontainer { width: 100% !important; height: auto !important; min-height: 0 !important; background: transparent !important; }
+.nr-dashboard-theme md-card.nr-dashboard-template {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell p,
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h1,
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h2,
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h3,
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h4 {
+  background-color: transparent !important;
+}
+.nr-dashboard-theme .nr-dashboard-template .ir-create-shell svg path { fill: none !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-eyebrow { color: var(--ir-green) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-title { color: var(--ir-ink) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-subtitle { color: var(--ir-muted) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-summary-main { color: #fff !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-summary-detail { color: #82918f !important; }
+
+.ir-create-shell, .ir-create-shell * { box-sizing: border-box !important; }
+.ir-create-shell {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+  background: var(--ir-panel);
+  box-shadow: none;
+}
+.ir-create-topbar {
+  display: flex;
+  height: 46px;
+  align-items: center;
+  gap: 15px;
+  padding: 0 24px;
+  background: var(--ir-green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.ir-breadcrumb-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+.ir-breadcrumb-button svg { width: 15px; height: 15px; }
+.ir-breadcrumb-separator { opacity: .55; font-size: 19px; font-weight: 400; }
+.ir-create-content { width: 100%; padding: clamp(30px, 4vw, 60px) clamp(24px, 5vw, 76px) 42px; }
+.ir-eyebrow {
+  margin: 0 0 7px;
+  color: var(--ir-green);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ir-green) !important;
+}
+.ir-title { margin: 0; color: #071614 !important; font-size: 29px; font-weight: 850; line-height: 1.1; }
+.ir-subtitle { margin: 8px 0 27px; color: var(--ir-muted) !important; font-size: 13px; }
+.ir-form { display: grid; gap: 18px; }
+.ir-main-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.ir-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: #10201d;
+  font-size: 11px;
+  font-weight: 850;
+}
+.ir-label svg { width: 14px; height: 14px; color: var(--ir-green); }
+.ir-time-control, .ir-duration-control {
+  position: relative;
+  display: flex;
+  height: 64px;
+  align-items: center;
+  border: 1px solid var(--ir-line);
+  border-radius: 10px;
+  background: #fff;
+}
+.ir-time-control:focus-within { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .12); }
+.ir-time-input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0 16px;
+  background: transparent;
+  color: #061614;
+  font-family: inherit;
+  font-size: 29px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+.ir-duration-value {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 7px;
+  padding-left: 16px;
+}
+.ir-duration-value input {
+  width: 55px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: #061614;
+  font-family: inherit;
+  font-size: 29px;
+  font-weight: 850;
+}
+.ir-duration-value span { color: #737b7d; font-size: 12px; }
+.ir-stepper { display: flex; gap: 5px; padding-right: 14px; }
+.ir-step-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: #f0f3f3;
+  color: #12201e;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 850;
+}
+.ir-quick-options { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+.ir-chip {
+  min-height: 27px;
+  border: 1px solid var(--ir-line);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: #fff;
+  color: #14201e;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+.ir-chip.is-active, .ir-chip:hover { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
+.ir-section-block { min-width: 0; }
+.ir-valves { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.ir-valve-card {
+  position: relative;
+  min-width: 0;
+  height: 74px;
+  border: 1px solid var(--ir-line);
+  border-radius: 10px;
+  padding: 12px 13px;
+  background: #fff;
+  color: var(--ir-ink);
+  cursor: pointer;
+  text-align: left;
+}
+.ir-valve-card:hover { border-color: #9bcac5; }
+.ir-valve-card.is-selected { border-color: var(--ir-green); background: #e7f4f1; }
+.ir-valve-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ir-valve-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e9efff;
+  color: #607ff3;
+}
+.ir-valve-card:nth-child(4n + 2) .ir-valve-icon { background: #dff3ef; color: var(--ir-green); }
+.ir-valve-card:nth-child(4n + 3) .ir-valve-icon { background: #eee8ff; color: #795eea; }
+.ir-valve-card:nth-child(4n + 4) .ir-valve-icon { background: #fff0dc; color: #f09a2a; }
+.ir-valve-icon svg { width: 15px; height: 15px; }
+.ir-valve-pin { color: #92999a; font-size: 9px; }
+.ir-valve-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ir-green);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+.ir-valve-name { display: block; overflow: hidden; margin-top: 7px; font-size: 11px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+.ir-empty-valves { padding: 18px; border: 1px dashed #cfd6d5; border-radius: 10px; color: var(--ir-muted); font-size: 12px; text-align: center; }
+.ir-weekdays-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; }
+.ir-weekday-presets { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.ir-weekday-presets .ir-chip { min-height: 25px; padding: 0 10px; }
+.ir-weekday-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.ir-weekday-card {
+  height: 64px;
+  border: 1px solid var(--ir-line);
+  border-radius: 10px;
+  background: #fff;
+  color: #101d1b;
+  cursor: pointer;
+}
+.ir-weekday-card span { display: block; color: #747c7e; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.ir-weekday-card strong { display: block; margin-top: 5px; font-size: 15px; }
+.ir-weekday-card.is-selected { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
+.ir-weekday-card.is-selected span { color: rgba(255, 255, 255, .8); }
+.ir-summary {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  gap: 18px;
+  margin-top: 2px;
+  border-radius: 13px;
+  padding: 17px 20px;
+  background: #0b201d;
+  color: #fff;
+}
+.ir-summary-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .08);
+  color: #48e4a1;
+}
+.ir-summary-icon svg { width: 22px; height: 22px; }
+.ir-summary-label { display: block; margin-bottom: 5px; color: #859592; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.ir-summary-main { margin: 0; color: #fff !important; font-size: 13px; font-weight: 750; line-height: 1.45; }
+.ir-summary-main strong { color: #fff; }
+.ir-summary-main .ir-highlight { color: #42de9b; }
+.ir-summary-detail { margin: 4px 0 0; color: #82918f !important; font-size: 10px; }
+.ir-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 750;
+}
+.ir-feedback.is-error { border: 1px solid #ffd1d1; background: #fff0f0; color: #c92f2f; }
+.ir-feedback.is-loading { border: 1px solid #ccece2; background: #edf9f5; color: var(--ir-green-dark); }
+.ir-feedback button { border: 0; background: transparent; color: inherit; cursor: pointer; font-weight: 850; }
+.ir-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+.ir-cancel-button, .ir-secondary-button, .ir-primary-button {
+  height: 42px;
+  border-radius: 9px;
+  padding: 0 18px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+}
+.ir-cancel-button { display: inline-flex; align-items: center; margin-right: auto; border: 0; padding-left: 3px; background: transparent; color: #6b7475; }
+.ir-secondary-button { border: 1px solid var(--ir-line); background: #fff; color: #172321; }
+.ir-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  background: var(--ir-green);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(17, 135, 125, .22);
+}
+.ir-primary-button:hover { background: var(--ir-green-dark); }
+.ir-primary-button svg { width: 16px; height: 16px; }
+.ir-primary-button:disabled, .ir-secondary-button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none; }
+
+@media (max-width: 760px) {
+  .ir-create-content { padding: 30px 24px; }
+  .ir-valves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .ir-create-topbar { height: 52px; padding: 0 15px; }
+  .ir-create-content { padding: 25px 15px 28px; }
+  .ir-title { font-size: 27px; }
+  .ir-main-fields { grid-template-columns: 1fr; gap: 17px; }
+  .ir-weekdays-head { display: block; }
+  .ir-weekday-presets { justify-content: flex-start; margin-top: 9px; }
+  .ir-weekday-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ir-weekday-card { height: 58px; }
+  .ir-summary { align-items: flex-start; padding: 16px; }
+  .ir-summary-icon { width: 38px; height: 38px; }
+  .ir-actions { display: grid; grid-template-columns: 1fr; }
+  .ir-actions > * { width: 100%; }
+  .ir-cancel-button { order: 3; margin: 0; }
+}
+</style>
+
+<section class="ir-create-shell">
+  <header class="ir-create-topbar">
+    <a class="ir-breadcrumb-button" href="#!/0" ng-click="navigateToTab(0, $event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      Agendamentos
+    </a>
+    <span class="ir-breadcrumb-separator">›</span>
+    <span>Novo agendamento</span>
+  </header>
+
+  <main class="ir-create-content">
+    <p class="ir-eyebrow">Novo horário</p>
+    <h1 class="ir-title">Programar uma rega</h1>
+    <p class="ir-subtitle">Defina quando a irrigação deve ligar, por quanto tempo e em qual seção.</p>
+
+    <form class="ir-form">
+      <div class="ir-feedback is-error" ng-if="create_error">
+        <span>{{ create_error }}</span>
+        <button type="button" ng-click="dismissCreateError()">Fechar</button>
+      </div>
+      <div class="ir-feedback is-loading" ng-if="create_state.submitting">Cadastrando agendamento...</div>
+
+      <div class="ir-main-fields">
+        <div>
+          <label class="ir-label" for="time">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Horário para ligar
+          </label>
+          <div class="ir-time-control"><input class="ir-time-input" type="time" id="time" name="time" ng-model="create_form.time" required></div>
+          <div class="ir-quick-options">
+            <button type="button" class="ir-chip" ng-click="setQuickTime('06:00')">Amanhecer</button>
+            <button type="button" class="ir-chip" ng-click="setQuickTime('12:00')">Meio-dia</button>
+            <button type="button" class="ir-chip" ng-click="setQuickTime('18:00')">Entardecer</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="ir-label" for="duration_minutes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg>
+            Tempo ligado
+          </label>
+          <div class="ir-duration-control">
+            <div class="ir-duration-value"><input type="number" id="duration_minutes" name="duration_minutes" min="1" step="1" ng-model="create_form.duration_minutes" required><span>minutos</span></div>
+            <div class="ir-stepper">
+              <button type="button" class="ir-step-button" ng-click="adjustDuration(-1)" aria-label="Diminuir duração">−</button>
+              <button type="button" class="ir-step-button" ng-click="adjustDuration(1)" aria-label="Aumentar duração">+</button>
+            </div>
+          </div>
+          <div class="ir-quick-options">
+            <button type="button" class="ir-chip" ng-class="{'is-active': create_form.duration_minutes == 5}" ng-click="setDuration(5)">5 min</button>
+            <button type="button" class="ir-chip" ng-class="{'is-active': create_form.duration_minutes == 12}" ng-click="setDuration(12)">12 min</button>
+            <button type="button" class="ir-chip" ng-class="{'is-active': create_form.duration_minutes == 20}" ng-click="setDuration(20)">20 min</button>
+            <button type="button" class="ir-chip" ng-class="{'is-active': create_form.duration_minutes == 30}" ng-click="setDuration(30)">30 min</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ir-section-block">
+        <p class="ir-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+          Seção / válvula
+        </p>
+        <div class="ir-valves" ng-if="valves.length > 0">
+          <button type="button" class="ir-valve-card" ng-repeat="valve in valves track by valve.pin" ng-class="{'is-selected': isValveSelected(valve)}" ng-click="selectValve(valve)">
+            <span class="ir-valve-check" ng-if="isValveSelected(valve)">✓</span>
+            <span class="ir-valve-top">
+              <span class="ir-valve-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span>
+              <span class="ir-valve-pin">V.{{ valve.pin }}</span>
+            </span>
+            <span class="ir-valve-name">{{ valve.section }}</span>
+          </button>
+        </div>
+        <div class="ir-empty-valves" ng-if="valves.length === 0">Nenhuma seção disponível.</div>
+      </div>
+
+      <div>
+        <div class="ir-weekdays-head">
+          <p class="ir-label" style="margin-bottom:0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+            Dias da semana
+          </p>
+          <div class="ir-weekday-presets">
+            <button type="button" class="ir-chip" ng-click="selectEveryday(create_form)">Todos os dias</button>
+            <button type="button" class="ir-chip" ng-click="selectWeekdays(create_form)">Dias úteis</button>
+            <button type="button" class="ir-chip" ng-click="selectWeekend(create_form)">Fim de semana</button>
+          </div>
+        </div>
+        <div class="ir-weekday-grid">
+          <button type="button" class="ir-weekday-card" ng-repeat="weekday in weekday_options track by weekday.id" ng-class="{'is-selected': isWeekdaySelected(create_form.weekdays, weekday.id)}" ng-click="toggleWeekday(create_form, weekday.id)">
+            <span>{{ weekday.label }}</span><strong>{{ weekDateNumber($index) }}</strong>
+          </button>
+        </div>
+      </div>
+
+      <div class="ir-summary">
+        <span class="ir-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span>
+        <div>
+          <span class="ir-summary-label">Resumo</span>
+          <p class="ir-summary-main"><span class="ir-highlight">{{ sectionName(create_form.section) }}</span> será regada por <strong>{{ create_form.duration_minutes || 0 }} minutos</strong> às <strong>{{ formatTime(create_form.time) }}</strong>, {{ formatWeekdaysSentence(create_form.weekdays) }}.</p>
+          <p class="ir-summary-detail">Recorrência semanal · consumo estimado indisponível</p>
+        </div>
+      </div>
+
+      <div class="ir-actions">
+        <a class="ir-cancel-button" href="#!/0" ng-click="navigateToTab(0, $event)">Cancelar</a>
+        <button type="button" class="ir-secondary-button" disabled title="Disponível em uma próxima versão">Salvar rascunho</button>
+        <button type="button" class="ir-primary-button" ng-disabled="create_state.submitting || !create_form.time || !create_form.duration_minutes || !create_form.section || !hasSelectedWeekday(create_form.weekdays)" ng-click="send({payload:createSchedule()})">
+          {{ create_state.submitting ? "Cadastrando..." : "Criar agendamento" }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </form>
+  </main>
+</section>
+
+<script type="text/javascript" charset="utf-8">
+(function(scope) {
+  scope.weekday_options = [
+    { id: "mon", label: "Seg" },
+    { id: "tue", label: "Ter" },
+    { id: "wed", label: "Qua" },
+    { id: "thu", label: "Qui" },
+    { id: "fri", label: "Sex" },
+    { id: "sat", label: "Sáb" },
+    { id: "sun", label: "Dom" }
+  ];
+  scope.create_form = scope.create_form || { time: "", duration_minutes: "", section: "", weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
+  if (!Array.isArray(scope.create_form.weekdays)) scope.create_form.weekdays = scope.weekday_options.map(function(weekday) { return weekday.id; });
+  scope.create_state = scope.create_state || { submitting: false };
+  scope.create_error = scope.create_error || null;
+  scope.valves = scope.valves || [];
+
+  scope.$watch("msg", function(msg) {
+    if (!msg) return;
+    if (msg.topic === "schedule_create_error") {
+      scope.create_state.submitting = false;
+      scope.create_error = msg.payload || null;
+      return;
+    }
+    if (Array.isArray(msg.payload)) scope.valves = msg.payload;
+  });
+
+  scope.navigateToTab = function(index, event) {
+    if (event) event.preventDefault();
+    window.location.hash = "#!/" + index;
+    window.location.reload();
+  };
+  scope.toTimeValue = function(value) {
+    var parts = String(value || "").split(":");
+    var date = new Date();
+    date.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+    return date;
+  };
+  scope.setQuickTime = function(value) { scope.create_form.time = scope.toTimeValue(value); };
+  scope.setDuration = function(value) { scope.create_form.duration_minutes = value; };
+  scope.adjustDuration = function(delta) { scope.create_form.duration_minutes = Math.max(1, (parseInt(scope.create_form.duration_minutes, 10) || 1) + delta); };
+  scope.selectValve = function(valve) { scope.create_form.section = valve.pin; };
+  scope.isValveSelected = function(valve) { return String(scope.create_form.section) === String(valve.pin); };
+  scope.formatTime = function(value) {
+    if (!value) return "--:--";
+    if (typeof value === "string" && /^\d{2}:\d{2}/.test(value)) return value.slice(0, 5);
+    var date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) return "--:--";
+    return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  };
+  scope.sectionName = function(value) {
+    for (var i = 0; i < scope.valves.length; i += 1) {
+      if (String(scope.valves[i].pin) === String(value)) return scope.valves[i].section;
+    }
+    return "Selecione uma seção";
+  };
+  scope.normalizeWeekdays = function(values) {
+    if (!Array.isArray(values)) return [];
+    return scope.weekday_options.map(function(weekday) { return weekday.id; }).filter(function(id) { return values.indexOf(id) !== -1; });
+  };
+  scope.hasSelectedWeekday = function(values) { return scope.normalizeWeekdays(values).length > 0; };
+  scope.isEveryday = function(values) { return scope.normalizeWeekdays(values).length === scope.weekday_options.length; };
+  scope.isWeekdaySelected = function(values, id) { return scope.normalizeWeekdays(values).indexOf(id) !== -1; };
+  scope.selectEveryday = function(form) { form.weekdays = scope.weekday_options.map(function(weekday) { return weekday.id; }); };
+  scope.selectWeekdays = function(form) { form.weekdays = ["mon", "tue", "wed", "thu", "fri"]; };
+  scope.selectWeekend = function(form) { form.weekdays = ["sat", "sun"]; };
+  scope.toggleWeekday = function(form, id) {
+    var values = scope.normalizeWeekdays(form.weekdays);
+    var index = values.indexOf(id);
+    if (index === -1) values.push(id); else values.splice(index, 1);
+    form.weekdays = scope.normalizeWeekdays(values);
+  };
+  scope.formatWeekdays = function(values) {
+    var selected = scope.normalizeWeekdays(values);
+    if (selected.length === scope.weekday_options.length) return "Todos os dias";
+    if (!selected.length) return "Nenhum dia";
+    return scope.weekday_options.filter(function(weekday) { return selected.indexOf(weekday.id) !== -1; }).map(function(weekday) { return weekday.label; }).join(", ");
+  };
+  scope.formatWeekdaysSentence = function(values) {
+    var selected = scope.normalizeWeekdays(values);
+    if (selected.length === scope.weekday_options.length) return "todos os dias";
+    if (!selected.length) return "em nenhum dia";
+    var names = { mon: "segunda", tue: "terça", wed: "quarta", thu: "quinta", fri: "sexta", sat: "sábado", sun: "domingo" };
+    return selected.map(function(id) { return names[id]; }).join(", ");
+  };
+  scope.weekDateNumber = function(index) {
+    var today = new Date();
+    var mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+    var date = new Date(today);
+    date.setDate(today.getDate() + mondayOffset + index);
+    return String(date.getDate()).padStart(2, "0");
+  };
+  scope.dismissCreateError = function() { scope.create_error = null; };
+  scope.createSchedule = function() {
+    scope.create_error = null;
+    scope.create_state.submitting = true;
+    return {
+      time: scope.formatTime(scope.create_form.time),
+      duration_minutes: scope.create_form.duration_minutes,
+      section: scope.create_form.section,
+      weekdays: scope.normalizeWeekdays(scope.create_form.weekdays)
+    };
+  };
+})(scope);
+</script>
