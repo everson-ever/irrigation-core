@@ -7,18 +7,18 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from irrigacao.domain.exceptions import RecordNotFoundError, ValidationError
-from irrigacao.domain.models import HistoryRecord, Schedule, Valve
-from irrigacao.domain.ports import Clock, GpioController, Repository
+from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
+from irrigation.domain.models import HistoryRecord, Schedule, Valve
+from irrigation.domain.ports import Clock, GpioController, Repository
 
 WEEKDAYS = (
-    "Segunda-feira",
-    "Terça-feira",
-    "Quarta-feira",
-    "Quinta-feira",
-    "Sexta-feira",
-    "Sábado",
-    "Domingo",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
 )
 
 
@@ -34,11 +34,11 @@ class ScheduleService:
     ) -> dict[str, Any]:
         schedule = Schedule.from_dict(
             {
-                "horario": schedule_time,
-                "tempoLigado": duration_minutes,
-                "valvula": valve_pin,
+                "time": schedule_time,
+                "duration_minutes": duration_minutes,
+                "valve_pin": valve_pin,
                 "status": 0,
-                "ativado": 1,
+                "enabled": 1,
             }
         )
         return self._repository.add(schedule.to_dict())
@@ -54,11 +54,11 @@ class ScheduleService:
         edited = Schedule.from_dict(
             {
                 "id": current.id,
-                "horario": schedule_time,
-                "tempoLigado": duration_minutes,
-                "valvula": valve_pin,
+                "time": schedule_time,
+                "duration_minutes": duration_minutes,
+                "valve_pin": valve_pin,
                 "status": int(current.status),
-                "ativado": int(current.enabled),
+                "enabled": int(current.enabled),
             }
         )
         return self._repository.update(edited.to_dict())
@@ -172,7 +172,7 @@ class HistoryService:
         results = [
             item
             for item in self._history.list_all()
-            if start_date <= date.fromisoformat(str(item["data"])) <= end_date
+            if start_date <= date.fromisoformat(str(item["date"])) <= end_date
         ]
         self._search_result.replace_all(results)
         return results
@@ -186,7 +186,7 @@ class SettingsService:
         records = self._repository.list_all()
         if not records:
             raise ValidationError("default duration has not been configured yet")
-        return int(records[0]["tempoPadrao"])
+        return int(records[0]["default_duration_minutes"])
 
     def update_default_duration(self, minutes: Any) -> dict[str, Any]:
         try:
@@ -198,9 +198,9 @@ class SettingsService:
         records = self._repository.list_all()
         if records:
             return self._repository.update(
-                {"id": str(records[0]["id"]), "tempoPadrao": value}
+                {"id": str(records[0]["id"]), "default_duration_minutes": value}
             )
-        return self._repository.add({"tempoPadrao": value})
+        return self._repository.add({"default_duration_minutes": value})
 
 
 class ManualControlService:
@@ -284,9 +284,9 @@ class IrrigationController:
 
             if is_running and not schedule.status:
                 mode = (
-                    "Automático"
+                    "Automatic"
                     if now.strftime("%H:%M") == schedule.time
-                    else "Automático: após o horário marcado"
+                    else "Automatic: started after scheduled time"
                 )
                 self._start(schedule, now, end, mode, restarted=False)
             elif (
@@ -294,7 +294,7 @@ class IrrigationController:
                 and schedule.status
                 and schedule.id not in self._started_in_this_process
             ):
-                self._start(schedule, now, end, "Reiniciado", restarted=True)
+                self._start(schedule, now, end, "Restarted", restarted=True)
             elif not is_running and schedule.status:
                 self._stop(schedule, keep_valve_on)
 

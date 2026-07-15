@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
-  echo "Execute com sudo: sudo ./scripts/instalar-raspberry.sh" >&2
+  echo "Run with sudo: sudo ./scripts/install-raspberry.sh" >&2
   exit 1
 fi
 
@@ -20,18 +20,18 @@ sudo -u "${RUN_USER}" "${PROJECT_DIR}/.venv/bin/pip" install "${PROJECT_DIR}[ras
 sed \
   -e "s|__PROJECT_DIR__|${PROJECT_DIR}|g" \
   -e "s|__RUN_USER__|${RUN_USER}|g" \
-  "${PROJECT_DIR}/deploy/systemd/irrigacao.service.template" \
-  > /etc/systemd/system/irrigacao.service
+  "${PROJECT_DIR}/deploy/systemd/irrigation.service.template" \
+  > /etc/systemd/system/irrigation.service
 
 if systemctl list-unit-files nodered.service >/dev/null 2>&1; then
   mkdir -p /etc/systemd/system/nodered.service.d
   sed "s|__PROJECT_DIR__|${PROJECT_DIR}|g" \
     "${PROJECT_DIR}/deploy/systemd/nodered-override.conf.template" \
-    > /etc/systemd/system/nodered.service.d/irrigacao.conf
+    > /etc/systemd/system/nodered.service.d/irrigation.conf
 fi
 
 chown -R "${RUN_USER}:${RUN_USER}" "${PROJECT_DIR}/data"
 systemctl daemon-reload
-systemctl enable --now irrigacao.service
+systemctl enable --now irrigation.service
 
-echo "Instalação concluída. Importe node-red/flows.json pelo editor do Node-RED."
+echo "Installation complete. Import node-red/flows.json using the Node-RED editor."

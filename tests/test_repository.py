@@ -2,12 +2,12 @@ import json
 
 import pytest
 
-from irrigacao.domain.exceptions import RecordNotFoundError
-from irrigacao.infrastructure.json_repository import JsonLinesRepository
+from irrigation.domain.exceptions import RecordNotFoundError
+from irrigation.infrastructure.json_repository import JsonLinesRepository
 
 
 def test_crud_preserves_valid_json_lines(tmp_path):
-    file_path = tmp_path / "dados.json"
+    file_path = tmp_path / "records.json"
     repository = JsonLinesRepository(file_path)
 
     first = repository.add({"nome": "Seção 1"})
@@ -23,7 +23,7 @@ def test_crud_preserves_valid_json_lines(tmp_path):
 
 
 def test_update_missing_id_fails(tmp_path):
-    repository = JsonLinesRepository(tmp_path / "dados.json")
+    repository = JsonLinesRepository(tmp_path / "records.json")
 
     with pytest.raises(RecordNotFoundError):
         repository.update({"id": "9"})

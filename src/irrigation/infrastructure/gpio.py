@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from irrigacao.domain.exceptions import HardwareError
+from irrigation.domain.exceptions import HardwareError
 
 
 class GPIORaspberryPi:

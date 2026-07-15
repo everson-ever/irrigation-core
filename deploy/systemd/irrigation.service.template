@@ -1,13 +1,13 @@
 [Unit]
-Description=Sistema de irrigação automatizado
+Description=Automated irrigation system
 After=multi-user.target
 
 [Service]
 Type=simple
 User=__RUN_USER__
 WorkingDirectory="__PROJECT_DIR__"
-EnvironmentFile=-/etc/default/sistema-irrigacao
-ExecStart="__PROJECT_DIR__/.venv/bin/irrigacao" run
+EnvironmentFile=-/etc/default/irrigation-system
+ExecStart="__PROJECT_DIR__/.venv/bin/irrigation" run
 Restart=always
 RestartSec=5
 TimeoutStopSec=10

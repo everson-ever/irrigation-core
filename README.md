@@ -29,8 +29,8 @@ File names and JSON fields are part of the current dashboard contract.
 ├── data/                         # Persisted data in JSON Lines
 ├── deploy/systemd/               # Scheduler service and Node-RED override
 ├── node-red/flows.json           # Updated dashboard and integration
-├── scripts/instalar-raspberry.sh # Automated Raspberry Pi installation
-├── src/irrigacao/
+├── scripts/install-raspberry.sh # Automated Raspberry Pi installation
+├── src/irrigation/
 │   ├── application/              # Use cases and orchestration
 │   ├── domain/                   # Entities, rules, and contracts
 │   ├── infrastructure/           # JSON Lines, GPIO, and clock
@@ -55,7 +55,7 @@ scheduler access data concurrently.
 ## Default hardware
 
 The project uses physical pin numbering (`GPIO.BOARD`). The initial
-configuration in [`data/valvulas.json`](data/valvulas.json) is:
+configuration in [`data/valves.json`](data/valves.json) is:
 
 | Function | Physical pin |
 |---|---:|
@@ -63,7 +63,7 @@ configuration in [`data/valvulas.json`](data/valvulas.json) is:
 | Section 2 solenoid valve | 11 |
 | Pump | 15 |
 
-Adapt `data/valvulas.json` and `IRRIGATION_PUMP_PIN` to the real installation.
+Adapt `data/valves.json` and `IRRIGATION_PUMP_PIN` to the real installation.
 Use proper relay/transistor modules: GPIO pins must not power the pump or
 solenoid valves directly. Also confirm the electrical logic of your relay before
 energizing the circuit; this implementation treats high level as on.
@@ -82,7 +82,7 @@ Clone the repository and run the installer:
 ```bash
 git clone <THIS-REPOSITORY-URL>
 cd Sistema-de-irriga-o
-sudo ./scripts/instalar-raspberry.sh
+sudo ./scripts/install-raspberry.sh
 ```
 
 The script:
@@ -90,7 +90,7 @@ The script:
 1. installs Python, `venv`, and `pip` through the system package manager;
 2. creates `.venv` and installs the project with the `RPi.GPIO` driver;
 3. adds the user to the `gpio` group;
-4. installs and starts the `irrigacao.service` service;
+4. installs and starts the `irrigation.service` service;
 5. configures the Node-RED service directory and `PATH` when it exists.
 
 After the first installation, restart the session or reboot the Raspberry Pi so
@@ -124,14 +124,14 @@ restart automatically after failures or reboots.
 ## Service operation
 
 ```bash
-sudo systemctl status irrigacao
-sudo systemctl restart irrigacao
-sudo systemctl stop irrigacao
-journalctl -u irrigacao -f
+sudo systemctl status irrigation
+sudo systemctl restart irrigation
+sudo systemctl stop irrigation
+journalctl -u irrigation -f
 ```
 
 To change configuration without editing code, create
-`/etc/default/sistema-irrigacao`:
+`/etc/default/irrigation-system`:
 
 ```bash
 IRRIGATION_DATA_DIR=/absolute/path/to/data
@@ -165,9 +165,9 @@ Useful Docker commands:
 
 ```bash
 # Run CLI commands against the same mounted data directory
-docker compose run --rm scheduler irrigacao schedule create '06:30,15,13'
-docker compose run --rm scheduler irrigacao valve '13,on' --no-wait
-docker compose run --rm scheduler irrigacao history 'day,,'
+docker compose run --rm scheduler irrigation schedule create '06:30,15,13'
+docker compose run --rm scheduler irrigation valve '13,on' --no-wait
+docker compose run --rm scheduler irrigation history 'day,,'
 
 # Run tests and quality checks inside the image
 docker compose run --rm scheduler pytest
@@ -191,31 +191,31 @@ Useful commands:
 
 ```bash
 # Run the scheduler in the foreground
-irrigacao run
+irrigation run
 
 # Create: time,duration in minutes,physical pin
-irrigacao schedule create '06:30,15,13'
+irrigation schedule create '06:30,15,13'
 
 # Update: id,time,duration,pin
-irrigacao schedule update '1,07:00,10,13'
+irrigation schedule update '1,07:00,10,13'
 
 # Disable or re-enable
-irrigacao schedule enabled '1,0'
-irrigacao schedule enabled '1,1'
+irrigation schedule enabled '1,0'
+irrigation schedule enabled '1,1'
 
 # Delete
-irrigacao schedule delete 1
+irrigation schedule delete 1
 
 # Manual activation
-irrigacao valve '13,on'
-irrigacao valve '13,off'
+irrigation valve '13,on'
+irrigation valve '13,off'
 
 # Change the default manual time
-irrigacao settings 5
+irrigation settings 5
 
 # Search history
-irrigacao history 'day,,'
-irrigacao history 'range,2026-07-01,2026-07-31'
+irrigation history 'day,,'
+irrigation history 'range,2026-07-01,2026-07-31'
 ```
 
 In manual mode, the `on` command remains active until the default time ends or
@@ -239,11 +239,11 @@ midnight.
 
 Operational files are stored in `data/`:
 
-- `agendamentos.json`: schedules and their execution state;
-- `valvulas.json`: pins, sections, and states;
-- `configuracoes.json`: default manual activation time;
-- `historico.json`: activation log;
-- `pesquisaHistoricoResultado.json`: result consumed by the dashboard.
+- `schedules.json`: schedules and their execution state;
+- `valves.json`: pins, sections, and states;
+- `settings.json`: default manual activation time;
+- `history.json`: activation log;
+- `history_search_results.json`: result consumed by the dashboard.
 
 A new installation starts without schedules. Do not reuse files from previous
 systems; create schedules and valve configuration for the new installation.
@@ -252,8 +252,8 @@ systems; create schedules and valve configuration for the new installation.
 
 | Schedules | New schedule |
 |---|---|
-| ![Schedules](screenshot%20application/agendamentos.png) | ![Create schedule](screenshot%20application/cadastro%20agendamentos.png) |
+| ![Schedules](screenshot%20application/schedules.png) | ![Create schedule](screenshot%20application/create-schedule.png) |
 
 | Valves | Default time | Logs |
 |---|---|---|
-| ![Valves](screenshot%20application/valvulas.png) | ![Default time](screenshot%20application/tempo%20padrao.png) | ![Logs](screenshot%20application/logs.png) |
+| ![Valves](screenshot%20application/valves.png) | ![Default time](screenshot%20application/default-time.png) | ![Logs](screenshot%20application/logs.png) |

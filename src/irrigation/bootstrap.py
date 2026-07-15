@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from irrigacao.application.services import (
+from irrigation.application.services import (
     HistoryService,
     IrrigationController,
     ManualControlService,
@@ -12,10 +12,10 @@ from irrigacao.application.services import (
     SettingsService,
     ValveService,
 )
-from irrigacao.config import Settings
-from irrigacao.infrastructure.clock import SystemClock
-from irrigacao.infrastructure.gpio import create_gpio
-from irrigacao.infrastructure.json_repository import JsonLinesRepository
+from irrigation.config import Settings
+from irrigation.infrastructure.clock import SystemClock
+from irrigation.infrastructure.gpio import create_gpio
+from irrigation.infrastructure.json_repository import JsonLinesRepository
 
 
 @dataclass(slots=True)
@@ -30,20 +30,20 @@ class Application:
         return JsonLinesRepository(self.settings.file_path(name))
 
     def schedules(self) -> ScheduleService:
-        return ScheduleService(self.repository("agendamentos.json"))
+        return ScheduleService(self.repository("schedules.json"))
 
     def runtime_settings(self) -> SettingsService:
-        return SettingsService(self.repository("configuracoes.json"))
+        return SettingsService(self.repository("settings.json"))
 
     def history(self) -> HistoryService:
         return HistoryService(
-            self.repository("historico.json"),
-            self.repository("pesquisaHistoricoResultado.json"),
+            self.repository("history.json"),
+            self.repository("history_search_results.json"),
         )
 
     def valves(self) -> ValveService:
         gpio = create_gpio(self.settings.gpio_driver, self.settings.pump_pin)
-        return ValveService(self.repository("valvulas.json"), gpio)
+        return ValveService(self.repository("valves.json"), gpio)
 
     def manual_control(self) -> ManualControlService:
         return ManualControlService(

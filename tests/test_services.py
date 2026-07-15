@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from irrigacao.application.services import (
+from irrigation.application.services import (
     HistoryService,
     IrrigationController,
     ScheduleService,
     ValveService,
 )
-from irrigacao.infrastructure.gpio import MockGPIO
-from irrigacao.infrastructure.json_repository import JsonLinesRepository
+from irrigation.infrastructure.gpio import MockGPIO
+from irrigation.infrastructure.json_repository import JsonLinesRepository
 
 
 class FakeClock:
@@ -19,11 +19,11 @@ class FakeClock:
 
 
 def create_controller(tmp_path, now: datetime):
-    schedules_repo = JsonLinesRepository(tmp_path / "agendamentos.json")
-    valves_repo = JsonLinesRepository(tmp_path / "valvulas.json")
-    history_repo = JsonLinesRepository(tmp_path / "historico.json")
-    result_repo = JsonLinesRepository(tmp_path / "resultado.json")
-    valves_repo.add({"valvula": "13", "status": 0, "secao": "Horta"})
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
     gpio = MockGPIO(15)
     valve_service = ValveService(valves_repo, gpio)
     clock = FakeClock(now)
@@ -42,11 +42,11 @@ def test_late_start_and_turn_off_at_end(tmp_path):
     controller, schedules, valves, history, gpio, clock = items
     schedules.add(
         {
-            "horario": "10:00",
-            "tempoLigado": "10",
-            "valvula": "13",
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
             "status": 0,
-            "ativado": 1,
+            "enabled": 1,
         }
     )
 
@@ -55,7 +55,7 @@ def test_late_start_and_turn_off_at_end(tmp_path):
     assert schedules.find_by_id("1")["status"] == 1
     assert valves.find_by_id("1")["status"] == 1
     assert gpio.states[13] is True
-    assert history.list_all()[0]["modo"] == "Automático: após o horário marcado"
+    assert history.list_all()[0]["mode"] == "Automatic: started after scheduled time"
 
     clock.value = datetime(2026, 7, 14, 10, 11)
     controller.run_once()
@@ -71,11 +71,11 @@ def test_reactivates_hardware_for_interrupted_schedule(tmp_path):
     controller, schedules, valves, history, gpio, _ = items
     schedules.add(
         {
-            "horario": "10:00",
-            "tempoLigado": 10,
-            "valvula": 13,
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
             "status": 1,
-            "ativado": 1,
+            "enabled": 1,
         }
     )
     valve_record = valves.find_by_id("1")
@@ -85,7 +85,7 @@ def test_reactivates_hardware_for_interrupted_schedule(tmp_path):
     controller.run_once()
 
     assert gpio.states[13] is True
-    assert history.list_all()[0]["modo"] == "Reiniciado"
+    assert history.list_all()[0]["mode"] == "Restarted"
 
 
 def test_disabled_schedule_does_not_turn_on(tmp_path):
@@ -93,11 +93,11 @@ def test_disabled_schedule_does_not_turn_on(tmp_path):
     controller, schedules, _, history, gpio, _ = items
     schedules.add(
         {
-            "horario": "10:00",
-            "tempoLigado": 10,
-            "valvula": 13,
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
             "status": 0,
-            "ativado": 0,
+            "enabled": 0,
         }
     )
 
@@ -114,11 +114,11 @@ def test_overlapping_schedules_do_not_turn_off_valve_before_end(tmp_path):
     for schedule_time in ("10:00", "10:05"):
         schedules.add(
             {
-                "horario": schedule_time,
-                "tempoLigado": 10,
-                "valvula": 13,
+                "time": schedule_time,
+                "duration_minutes": 10,
+                "valve_pin": 13,
                 "status": 0,
-                "ativado": 1,
+                "enabled": 1,
             }
         )
     controller.run_once()

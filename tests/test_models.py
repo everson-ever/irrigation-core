@@ -2,8 +2,8 @@ from datetime import datetime
 
 import pytest
 
-from irrigacao.domain.exceptions import ValidationError
-from irrigacao.domain.models import Schedule
+from irrigation.domain.exceptions import ValidationError
+from irrigation.domain.models import Schedule
 
 
 def test_schedule_requires_valve_field():
@@ -11,17 +11,17 @@ def test_schedule_requires_valve_field():
         Schedule.from_dict(
             {
                 "id": "1",
-                "horario": "06:30",
-                "tempoLigado": "15",
+                "time": "06:30",
+                "duration_minutes": "15",
                 "status": "0",
-                "ativado": "1",
+                "enabled": "1",
             }
         )
 
 
 def test_schedule_rejects_invalid_time():
     with pytest.raises(ValidationError, match="HH:MM"):
-        Schedule.from_dict({"horario": "25:00", "tempoLigado": 5, "valvula": 13})
+        Schedule.from_dict({"time": "25:00", "duration_minutes": 5, "valve_pin": 13})
 
 
 def test_interval_crosses_midnight():

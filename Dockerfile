@@ -28,4 +28,4 @@ COPY node-red ./node-red
 
 EXPOSE 1880
 
-CMD ["irrigacao", "--help"]
+CMD ["irrigation", "--help"]

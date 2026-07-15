@@ -38,26 +38,28 @@ class Schedule:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Schedule:
-        pin = data.get("valvula")
+        pin = data.get("valve_pin")
         if pin is None:
             raise ValidationError("valve pin is required")
         return cls(
             id=str(data.get("id", "")),
-            time=_schedule_time(data.get("horario")),
-            duration_minutes=_int_value(data.get("tempoLigado"), "tempoLigado", 1),
-            valve_pin=_int_value(pin, "valvula", 1),
+            time=_schedule_time(data.get("time")),
+            duration_minutes=_int_value(
+                data.get("duration_minutes"), "duration_minutes", 1
+            ),
+            valve_pin=_int_value(pin, "valve_pin", 1),
             status=bool(_int_value(data.get("status", 0), "status", 0)),
-            enabled=bool(_int_value(data.get("ativado", 1), "ativado", 0)),
+            enabled=bool(_int_value(data.get("enabled", 1), "enabled", 0)),
         )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "horario": self.time,
-            "tempoLigado": str(self.duration_minutes),
-            "valvula": str(self.valve_pin),
+            "time": self.time,
+            "duration_minutes": str(self.duration_minutes),
+            "valve_pin": str(self.valve_pin),
             "status": int(self.status),
-            "ativado": int(self.enabled),
+            "enabled": int(self.enabled),
         }
 
     def interval_at(self, now: datetime) -> tuple[datetime, datetime]:
@@ -84,13 +86,13 @@ class Valve:
     def from_dict(cls, data: Mapping[str, Any]) -> Valve:
         return cls(
             id=str(data.get("id", "")),
-            pin=_int_value(data.get("valvula"), "valvula", 1),
-            section=str(data.get("secao", "")).strip(),
+            pin=_int_value(data.get("pin"), "pin", 1),
+            section=str(data.get("section", "")).strip(),
             status=bool(_int_value(data.get("status", 0), "status", 0)),
             manually_turned_off=bool(
                 _int_value(
-                    data.get("desligadoManualmente", 0),
-                    "desligadoManualmente",
+                    data.get("manually_turned_off", 0),
+                    "manually_turned_off",
                     0,
                 )
             ),
@@ -99,10 +101,10 @@ class Valve:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "valvula": str(self.pin),
+            "pin": str(self.pin),
             "status": int(self.status),
-            "secao": self.section,
-            "desligadoManualmente": int(self.manually_turned_off),
+            "section": self.section,
+            "manually_turned_off": int(self.manually_turned_off),
         }
 
 
@@ -119,10 +121,10 @@ class HistoryRecord:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "valvula": self.valve,
-            "data": self.date.isoformat(),
-            "inicio": self.start,
-            "fim": self.end,
-            "dia": self.weekday,
-            "modo": self.mode,
+            "valve": self.valve,
+            "date": self.date.isoformat(),
+            "start": self.start,
+            "end": self.end,
+            "weekday": self.weekday,
+            "mode": self.mode,
         }

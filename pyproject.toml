@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sistema-irrigacao"
+name = "irrigation-system"
 version = "1.0.0"
-description = "Sistema de irrigação automatizado para Raspberry Pi"
+description = "Automated irrigation system for Raspberry Pi"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
@@ -15,7 +15,7 @@ raspberry = ["RPi.GPIO==0.7.1"]
 dev = ["pytest>=8,<9", "ruff>=0.5,<1"]
 
 [project.scripts]
-irrigacao = "irrigacao.cli:execute"
+irrigation = "irrigation.cli:execute"
 
 [tool.setuptools.packages.find]
 where = ["src"]

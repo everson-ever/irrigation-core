@@ -9,8 +9,8 @@ import sys
 from collections.abc import Sequence
 from datetime import date
 
-from irrigacao.bootstrap import Application
-from irrigacao.domain.exceptions import IrrigationError
+from irrigation.bootstrap import Application
+from irrigation.domain.exceptions import IrrigationError
 
 
 def _csv(value: str, expected_fields: int, description: str) -> list[str]:
@@ -23,7 +23,7 @@ def _csv(value: str, expected_fields: int, description: str) -> list[str]:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="irrigacao")
+    parser = argparse.ArgumentParser(prog="irrigation")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     subcommands.add_parser("run", help="starts automatic control")
