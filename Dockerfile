@@ -23,6 +23,12 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir -e '.[dev]'
 
+# Keep the same executable path used by the Node-RED flow on Raspberry Pi.
+# In development the command is installed in the virtualenv instead of being
+# copied as a standalone binary.
+RUN mkdir -p /opt/irrigation/bin \
+    && ln -s /opt/venv/bin/irrigation /opt/irrigation/bin/irrigation
+
 COPY data ./data
 COPY node-red ./node-red
 

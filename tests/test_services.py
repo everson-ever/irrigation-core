@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from irrigation.application.services import (
     HistoryService,
     IrrigationController,
@@ -8,6 +10,7 @@ from irrigation.application.services import (
     SettingsService,
     ValveService,
 )
+from irrigation.domain.exceptions import ValidationError
 from irrigation.infrastructure.gpio import MockGPIO
 from irrigation.infrastructure.json_repository import JsonLinesRepository
 
@@ -272,3 +275,83 @@ def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
 
     assert changed is True
     assert history_repo.list_all()[0]["end"] == "10:12"
+
+
+def create_schedule_service_with_valve(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
+    gpio = RecordingMockGPIO(15)
+    valve_service = ValveService(valves_repo, gpio)
+    schedule_service = ScheduleService(schedules_repo)
+    return schedule_service, valve_service, valves_repo, gpio
+
+
+def test_delete_removes_inactive_schedule_without_touching_valve(tmp_path):
+    schedules, valves, valves_repo, gpio = create_schedule_service_with_valve(tmp_path)
+    schedules.create("10:00", "10", "13")
+
+    deleted = schedules.delete("1", valves)
+
+    assert deleted is True
+    assert schedules.list_all() == []
+    assert gpio.operations == []
+    assert valves_repo.find_by_id("1")["status"] == 0
+
+
+def test_delete_stops_valve_of_active_schedule(tmp_path):
+    schedules, valves, valves_repo, gpio = create_schedule_service_with_valve(tmp_path)
+    schedules.create("10:00", "10", "13")
+    schedules.set_status("1", True)
+    valves.turn_on(13, force_hardware=True)
+
+    deleted = schedules.delete("1", valves)
+
+    assert deleted is True
+    assert schedules.list_all() == []
+    assert gpio.states[13] is False
+    assert valves_repo.find_by_id("1")["status"] == 0
+
+
+def test_delete_keeps_shared_valve_on_for_overlapping_schedule(tmp_path):
+    schedules, valves, valves_repo, gpio = create_schedule_service_with_valve(tmp_path)
+    schedules.create("10:00", "10", "13")
+    schedules.create("10:05", "10", "13")
+    schedules.set_status("1", True)
+    schedules.set_status("2", True)
+    valves.turn_on(13, force_hardware=True)
+
+    deleted = schedules.delete("1", valves)
+
+    assert deleted is True
+    assert [item.id for item in schedules.list_all()] == ["2"]
+    assert gpio.states[13] is True
+    assert valves_repo.find_by_id("1")["status"] == 1
+
+
+def test_delete_missing_record_returns_false(tmp_path):
+    schedules, valves, _, gpio = create_schedule_service_with_valve(tmp_path)
+
+    deleted = schedules.delete("999", valves)
+
+    assert deleted is False
+    assert gpio.operations == []
+
+
+def test_delete_rejects_empty_identifier(tmp_path):
+    schedules, valves, _, _ = create_schedule_service_with_valve(tmp_path)
+
+    with pytest.raises(ValidationError):
+        schedules.delete("   ", valves)
+
+
+def test_delete_without_valve_service_still_removes_record(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    schedules = ScheduleService(schedules_repo)
+    schedules.create("10:00", "10", "13")
+    schedules.set_status("1", True)
+
+    deleted = schedules.delete("1")
+
+    assert deleted is True
+    assert schedules.list_all() == []

@@ -252,6 +252,14 @@ In manual mode, the `on` command remains active until the default time ends or
 another `off` command turns the valve off. This preserves the behavior expected
 by the Node-RED `exec` node.
 
+`schedule delete` returns `{"deleted": true}` when the record was removed,
+`{"deleted": false}` when the identifier does not match any schedule (a safe
+no-op, exit code 0), and exits with status 2 and an `Error: ...` message on
+`stderr` for an empty or malformed identifier. Deleting a schedule that is
+currently running also turns off its valve, unless another enabled schedule
+still needs the same valve. The dashboard shows a dismissible error banner
+above the schedule list when a delete command fails.
+
 ## Tests and quality
 
 ```bash

@@ -74,8 +74,28 @@ class ScheduleService:
         current = self.get(record_id)
         return self._repository.update(replace(current, status=status).to_dict())
 
-    def delete(self, record_id: str) -> bool:
-        return self._repository.delete([record_id])
+    def delete(self, record_id: str, valves: ValveService | None = None) -> bool:
+        record_id = str(record_id).strip()
+        if not record_id:
+            raise ValidationError("schedule id is required")
+        existing = self._repository.find_by_id(record_id)
+        if existing is None:
+            return False
+        schedule = Schedule.from_dict(existing)
+        deleted = self._repository.delete([record_id])
+        if deleted and schedule.status and valves is not None:
+            self._release_valve_if_unused(schedule, valves)
+        return deleted
+
+    def _release_valve_if_unused(
+        self, schedule: Schedule, valves: ValveService
+    ) -> None:
+        still_needed = any(
+            other.valve_pin == schedule.valve_pin and other.status
+            for other in self.list_all()
+        )
+        if not still_needed:
+            valves.turn_off(schedule.valve_pin)
 
     def get(self, record_id: str) -> Schedule:
         data = self._repository.find_by_id(record_id)

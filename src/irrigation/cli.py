@@ -90,7 +90,7 @@ def _dispatch(app: Application, args: argparse.Namespace):
             record_id, schedule_time, minutes, pin = _csv(args.data, 4, "update")
             return service.update(record_id, schedule_time, minutes, pin)
         if args.action == "delete":
-            return {"deleted": service.delete(args.id)}
+            return {"deleted": service.delete(args.id, app.valves())}
         record_id, enabled = _csv(args.data, 2, "enabled flag")
         return service.set_enabled(record_id, enabled)
 

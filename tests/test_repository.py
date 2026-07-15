@@ -30,6 +30,29 @@ def test_update_missing_id_fails(tmp_path):
         repository.update({"id": "9"})
 
 
+def test_delete_missing_id_returns_false_and_keeps_records(tmp_path):
+    file_path = tmp_path / "records.json"
+    repository = JsonLinesRepository(file_path)
+    repository.add({"nome": "Seção 1"})
+
+    changed = repository.delete(["999"])
+
+    assert changed is False
+    assert repository.list_all() == [{"id": "1", "nome": "Seção 1"}]
+
+
+def test_repeated_delete_of_same_id_is_idempotent(tmp_path):
+    repository = JsonLinesRepository(tmp_path / "records.json")
+    repository.add({"nome": "Seção 1"})
+
+    first = repository.delete(["1"])
+    second = repository.delete(["1"])
+
+    assert first is True
+    assert second is False
+    assert repository.list_all() == []
+
+
 def test_cache_sees_writes_from_other_process(tmp_path):
     file_path = tmp_path / "records.json"
     reader = JsonLinesRepository(file_path)
