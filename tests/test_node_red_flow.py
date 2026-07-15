@@ -138,6 +138,18 @@ def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
 
     assert "manual_feedback" in schedule_template
     assert "scope.applyManualFeedback(msg.payload)" in schedule_template
+    assert "scope.manual_pending = scope.manual_pending || {}" in schedule_template
+    assert "scope.manual_pending_timers = scope.manual_pending_timers || {}" in (
+        schedule_template
+    )
+    assert "scope.manual_pending_timeout_ms = 15000" in schedule_template
+    assert 'ng-disabled="manual_pending[schedule.id]"' in schedule_template
+    assert '"Ligando..." : "Ligar agora"' in schedule_template
+    assert '"Desligando..." : "Desligar agora"' in schedule_template
+    assert 'scope.startManualPending(schedule, "on")' in schedule_template
+    assert 'scope.startManualPending(schedule, "off")' in schedule_template
+    assert "setTimeout(function()" in schedule_template
+    assert "scope.clearManualPending(payload.id)" in schedule_template
     assert "String(scope.schedules[i].id) === String(payload.id)" in (schedule_template)
     assert 'scope.schedules[i].status = payload.action === "on" ? 1 : 0' in (
         schedule_template
