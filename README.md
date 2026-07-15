@@ -148,6 +148,42 @@ Restart the service after changing the file.
 
 ## Development without Raspberry Pi
 
+With Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Then open the Node-RED dashboard at `http://localhost:1880/ui`.
+
+The Compose environment uses the mock GPIO driver and the repository `data/`
+directory, so it can run on a development machine without Raspberry Pi GPIO
+access. The scheduler runs in the `scheduler` service and Node-RED runs in the
+`node-red` service.
+
+On Linux, the services run as UID/GID `1000:1000` by default to avoid creating
+root-owned files in the mounted repository. If your user has a different ID,
+create `.env` from `.env.example` and adjust `DOCKER_UID` and `DOCKER_GID`.
+
+Useful Docker commands:
+
+```bash
+# Run CLI commands against the same mounted data directory
+docker compose run --rm scheduler irrigacao schedule create '06:30,15,13'
+docker compose run --rm scheduler irrigacao valve '13,on' --no-wait
+docker compose run --rm scheduler irrigacao history 'day,,'
+
+# Run tests and quality checks inside the image
+docker compose run --rm scheduler pytest
+docker compose run --rm scheduler ruff check src tests
+docker compose run --rm scheduler ruff format --check src tests
+
+# Stop the development environment
+docker compose down
+```
+
+Without Docker:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate

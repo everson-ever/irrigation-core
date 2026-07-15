@@ -1,0 +1,39 @@
+services:
+  scheduler:
+    build:
+      context: .
+    image: sistema-irrigacao-dev
+    init: true
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    working_dir: /app
+    command: irrigacao run
+    environment:
+      IRRIGATION_DATA_DIR: /app/data
+      IRRIGATION_GPIO_DRIVER: mock
+      IRRIGATION_PUMP_PIN: 15
+      IRRIGATION_POLL_INTERVAL: 2
+    volumes:
+      - .:/app
+
+  node-red:
+    image: sistema-irrigacao-dev
+    init: true
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    working_dir: /app
+    command:
+      - node-red
+      - --userDir
+      - /node-red-data
+      - --flowFile
+      - /app/node-red/flows.json
+    depends_on:
+      - scheduler
+    environment:
+      IRRIGATION_DATA_DIR: /app/data
+      IRRIGATION_GPIO_DRIVER: mock
+      IRRIGATION_PUMP_PIN: 15
+      IRRIGATION_POLL_INTERVAL: 2
+    ports:
+      - "1880:1880"
+    volumes:
+      - .:/app
