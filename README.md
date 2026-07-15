@@ -190,6 +190,9 @@ access. The scheduler runs in the `scheduler` service and Node-RED runs in the
 On Linux, the services run as UID/GID `1000:1000` by default to avoid creating
 root-owned files in the mounted repository. If your user has a different ID,
 create `.env` from `.env.example` and adjust `DOCKER_UID` and `DOCKER_GID`.
+The containers default to the `America/Fortaleza` timezone so dashboard times
+and automatic schedules use the same local clock. Set `TZ` in `.env` if the
+installation uses another timezone.
 
 Useful Docker commands:
 

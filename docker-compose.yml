@@ -8,6 +8,7 @@ services:
     working_dir: /app
     command: /opt/venv/bin/irrigation run
     environment:
+      TZ: "${TZ:-America/Fortaleza}"
       IRRIGATION_DATA_DIR: /app/data
       IRRIGATION_GPIO_DRIVER: mock
       IRRIGATION_PUMP_PIN: 15
@@ -29,6 +30,7 @@ services:
     depends_on:
       - scheduler
     environment:
+      TZ: "${TZ:-America/Fortaleza}"
       IRRIGATION_DATA_DIR: /app/data
       IRRIGATION_GPIO_DRIVER: mock
       IRRIGATION_PUMP_PIN: 15
