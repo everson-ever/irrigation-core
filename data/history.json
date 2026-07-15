@@ -1,2 +1,4 @@
 {"id": "1", "valve": "Section 1", "date": "2026-07-15", "start": "02:21", "end": "02:26", "weekday": "Wednesday", "mode": "Manual"}
 {"id": "2", "valve": "Section 1", "date": "2026-07-15", "start": "02:22", "end": "02:27", "weekday": "Wednesday", "mode": "Manual"}
+{"id": "3", "valve": "Section 1", "date": "2026-07-15", "start": "02:40", "end": "02:45", "weekday": "Wednesday", "mode": "Automatic"}
+{"id": "4", "valve": "Jardim lateral direita", "date": "2026-07-15", "start": "02:50", "end": "03:00", "weekday": "Wednesday", "mode": "Manual"}
