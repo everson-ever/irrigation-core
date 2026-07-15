@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -29,11 +30,24 @@ class ScheduleService:
     def list_all(self) -> list[Schedule]:
         return [Schedule.from_dict(item) for item in self._repository.list_all()]
 
-    def list_with_runtime_status(self, now: datetime) -> list[dict[str, Any]]:
+    def list_with_runtime_status(
+        self,
+        now: datetime,
+        valves: Iterable[Valve] | None = None,
+    ) -> list[dict[str, Any]]:
+        valve_status_by_pin = None
+        if valves is not None:
+            valve_status_by_pin = {valve.pin: valve.status for valve in valves}
+
         records: list[dict[str, Any]] = []
         for schedule in self.list_all():
             record = schedule.to_dict()
-            record["is_running"] = schedule.is_running_at(now)
+            is_running = schedule.status
+            valve_status = None
+            if valve_status_by_pin is not None:
+                valve_status = valve_status_by_pin.get(schedule.valve_pin, False)
+            record["is_running"] = is_running
+            record["valve_status"] = valve_status
             records.append(record)
         return records
 
@@ -135,14 +149,29 @@ class ValveService:
                 return valve
         raise RecordNotFoundError(f"valve on pin {pin} not found")
 
-    def turn_on(self, pin: int, force_hardware: bool = False) -> bool:
+    def turn_on(
+        self,
+        pin: int,
+        force_hardware: bool = False,
+        preserve_manual_stop: bool = False,
+    ) -> bool:
         self._ensure_configured()
         valve = self.get_by_pin(pin)
         if valve.status and not force_hardware:
+            if valve.manually_turned_off and not preserve_manual_stop:
+                self._repository.update(
+                    replace(valve, manually_turned_off=False).to_dict()
+                )
             return False
         self._gpio.turn_on(valve.pin)
-        if not valve.status:
-            updated = replace(valve, status=True, manually_turned_off=False)
+        if not valve.status or valve.manually_turned_off:
+            updated = replace(
+                valve,
+                status=True,
+                manually_turned_off=(
+                    valve.manually_turned_off and preserve_manual_stop
+                ),
+            )
             self._repository.update(updated.to_dict())
         return True
 
@@ -150,6 +179,10 @@ class ValveService:
         self._ensure_configured()
         valve = self.get_by_pin(pin)
         if not valve.status:
+            if manual and not valve.manually_turned_off:
+                self._repository.update(
+                    replace(valve, manually_turned_off=True).to_dict()
+                )
             return False
         other_active_valves = any(
             item.status and item.pin != valve.pin for item in self.list_all()
@@ -158,6 +191,11 @@ class ValveService:
         updated = replace(valve, status=False, manually_turned_off=manual)
         self._repository.update(updated.to_dict())
         return True
+
+    def clear_manual_stop(self, pin: int) -> None:
+        valve = self.get_by_pin(pin)
+        if valve.manually_turned_off:
+            self._repository.update(replace(valve, manually_turned_off=False).to_dict())
 
     def close(self) -> None:
         self._gpio.close()
@@ -190,6 +228,32 @@ class HistoryService:
             mode=mode,
         )
         return self._history.add(record.to_dict())
+
+    def has_active_manual(self, valve: str, now: datetime) -> bool:
+        return self._has_active_record(valve, now, lambda mode: mode == "Manual")
+
+    def has_active_automatic(self, valve: str, now: datetime) -> bool:
+        return self._has_active_record(valve, now, lambda mode: mode != "Manual")
+
+    def _has_active_record(self, valve: str, now: datetime, mode_matches) -> bool:
+        for item in self._history.list_all():
+            if str(item.get("valve")) != valve:
+                continue
+            if not mode_matches(str(item.get("mode", ""))):
+                continue
+            start = datetime.combine(
+                date.fromisoformat(str(item["date"])),
+                datetime.strptime(str(item["start"]), "%H:%M").time(),
+            )
+            end = datetime.combine(
+                start.date(),
+                datetime.strptime(str(item["end"]), "%H:%M").time(),
+            )
+            if end <= start:
+                end += timedelta(days=1)
+            if start <= now < end:
+                return True
+        return False
 
     def search_day(self, day: date) -> list[dict[str, Any]]:
         return self.search_range(day, day)
@@ -239,29 +303,49 @@ class ManualControlService:
         history: HistoryService,
         clock: Clock,
         poll_interval: float = 2.0,
+        schedules: ScheduleService | None = None,
     ) -> None:
         self._valves = valves
         self._settings = settings
         self._history = history
         self._clock = clock
         self._poll_interval = poll_interval
+        self._schedules = schedules
 
     def turn_on(
-        self, pin: int, duration_minutes: Any = None, wait: bool = True
+        self,
+        pin: int,
+        duration_minutes: Any = None,
+        wait: bool = True,
+        schedule_id: str | None = None,
     ) -> bool:
         start = self._clock.now()
         valve = self._valves.get_by_pin(pin)
-        if not self._valves.turn_on(pin):
+        preserve_manual_stop = (
+            valve.manually_turned_off
+            and self._has_cancelled_automatic_interval(pin, start)
+        )
+        valve_changed = self._valves.turn_on(
+            pin, preserve_manual_stop=preserve_manual_stop
+        )
+        schedule_changed = self._set_manual_schedule_status(schedule_id, True)
+        if not valve_changed and not schedule_changed:
             return False
+        self._clear_expired_schedule_statuses(
+            pin, start, except_schedule_id=schedule_id
+        )
         duration = self._manual_duration_minutes(duration_minutes)
         end = start + timedelta(minutes=duration)
-        self._history.record(valve.section, start, end, "Manual")
+        if valve_changed:
+            self._history.record(valve.section, start, end, "Manual")
         if wait:
-            self._wait_for_auto_turn_off(pin, end)
+            self._wait_for_auto_turn_off(pin, end, preserve_manual_stop, schedule_id)
         return True
 
-    def turn_off(self, pin: int) -> bool:
-        return self._valves.turn_off(pin, manual=True)
+    def turn_off(self, pin: int, schedule_id: str | None = None) -> bool:
+        schedule_changed = self._set_manual_schedule_status(schedule_id, False)
+        valve_changed = self._valves.turn_off(pin, manual=True)
+        return valve_changed or schedule_changed
 
     def _manual_duration_minutes(self, duration_minutes: Any = None) -> int:
         if duration_minutes in (None, ""):
@@ -274,12 +358,71 @@ class ManualControlService:
             raise ValidationError("manual duration must be greater than zero")
         return duration
 
-    def _wait_for_auto_turn_off(self, pin: int, end: datetime) -> None:
+    def _wait_for_auto_turn_off(
+        self,
+        pin: int,
+        end: datetime,
+        preserve_manual_stop: bool,
+        schedule_id: str | None,
+    ) -> None:
         while self._clock.now() < end:
             if not self._valves.get_by_pin(pin).status:
+                self._set_manual_schedule_status(schedule_id, False)
                 return
             time.sleep(self._poll_interval)
-        self._valves.turn_off(pin)
+        self._set_manual_schedule_status(schedule_id, False)
+        if not self._has_other_running_schedule_on_valve(pin, schedule_id):
+            self._valves.turn_off(pin, manual=preserve_manual_stop)
+
+    def _has_cancelled_automatic_interval(self, pin: int, now: datetime) -> bool:
+        if self._schedules is None:
+            return False
+        return any(
+            schedule.valve_pin == int(pin)
+            and schedule.status
+            and schedule.is_running_at(now)
+            for schedule in self._schedules.list_all()
+        )
+
+    def _clear_expired_schedule_statuses(
+        self,
+        pin: int,
+        now: datetime,
+        except_schedule_id: str | None = None,
+    ) -> None:
+        if self._schedules is None:
+            return
+        for schedule in self._schedules.list_all():
+            if (
+                schedule.valve_pin == int(pin)
+                and schedule.id != str(except_schedule_id or "")
+                and schedule.status
+                and not schedule.is_running_at(now)
+            ):
+                self._schedules.set_status(schedule.id, False)
+
+    def _set_manual_schedule_status(
+        self, schedule_id: str | None, status: bool
+    ) -> bool:
+        if self._schedules is None or schedule_id in (None, ""):
+            return False
+        schedule = self._schedules.get(str(schedule_id))
+        if schedule.status == status:
+            return False
+        self._schedules.set_status(schedule.id, status)
+        return True
+
+    def _has_other_running_schedule_on_valve(
+        self, pin: int, schedule_id: str | None
+    ) -> bool:
+        if self._schedules is None:
+            return False
+        return any(
+            schedule.valve_pin == int(pin)
+            and schedule.status
+            and schedule.id != str(schedule_id or "")
+            for schedule in self._schedules.list_all()
+        )
 
 
 class IrrigationController:
@@ -306,17 +449,22 @@ class IrrigationController:
         active_ids = {
             schedule.id
             for schedule in schedules
-            if schedule.is_running_at(now)
+            if schedule.status and schedule.is_running_at(now)
         }
 
         for schedule in schedules:
             start, end = schedule.interval_at(now)
             is_running = schedule.is_running_at(now)
-            keep_valve_on = any(
-                other.id != schedule.id
-                and other.id in active_ids
-                and other.valve_pin == schedule.valve_pin
-                for other in schedules
+            valve = self._valves.get_by_pin(schedule.valve_pin)
+            active_manual = self._history.has_active_manual(valve.section, now)
+            keep_valve_on = (
+                any(
+                    other.id != schedule.id
+                    and other.id in active_ids
+                    and other.valve_pin == schedule.valve_pin
+                    for other in schedules
+                )
+                or active_manual
             )
 
             if not schedule.enabled:
@@ -325,6 +473,12 @@ class IrrigationController:
                 continue
 
             if is_running and not schedule.status:
+                if valve.manually_turned_off and self._history.has_active_automatic(
+                    valve.section, now
+                ):
+                    continue
+                if valve.manually_turned_off:
+                    self._valves.clear_manual_stop(schedule.valve_pin)
                 mode = (
                     "Automatic"
                     if now.strftime("%H:%M") == schedule.time
@@ -336,8 +490,14 @@ class IrrigationController:
                 and schedule.status
                 and schedule.id not in self._started_in_this_process
             ):
+                if valve.manually_turned_off and self._history.has_active_automatic(
+                    valve.section, now
+                ):
+                    continue
+                if valve.manually_turned_off:
+                    self._valves.clear_manual_stop(schedule.valve_pin)
                 self._start(schedule, now, end, "Restarted", restarted=True)
-            elif not is_running and schedule.status:
+            elif not is_running and schedule.status and not active_manual:
                 self._stop(schedule, keep_valve_on)
 
     def run(self) -> None:
@@ -365,7 +525,8 @@ class IrrigationController:
         self._started_in_this_process.add(schedule.id)
 
     def _stop(self, schedule: Schedule, keep_valve_on: bool = False) -> None:
-        if not keep_valve_on:
+        valve = self._valves.get_by_pin(schedule.valve_pin)
+        if not keep_valve_on and not valve.manually_turned_off:
             self._valves.turn_off(schedule.valve_pin)
         self._schedules.set_status(schedule.id, False)
         self._started_in_this_process.discard(schedule.id)

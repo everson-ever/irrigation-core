@@ -73,6 +73,10 @@ def test_schedule_list_reports_schedule_specific_running_status(
 
     monkeypatch.setattr("irrigation.cli.datetime", FixedDateTime)
     schedules_file = tmp_path / "schedules.json"
+    valves_file = tmp_path / "valves.json"
+    valves_file.write_text(
+        json.dumps({"id": "1", "pin": "13", "status": 1, "section": "Horta"}) + "\n"
+    )
     schedules_file.write_text(
         "\n".join(
             [
@@ -109,3 +113,146 @@ def test_schedule_list_reports_schedule_specific_running_status(
         ("10:46", "13", False),
         ("11:06", "13", True),
     ]
+    assert [row["valve_status"] for row in output] == [True, True]
+
+
+def test_schedule_list_reports_active_schedule_as_stopped_after_manual_off(
+    capsys, tmp_path, monkeypatch
+):
+    class FixedDateTime:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 7, 14, 10, 5)
+
+    monkeypatch.setattr("irrigation.cli.datetime", FixedDateTime)
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "10:00",
+                "duration_minutes": "10",
+                "valve_pin": "13",
+                "status": 1,
+                "enabled": 1,
+            }
+        )
+        + "\n"
+    )
+    valves_file = tmp_path / "valves.json"
+    valves_file.write_text(
+        json.dumps({"id": "1", "pin": "13", "status": 1, "section": "Horta"}) + "\n"
+    )
+
+    turn_off_exit_code = execute(["valve", "13,off,1"])
+    capsys.readouterr()
+    list_exit_code = execute(["schedule", "list"])
+    output = json.loads(capsys.readouterr().out)
+    valve = json.loads(valves_file.read_text().splitlines()[0])
+
+    assert turn_off_exit_code == 0
+    assert list_exit_code == 0
+    assert valve["status"] == 0
+    assert valve["manually_turned_off"] == 1
+    assert json.loads(schedules_file.read_text().splitlines()[0])["status"] == 0
+    assert output[0]["is_running"] is False
+    assert output[0]["valve_status"] is False
+
+
+def test_manual_on_after_manual_off_turns_valve_on_and_clears_manual_flag(
+    capsys, tmp_path
+):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "10:00",
+                "duration_minutes": "10",
+                "valve_pin": "13",
+                "status": 0,
+                "enabled": 1,
+            }
+        )
+        + "\n"
+    )
+    valves_file = tmp_path / "valves.json"
+    valves_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "pin": "13",
+                "status": 0,
+                "section": "Horta",
+                "manually_turned_off": 1,
+            }
+        )
+        + "\n"
+    )
+    settings_file = tmp_path / "settings.json"
+    settings_file.write_text(
+        json.dumps({"id": "1", "default_duration_minutes": 10}) + "\n"
+    )
+
+    exit_code = execute(["valve", "13,on,10,1", "--no-wait"])
+    output = json.loads(capsys.readouterr().out)
+    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+    valve = json.loads(valves_file.read_text().splitlines()[0])
+
+    assert exit_code == 0
+    assert output == {"changed": True}
+    assert schedule["status"] == 1
+    assert valve["status"] == 1
+    assert valve["manually_turned_off"] == 0
+
+
+def test_manual_on_clears_expired_schedule_status_used_by_controller(
+    capsys, tmp_path, monkeypatch
+):
+    class FixedDateTime:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 7, 14, 10, 11)
+
+    monkeypatch.setattr("irrigation.infrastructure.clock.datetime", FixedDateTime)
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "10:00",
+                "duration_minutes": "10",
+                "valve_pin": "13",
+                "status": 1,
+                "enabled": 1,
+            }
+        )
+        + "\n"
+    )
+    valves_file = tmp_path / "valves.json"
+    valves_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "pin": "13",
+                "status": 0,
+                "section": "Horta",
+                "manually_turned_off": 1,
+            }
+        )
+        + "\n"
+    )
+    settings_file = tmp_path / "settings.json"
+    settings_file.write_text(
+        json.dumps({"id": "1", "default_duration_minutes": 10}) + "\n"
+    )
+
+    exit_code = execute(["valve", "13,on,10", "--no-wait"])
+    output = json.loads(capsys.readouterr().out)
+    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+    valve = json.loads(valves_file.read_text().splitlines()[0])
+
+    assert exit_code == 0
+    assert output == {"changed": True}
+    assert schedule["status"] == 0
+    assert valve["status"] == 1

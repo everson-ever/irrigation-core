@@ -41,7 +41,7 @@ def create_parser() -> argparse.ArgumentParser:
     enabled.add_argument("data", help="id,0|1")
 
     valve = subcommands.add_parser("valve")
-    valve.add_argument("data", help="pin,on|off[,minutes]")
+    valve.add_argument("data", help="pin,on|off[,minutes][,schedule_id]")
     valve.add_argument(
         "--no-wait",
         action="store_true",
@@ -85,7 +85,10 @@ def _dispatch(app: Application, args: argparse.Namespace):
     if args.command == "schedule":
         service = app.schedules()
         if args.action == "list":
-            return service.list_with_runtime_status(datetime.now())
+            return service.list_with_runtime_status(
+                datetime.now(),
+                app.valves().list_all(),
+            )
         if args.action == "create":
             schedule_time, minutes, pin = _csv(args.data, 3, "schedule")
             return service.create(schedule_time, minutes, pin)
@@ -99,17 +102,28 @@ def _dispatch(app: Application, args: argparse.Namespace):
 
     if args.command == "valve":
         valve_data = [part.strip() for part in args.data.split(",")]
-        if len(valve_data) not in (2, 3):
-            raise ValueError("valve must contain 2 or 3 comma-separated fields")
+        if len(valve_data) not in (2, 3, 4):
+            raise ValueError("valve must contain 2 to 4 comma-separated fields")
         pin, action = valve_data[:2]
-        duration_minutes = valve_data[2] if len(valve_data) == 3 else None
+        duration_minutes = None
+        schedule_id = None
+        if action == "on":
+            duration_minutes = valve_data[2] if len(valve_data) >= 3 else None
+            schedule_id = valve_data[3] if len(valve_data) == 4 else None
+        elif action == "off":
+            schedule_id = valve_data[2] if len(valve_data) == 3 else None
+            if len(valve_data) == 4:
+                raise ValueError("off action must not contain duration")
         service = app.manual_control()
         if action == "on":
             changed = service.turn_on(
-                int(pin), duration_minutes=duration_minutes, wait=not args.no_wait
+                int(pin),
+                duration_minutes=duration_minutes,
+                wait=not args.no_wait,
+                schedule_id=schedule_id,
             )
         elif action == "off":
-            changed = service.turn_off(int(pin))
+            changed = service.turn_off(int(pin), schedule_id=schedule_id)
         else:
             raise ValueError("valve action must be on/off")
         return {"changed": changed}

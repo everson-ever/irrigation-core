@@ -86,7 +86,7 @@ def test_schedule_list_uses_cli_runtime_status_output():
     assert 'msg.topic = "schedules"' in formatter["func"]
 
 
-def test_schedule_table_uses_schedule_running_status_for_badges_and_actions():
+def test_schedule_table_uses_schedule_status_for_badges_and_actions():
     nodes = load_nodes()
 
     schedule_template = nodes["25072c26.808454"]["format"]
@@ -94,9 +94,32 @@ def test_schedule_table_uses_schedule_running_status_for_badges_and_actions():
         "scope.sectionStatus = function(schedule) {", 1
     )[1].split("  scope.sendId = function(id)", 1)[0]
 
-    assert "schedule.is_running" in section_status
-    assert "scope.findValve(schedule)" not in section_status
+    assert "schedule.status" in section_status
+    assert "schedule.valve_status" not in section_status
     assert 'ng-if="sectionStatus(schedule) === 0">Desligada' in schedule_template
     assert 'ng-if="sectionStatus(schedule) === 1">Ligada' in schedule_template
     assert 'ng-if="sectionStatus(schedule) === 1"' in schedule_template
     assert 'ng-if="sectionStatus(schedule) !== 1"' in schedule_template
+
+
+def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+    action_router = nodes["d4f14a77.92f3b1"]
+
+    assert "manual_feedback" in schedule_template
+    assert "scope.applyManualFeedback(msg.payload)" in schedule_template
+    assert "String(scope.schedules[i].id) === String(payload.id)" in (schedule_template)
+    assert 'scope.schedules[i].status = payload.action === "on" ? 1 : 0' in (
+        schedule_template
+    )
+    assert 'action: "on", id: schedule.id' in schedule_template
+    assert 'action: "off", id: schedule.id' in schedule_template
+    assert 'msg.topic = "manual_feedback"' in action_router["func"]
+    assert "id: payload.id" in action_router["func"]
+    assert "id } = msg.payload" in nodes["5b92c8ad.78d3e8"]["func"]
+    assert action_router["wires"][2] == [
+        "5b92c8ad.78d3e8",
+        "25072c26.808454",
+    ]

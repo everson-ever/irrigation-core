@@ -52,6 +52,7 @@ class Application:
             self.history(),
             SystemClock(),
             self.settings.poll_interval,
+            self.schedules(),
         )
 
     def automatic_controller(self) -> IrrigationController:

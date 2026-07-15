@@ -177,6 +177,112 @@ def test_reactivates_hardware_for_interrupted_schedule(tmp_path):
     assert history.list_all()[0]["mode"] == "Restarted"
 
 
+def test_does_not_restart_manually_stopped_schedule_after_controller_restart(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 5))
+    controller, schedules, valves, history, gpio, _ = items
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    history.add(
+        {
+            "valve": "Horta",
+            "date": "2026-07-14",
+            "start": "10:00",
+            "end": "10:10",
+            "weekday": "Tuesday",
+            "mode": "Automatic",
+        }
+    )
+    valve_record = valves.find_by_id("1")
+    valve_record["status"] = 0
+    valve_record["manually_turned_off"] = 1
+    valves.update(valve_record)
+
+    controller.run_once()
+
+    assert valves.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["manually_turned_off"] == 1
+    assert schedules.find_by_id("1")["status"] == 0
+    assert gpio.operations == []
+    assert len(history.list_all()) == 1
+
+
+def test_manually_stopped_schedule_runs_again_on_next_occurrence(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 5))
+    controller, schedules, valves, history, gpio, clock = items
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    history.add(
+        {
+            "valve": "Horta",
+            "date": "2026-07-14",
+            "start": "10:00",
+            "end": "10:10",
+            "weekday": "Tuesday",
+            "mode": "Automatic",
+        }
+    )
+    valve_record = valves.find_by_id("1")
+    valve_record["status"] = 0
+    valve_record["manually_turned_off"] = 1
+    valves.update(valve_record)
+
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 10, 11)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 15, 10, 0)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["manually_turned_off"] == 0
+    assert gpio.operations == [("on", 13)]
+    assert history.list_all()[-1]["mode"] == "Automatic"
+
+
+def test_next_occurrence_takes_ownership_from_manual_override(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 11))
+    controller, schedules, valves, history, gpio, clock = items
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 1,
+            "enabled": 1,
+        }
+    )
+    valve_record = valves.find_by_id("1")
+    valve_record["status"] = 1
+    valve_record["manually_turned_off"] = 1
+    valves.update(valve_record)
+
+    controller.run_once()
+    clock.value = datetime(2026, 7, 15, 10, 0)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 15, 10, 11)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["manually_turned_off"] == 0
+    assert gpio.operations == [("on", 13), ("off", 13)]
+    assert history.list_all()[0]["mode"] == "Automatic"
+
+
 def test_disabled_schedule_does_not_turn_on(tmp_path):
     items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 5))
     controller, schedules, _, history, gpio, _ = items
@@ -225,6 +331,42 @@ def test_overlapping_schedules_do_not_turn_off_valve_before_end(tmp_path):
     assert gpio.states[13] is False
 
 
+def test_overlapping_manually_stopped_schedules_do_not_restart_valve(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 7))
+    controller, schedules, valves, history, gpio, _ = items
+    for schedule_time in ("10:00", "10:05"):
+        schedules.add(
+            {
+                "time": schedule_time,
+                "duration_minutes": 10,
+                "valve_pin": 13,
+                "status": 0,
+                "enabled": 1,
+            }
+        )
+    history.add(
+        {
+            "valve": "Horta",
+            "date": "2026-07-14",
+            "start": "10:00",
+            "end": "10:15",
+            "weekday": "Tuesday",
+            "mode": "Automatic",
+        }
+    )
+    valve_record = valves.find_by_id("1")
+    valve_record["status"] = 0
+    valve_record["manually_turned_off"] = 1
+    valves.update(valve_record)
+
+    controller.run_once()
+
+    assert gpio.operations == []
+    assert len(history.list_all()) == 1
+    assert schedules.find_by_id("1")["status"] == 0
+    assert schedules.find_by_id("2")["status"] == 0
+
+
 def test_midnight_crossing_schedule_stops_at_exact_end_boundary(tmp_path):
     controller, schedules, valves, history, gpio, clock = create_controller(
         tmp_path, datetime(2026, 7, 15, 0, 2)
@@ -257,7 +399,9 @@ def test_midnight_crossing_schedule_stops_at_exact_end_boundary(tmp_path):
 
 def test_schedule_runtime_status_is_specific_to_shared_valve_schedule(tmp_path):
     schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
     service = ScheduleService(schedules_repo)
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
     schedules_repo.add(
         {
             "time": "10:46",
@@ -277,7 +421,10 @@ def test_schedule_runtime_status_is_specific_to_shared_valve_schedule(tmp_path):
         }
     )
 
-    rows = service.list_with_runtime_status(datetime(2026, 7, 14, 11, 7))
+    rows = service.list_with_runtime_status(
+        datetime(2026, 7, 14, 11, 7),
+        [ValveService(valves_repo, MockGPIO(15)).get_by_pin(13)],
+    )
 
     assert [(row["time"], row["valve_pin"], row["is_running"]) for row in rows] == [
         ("10:46", "13", False),
@@ -300,9 +447,46 @@ def test_manual_on_valve_does_not_mark_inactive_schedule_as_running(tmp_path):
         }
     )
 
-    rows = service.list_with_runtime_status(datetime(2026, 7, 14, 11, 7))
+    rows = service.list_with_runtime_status(
+        datetime(2026, 7, 14, 11, 7),
+        [ValveService(valves_repo, MockGPIO(15)).get_by_pin(13)],
+    )
 
     assert rows[0]["is_running"] is False
+    assert rows[0]["valve_status"] is True
+
+
+def test_runtime_status_is_false_when_active_schedule_valve_was_manually_stopped(
+    tmp_path,
+):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ScheduleService(schedules_repo)
+    valves_repo.add(
+        {
+            "pin": "13",
+            "status": 0,
+            "section": "Horta",
+            "manually_turned_off": 1,
+        }
+    )
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    rows = service.list_with_runtime_status(
+        datetime(2026, 7, 14, 10, 5),
+        [ValveService(valves_repo, MockGPIO(15)).get_by_pin(13)],
+    )
+
+    assert rows[0]["is_running"] is False
+    assert rows[0]["valve_status"] is False
 
 
 def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
@@ -325,6 +509,163 @@ def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
 
     assert changed is True
     assert history_repo.list_all()[0]["end"] == "10:12"
+
+
+def test_manual_on_clears_expired_schedule_status_before_controller_cycle(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    settings_repo = JsonLinesRepository(tmp_path / "settings.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add(
+        {
+            "pin": "13",
+            "status": 0,
+            "section": "Horta",
+            "manually_turned_off": 1,
+        }
+    )
+    settings_repo.add({"default_duration_minutes": 10})
+    clock = FakeClock(datetime(2026, 7, 14, 10, 11))
+    gpio = RecordingMockGPIO(15)
+    valve_service = ValveService(valves_repo, gpio)
+    schedule_service = ScheduleService(schedules_repo)
+    history_service = HistoryService(history_repo, result_repo)
+    manual = ManualControlService(
+        valve_service,
+        SettingsService(settings_repo),
+        history_service,
+        clock,
+        poll_interval=0,
+        schedules=schedule_service,
+    )
+    controller = IrrigationController(
+        schedule_service,
+        valve_service,
+        history_service,
+        clock,
+        poll_interval=0,
+    )
+
+    changed = manual.turn_on(13, duration_minutes=10, wait=False)
+    controller.run_once()
+
+    assert changed is True
+    assert schedules_repo.find_by_id("1")["status"] == 0
+    assert valves_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["manually_turned_off"] == 0
+    assert gpio.operations == [("on", 13)]
+
+
+def test_manual_on_during_cancelled_schedule_survives_automatic_end(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    settings_repo = JsonLinesRepository(tmp_path / "settings.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add(
+        {
+            "pin": "13",
+            "status": 0,
+            "section": "Horta",
+            "manually_turned_off": 1,
+        }
+    )
+    settings_repo.add({"default_duration_minutes": 20})
+    clock = FakeClock(datetime(2026, 7, 14, 10, 5))
+    gpio = RecordingMockGPIO(15)
+    valve_service = ValveService(valves_repo, gpio)
+    schedule_service = ScheduleService(schedules_repo)
+    history_service = HistoryService(history_repo, result_repo)
+    manual = ManualControlService(
+        valve_service,
+        SettingsService(settings_repo),
+        history_service,
+        clock,
+        poll_interval=0,
+        schedules=schedule_service,
+    )
+    controller = IrrigationController(
+        schedule_service,
+        valve_service,
+        history_service,
+        clock,
+        poll_interval=0,
+    )
+
+    changed = manual.turn_on(13, duration_minutes=20, wait=False, schedule_id="1")
+    clock.value = datetime(2026, 7, 14, 10, 11)
+    controller.run_once()
+
+    assert changed is True
+    assert schedules_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["manually_turned_off"] == 0
+    assert gpio.operations == [("on", 13)]
+
+
+def test_manual_on_outside_schedule_can_be_toggled_repeatedly(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    settings_repo = JsonLinesRepository(tmp_path / "settings.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add(
+        {
+            "pin": "13",
+            "status": 0,
+            "section": "Horta",
+            "manually_turned_off": 1,
+        }
+    )
+    settings_repo.add({"default_duration_minutes": 10})
+    gpio = RecordingMockGPIO(15)
+    service = ManualControlService(
+        ValveService(valves_repo, gpio),
+        SettingsService(settings_repo),
+        HistoryService(history_repo, result_repo),
+        FakeClock(datetime(2026, 7, 14, 12, 0)),
+        poll_interval=0,
+        schedules=ScheduleService(schedules_repo),
+    )
+
+    assert service.turn_on(13, wait=False, schedule_id="1") is True
+    assert schedules_repo.find_by_id("1")["status"] == 1
+    assert service.turn_off(13, schedule_id="1") is True
+    assert schedules_repo.find_by_id("1")["status"] == 0
+    assert service.turn_on(13, wait=False, schedule_id="1") is True
+
+    assert schedules_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["manually_turned_off"] == 0
+    assert gpio.operations == [("on", 13), ("off", 13), ("on", 13)]
 
 
 def create_schedule_service_with_valve(tmp_path):
