@@ -38,8 +38,7 @@ class Schedule:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Schedule:
-        # ``led`` existed in earlier versions and is still accepted for migration.
-        pin = data.get("valvula", data.get("led"))
+        pin = data.get("valvula")
         if pin is None:
             raise ValidationError("valve pin is required")
         return cls(

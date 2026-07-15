@@ -3,14 +3,11 @@
 Irrigation system for Raspberry Pi with scheduling, manual activation, history,
 and a Node-RED web dashboard.
 
-The current application was restructured with layered architecture, testable
-code, and inverted dependencies. Historical directories from previous versions
-were removed from the main tree; the version to install and run is at the root
-of this repository.
+The application uses a layered architecture, testable code, and inverted
+dependencies. The version to install and run is at the root of this repository.
 
 Main classes, methods, functions, variables, and commands use English naming.
-File names and JSON fields were kept unchanged to preserve compatibility with
-the dashboard and existing data.
+File names and JSON fields are part of the current dashboard contract.
 
 ## Features
 
@@ -51,10 +48,9 @@ Responsibilities were separated following SOLID principles:
 - The real driver can be replaced by the simulated one without changing rules.
 - The Node-RED interface calls a thin CLI; it contains no business rules.
 
-Files remain in JSON Lines format (one JSON object per line), compatible with
-the read nodes from the original flow. Writes now use locking and atomic
-replacement to reduce the risk of corruption when Node-RED and the scheduler
-access data concurrently.
+Files use JSON Lines format (one JSON object per line). Writes use locking and
+atomic replacement to reduce the risk of corruption when Node-RED and the
+scheduler access data concurrently.
 
 ## Default hardware
 
@@ -226,9 +222,6 @@ In manual mode, the `on` command remains active until the default time ends or
 another `off` command turns the valve off. This preserves the behavior expected
 by the Node-RED `exec` node.
 
-Legacy Portuguese commands are still accepted as compatibility aliases, but the
-documentation and new flows use the English CLI.
-
 ## Tests and quality
 
 ```bash
@@ -238,11 +231,11 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-Tests do not access real GPIO. They verify validation, compatibility with the
-legacy `led` field, persistence, delayed start, restart, shutdown, disabled
-schedules, and intervals that cross midnight.
+Tests do not access real GPIO. They verify validation, persistence, delayed
+start, restart, shutdown, disabled schedules, and intervals that cross
+midnight.
 
-## Data and Part 7 migration
+## Data
 
 Operational files are stored in `data/`:
 
@@ -252,25 +245,8 @@ Operational files are stored in `data/`:
 - `historico.json`: activation log;
 - `pesquisaHistoricoResultado.json`: result consumed by the dashboard.
 
-A new installation starts without schedules. To migrate entries from the
-previous final version, pass an external copy of the legacy `Parte - 7/projeto`
-directory to the command:
-
-```bash
-sudo systemctl stop irrigacao
-cp -a data "data.backup.$(date +%Y%m%d-%H%M%S)"
-source .venv/bin/activate
-irrigacao migrate-part-7 --source /path/to/Parte\ -\ 7/projeto
-sudo systemctl start irrigacao
-```
-
-The migrator converts the old `led` field to `valvula`, keeps IDs and data, and
-resets execution states to avoid reactivating old irrigation runs. The Python
-reader accepts both fields during the transition, but the new dashboard expects
-`valvula`.
-
-Before replacing production data, create a backup and keep `status` fields set
-to `0`, avoiding interpretation of a long-interrupted execution as active.
+A new installation starts without schedules. Do not reuse files from previous
+systems; create schedules and valve configuration for the new installation.
 
 ## Screens
 

@@ -6,20 +6,17 @@ from irrigacao.domain.exceptions import ValidationError
 from irrigacao.domain.models import Schedule
 
 
-def test_schedule_accepts_legacy_led_field():
-    schedule = Schedule.from_dict(
-        {
-            "id": "1",
-            "horario": "06:30",
-            "tempoLigado": "15",
-            "led": "13",
-            "status": "0",
-            "ativado": "1",
-        }
-    )
-
-    assert schedule.valve_pin == 13
-    assert schedule.to_dict()["valvula"] == "13"
+def test_schedule_requires_valve_field():
+    with pytest.raises(ValidationError, match="valve pin is required"):
+        Schedule.from_dict(
+            {
+                "id": "1",
+                "horario": "06:30",
+                "tempoLigado": "15",
+                "status": "0",
+                "ativado": "1",
+            }
+        )
 
 
 def test_schedule_rejects_invalid_time():
