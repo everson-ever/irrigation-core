@@ -137,7 +137,7 @@ To change configuration without editing code, create
 IRRIGATION_DATA_DIR=/absolute/path/to/data
 IRRIGATION_GPIO_DRIVER=rpi
 IRRIGATION_PUMP_PIN=15
-IRRIGATION_POLL_INTERVAL=2
+IRRIGATION_POLL_INTERVAL=5
 ```
 
 Restart the service after changing the file.

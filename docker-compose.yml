@@ -11,7 +11,7 @@ services:
       IRRIGATION_DATA_DIR: /app/data
       IRRIGATION_GPIO_DRIVER: mock
       IRRIGATION_PUMP_PIN: 15
-      IRRIGATION_POLL_INTERVAL: 2
+      IRRIGATION_POLL_INTERVAL: 5
     volumes:
       - .:/app
 
@@ -32,7 +32,7 @@ services:
       IRRIGATION_DATA_DIR: /app/data
       IRRIGATION_GPIO_DRIVER: mock
       IRRIGATION_PUMP_PIN: 15
-      IRRIGATION_POLL_INTERVAL: 2
+      IRRIGATION_POLL_INTERVAL: 5
     ports:
       - "1880:1880"
     volumes:

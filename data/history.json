@@ -8,3 +8,4 @@
 {"id": "8", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "03:05", "end": "03:06", "weekday": "Wednesday", "mode": "Manual"}
 {"id": "9", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "03:06", "end": "03:07", "weekday": "Wednesday", "mode": "Manual"}
 {"id": "10", "valve": "Jardim lateral direita", "date": "2026-07-15", "start": "03:17", "end": "03:18", "weekday": "Wednesday", "mode": "Manual"}
+{"id": "11", "valve": "Jardim lateral direita", "date": "2026-07-15", "start": "10:40", "end": "10:41", "weekday": "Wednesday", "mode": "Manual"}
