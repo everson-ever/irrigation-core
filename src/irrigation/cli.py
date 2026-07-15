@@ -7,7 +7,7 @@ import json
 import signal
 import sys
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 
 from irrigation.bootstrap import Application
 from irrigation.domain.exceptions import IrrigationError
@@ -30,6 +30,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     schedule = subcommands.add_parser("schedule")
     schedule_actions = schedule.add_subparsers(dest="action", required=True)
+    schedule_actions.add_parser("list")
     create = schedule_actions.add_parser("create")
     create.add_argument("data", help="HH:MM,minutes,pin")
     update = schedule_actions.add_parser("update")
@@ -83,6 +84,8 @@ def _dispatch(app: Application, args: argparse.Namespace):
 
     if args.command == "schedule":
         service = app.schedules()
+        if args.action == "list":
+            return service.list_with_runtime_status(datetime.now())
         if args.action == "create":
             schedule_time, minutes, pin = _csv(args.data, 3, "schedule")
             return service.create(schedule_time, minutes, pin)

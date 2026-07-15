@@ -255,6 +255,56 @@ def test_midnight_crossing_schedule_stops_at_exact_end_boundary(tmp_path):
     assert gpio.operations == [("on", 13), ("off", 13)]
 
 
+def test_schedule_runtime_status_is_specific_to_shared_valve_schedule(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    schedules_repo.add(
+        {
+            "time": "10:46",
+            "duration_minutes": "2",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    schedules_repo.add(
+        {
+            "time": "11:06",
+            "duration_minutes": "4",
+            "valve_pin": "13",
+            "status": 1,
+            "enabled": 1,
+        }
+    )
+
+    rows = service.list_with_runtime_status(datetime(2026, 7, 14, 11, 7))
+
+    assert [(row["time"], row["valve_pin"], row["is_running"]) for row in rows] == [
+        ("10:46", "13", False),
+        ("11:06", "13", True),
+    ]
+
+
+def test_manual_on_valve_does_not_mark_inactive_schedule_as_running(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ScheduleService(schedules_repo)
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
+    schedules_repo.add(
+        {
+            "time": "10:46",
+            "duration_minutes": "2",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    rows = service.list_with_runtime_status(datetime(2026, 7, 14, 11, 7))
+
+    assert rows[0]["is_running"] is False
+
+
 def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
     valves_repo = JsonLinesRepository(tmp_path / "valves.json")
     settings_repo = JsonLinesRepository(tmp_path / "settings.json")

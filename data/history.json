@@ -12,3 +12,6 @@
 {"id": "12", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "10:47", "end": "10:48", "weekday": "Wednesday", "mode": "Automatic: started after scheduled time"}
 {"id": "13", "valve": "Jardim lateral direita", "date": "2026-07-15", "start": "10:50", "end": "10:53", "weekday": "Wednesday", "mode": "Automatic"}
 {"id": "14", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "11:06", "end": "11:10", "weekday": "Wednesday", "mode": "Automatic"}
+{"id": "15", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "13:25", "end": "13:29", "weekday": "Wednesday", "mode": "Automatic"}
+{"id": "16", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "13:25", "end": "13:29", "weekday": "Wednesday", "mode": "Restarted"}
+{"id": "17", "valve": "Jardim lateral esquerda", "date": "2026-07-15", "start": "13:31", "end": "13:35", "weekday": "Wednesday", "mode": "Automatic"}

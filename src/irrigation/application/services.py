@@ -29,6 +29,14 @@ class ScheduleService:
     def list_all(self) -> list[Schedule]:
         return [Schedule.from_dict(item) for item in self._repository.list_all()]
 
+    def list_with_runtime_status(self, now: datetime) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for schedule in self.list_all():
+            record = schedule.to_dict()
+            record["is_running"] = schedule.is_running_at(now)
+            records.append(record)
+        return records
+
     def create(
         self, schedule_time: str, duration_minutes: Any, valve_pin: Any
     ) -> dict[str, Any]:
@@ -298,12 +306,12 @@ class IrrigationController:
         active_ids = {
             schedule.id
             for schedule in schedules
-            if schedule.enabled and self._is_running(schedule, now)
+            if schedule.is_running_at(now)
         }
 
         for schedule in schedules:
             start, end = schedule.interval_at(now)
-            is_running = start <= now < end
+            is_running = schedule.is_running_at(now)
             keep_valve_on = any(
                 other.id != schedule.id
                 and other.id in active_ids
@@ -355,11 +363,6 @@ class IrrigationController:
             self._schedules.set_status(schedule.id, True)
         self._history.record(valve.section, now, end, mode)
         self._started_in_this_process.add(schedule.id)
-
-    @staticmethod
-    def _is_running(schedule: Schedule, now: datetime) -> bool:
-        start, end = schedule.interval_at(now)
-        return start <= now < end
 
     def _stop(self, schedule: Schedule, keep_valve_on: bool = False) -> None:
         if not keep_valve_on:

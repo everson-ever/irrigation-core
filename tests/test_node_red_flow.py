@@ -71,3 +71,32 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "scope.editing_state.submitting = false" in schedule_template
     assert "d98e5f28.7a7c9" in update_exec["wires"][0]
     assert update_error["wires"] == [[nodes["25072c26.808454"]["id"]]]
+
+
+def test_schedule_list_uses_cli_runtime_status_output():
+    nodes = load_nodes()
+
+    schedule_loader = nodes["7c602e02.7e8c7"]
+    formatter = nodes["afe05d94.376be"]
+
+    assert schedule_loader["type"] == "exec"
+    assert schedule_loader["command"] == "/opt/irrigation/bin/irrigation schedule list"
+    assert schedule_loader["wires"][0] == ["afe05d94.376be"]
+    assert "JSON.parse(text)" in formatter["func"]
+    assert 'msg.topic = "schedules"' in formatter["func"]
+
+
+def test_schedule_table_uses_schedule_running_status_for_badges_and_actions():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+    section_status = schedule_template.split(
+        "scope.sectionStatus = function(schedule) {", 1
+    )[1].split("  scope.sendId = function(id)", 1)[0]
+
+    assert "schedule.is_running" in section_status
+    assert "scope.findValve(schedule)" not in section_status
+    assert 'ng-if="sectionStatus(schedule) === 0">Desligada' in schedule_template
+    assert 'ng-if="sectionStatus(schedule) === 1">Ligada' in schedule_template
+    assert 'ng-if="sectionStatus(schedule) === 1"' in schedule_template
+    assert 'ng-if="sectionStatus(schedule) !== 1"' in schedule_template

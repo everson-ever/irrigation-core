@@ -73,6 +73,10 @@ class Schedule:
                 return previous_start, previous_end
         return start, end
 
+    def is_running_at(self, now: datetime) -> bool:
+        start, end = self.interval_at(now)
+        return self.enabled and start <= now < end
+
 
 @dataclass(frozen=True, slots=True)
 class Valve:
