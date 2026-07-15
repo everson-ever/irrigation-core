@@ -3,7 +3,9 @@ from datetime import datetime
 from irrigation.application.services import (
     HistoryService,
     IrrigationController,
+    ManualControlService,
     ScheduleService,
+    SettingsService,
     ValveService,
 )
 from irrigation.infrastructure.gpio import MockGPIO
@@ -134,3 +136,25 @@ def test_overlapping_schedules_do_not_turn_off_valve_before_end(tmp_path):
     controller.run_once()
 
     assert gpio.states[13] is False
+
+
+def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    settings_repo = JsonLinesRepository(tmp_path / "settings.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
+    settings_repo.add({"default_duration_minutes": 1})
+    clock = FakeClock(datetime(2026, 7, 14, 10, 0))
+    service = ManualControlService(
+        ValveService(valves_repo, MockGPIO(15)),
+        SettingsService(settings_repo),
+        HistoryService(history_repo, result_repo),
+        clock,
+        poll_interval=0,
+    )
+
+    changed = service.turn_on(13, duration_minutes=12, wait=False)
+
+    assert changed is True
+    assert history_repo.list_all()[0]["end"] == "10:12"

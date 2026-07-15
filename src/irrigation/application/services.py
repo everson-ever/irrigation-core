@@ -218,12 +218,15 @@ class ManualControlService:
         self._clock = clock
         self._poll_interval = poll_interval
 
-    def turn_on(self, pin: int, wait: bool = True) -> bool:
+    def turn_on(
+        self, pin: int, duration_minutes: Any = None, wait: bool = True
+    ) -> bool:
         start = self._clock.now()
         valve = self._valves.get_by_pin(pin)
         if not self._valves.turn_on(pin):
             return False
-        end = start + timedelta(minutes=self._settings.default_duration_minutes())
+        duration = self._manual_duration_minutes(duration_minutes)
+        end = start + timedelta(minutes=duration)
         self._history.record(valve.section, start, end, "Manual")
         if wait:
             self._wait_for_auto_turn_off(pin, end)
@@ -231,6 +234,17 @@ class ManualControlService:
 
     def turn_off(self, pin: int) -> bool:
         return self._valves.turn_off(pin, manual=True)
+
+    def _manual_duration_minutes(self, duration_minutes: Any = None) -> int:
+        if duration_minutes in (None, ""):
+            return self._settings.default_duration_minutes()
+        try:
+            duration = int(duration_minutes)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("manual duration must be an integer") from exc
+        if duration < 1:
+            raise ValidationError("manual duration must be greater than zero")
+        return duration
 
     def _wait_for_auto_turn_off(self, pin: int, end: datetime) -> None:
         while self._clock.now() < end:

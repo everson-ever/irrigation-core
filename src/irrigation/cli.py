@@ -40,7 +40,7 @@ def create_parser() -> argparse.ArgumentParser:
     enabled.add_argument("data", help="id,0|1")
 
     valve = subcommands.add_parser("valve")
-    valve.add_argument("data", help="pin,on|off")
+    valve.add_argument("data", help="pin,on|off[,minutes]")
     valve.add_argument(
         "--no-wait",
         action="store_true",
@@ -95,10 +95,16 @@ def _dispatch(app: Application, args: argparse.Namespace):
         return service.set_enabled(record_id, enabled)
 
     if args.command == "valve":
-        pin, action = _csv(args.data, 2, "valve")
+        valve_data = [part.strip() for part in args.data.split(",")]
+        if len(valve_data) not in (2, 3):
+            raise ValueError("valve must contain 2 or 3 comma-separated fields")
+        pin, action = valve_data[:2]
+        duration_minutes = valve_data[2] if len(valve_data) == 3 else None
         service = app.manual_control()
         if action == "on":
-            changed = service.turn_on(int(pin), wait=not args.no_wait)
+            changed = service.turn_on(
+                int(pin), duration_minutes=duration_minutes, wait=not args.no_wait
+            )
         elif action == "off":
             changed = service.turn_off(int(pin))
         else:
