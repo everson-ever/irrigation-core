@@ -29,6 +29,7 @@ File names and JSON fields are part of the current dashboard contract.
 ├── data/                         # Persisted data in JSON Lines
 ├── deploy/systemd/               # Scheduler service and Node-RED override
 ├── node-red/flows.json           # Updated dashboard and integration
+├── scripts/build-binary.sh       # Compiles src/irrigation into dist/irrigation
 ├── scripts/install-raspberry.sh # Automated Raspberry Pi installation
 ├── src/irrigation/
 │   ├── application/              # Use cases and orchestration
@@ -70,28 +71,53 @@ energizing the circuit; this implementation treats high level as on.
 
 ## Requirements
 
-- Raspberry Pi with Raspberry Pi OS and Python 3.10 or newer.
+- Raspberry Pi with Raspberry Pi OS.
+- Python 3.10 or newer on whichever machine builds the binary (see
+  [Installation](#installation-on-raspberry-pi)); not required on the target
+  device if you install a binary built elsewhere.
 - Access to GPIO pins.
 - Node-RED to use the web dashboard.
 - The `node-red-dashboard` module to import the existing dashboard.
 
 ## Installation on Raspberry Pi
 
-Clone the repository and run the installer:
+Installation happens in two steps: build a native binary from the Python
+source, then install that binary. This means the target device never needs
+Python, a virtualenv, or the `.py` files themselves — only the compiled
+executable, the `data/` directory, and the Node-RED flow.
+
+### 1. Build the binary
+
+Run this on a Raspberry Pi (or another machine with the same CPU
+architecture/OS as the target — Nuitka does not cross-compile):
 
 ```bash
 git clone <THIS-REPOSITORY-URL>
 cd Sistema-de-irriga-o
+./scripts/build-binary.sh
+```
+
+This compiles `src/irrigation` with [Nuitka](https://nuitka.net/) into
+`dist/irrigation`, a single self-contained executable. It installs build-only
+tooling (`build-essential`, `patchelf`, a throwaway `.venv-build`) that is not
+needed at runtime.
+
+### 2. Install on the target device
+
+Copy `dist/irrigation`, `data/`, `node-red/`, `deploy/`, and
+`scripts/install-raspberry.sh` to the target Pi — `src/` and `pyproject.toml`
+are not required there. Then run:
+
+```bash
 sudo ./scripts/install-raspberry.sh
 ```
 
 The script:
 
-1. installs Python, `venv`, and `pip` through the system package manager;
-2. creates `.venv` and installs the project with the `RPi.GPIO` driver;
-3. adds the user to the `gpio` group;
-4. installs and starts the `irrigation.service` service;
-5. configures the Node-RED service directory and `PATH` when it exists.
+1. installs the compiled binary at `/opt/irrigation/bin/irrigation`;
+2. adds the user to the `gpio` group;
+3. installs and starts the `irrigation.service` service;
+4. configures the Node-RED service directory and `PATH` when it exists.
 
 After the first installation, restart the session or reboot the Raspberry Pi so
 the `gpio` group change takes effect:
@@ -117,7 +143,8 @@ In the Node-RED editor:
 3. confirm the deploy;
 4. open `http://RASPBERRY_IP:1880/ui`.
 
-The flow uses the commands installed in `.venv` and reads the files in `data/`.
+The flow uses the binary installed at `/opt/irrigation/bin/irrigation` and
+reads the files in `data/`.
 The scheduler is not started by the flow: it is managed by `systemd` so it can
 restart automatically after failures or reboots.
 

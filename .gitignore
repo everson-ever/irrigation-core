@@ -3,8 +3,14 @@ __pycache__/
 *.egg-info/
 .env
 .venv/
+.venv-build/
 .pytest_cache/
 .ruff_cache/
 coverage.xml
 htmlcov/
 data/*.lock
+build/
+dist/
+*.build/
+*.onefile-build/
+*.dist/

@@ -8,24 +8,33 @@ fi
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RUN_USER=${SUDO_USER:-$(stat -c '%U' "${PROJECT_DIR}")}
+BINARY_SRC="${PROJECT_DIR}/dist/irrigation"
+BINARY_DIR=/opt/irrigation/bin
+BINARY_DST="${BINARY_DIR}/irrigation"
 
-apt-get update
-apt-get install -y python3 python3-venv python3-pip
+if [[ ! -x "${BINARY_SRC}" ]]; then
+  echo "Compiled binary not found at ${BINARY_SRC}." >&2
+  echo "Run scripts/build-binary.sh first (or copy a binary built elsewhere)." >&2
+  exit 1
+fi
+
 usermod -aG gpio "${RUN_USER}"
 
-sudo -u "${RUN_USER}" python3 -m venv "${PROJECT_DIR}/.venv"
-sudo -u "${RUN_USER}" "${PROJECT_DIR}/.venv/bin/pip" install --upgrade pip
-sudo -u "${RUN_USER}" "${PROJECT_DIR}/.venv/bin/pip" install "${PROJECT_DIR}[raspberry]"
+mkdir -p "${BINARY_DIR}"
+install -o root -g root -m 755 "${BINARY_SRC}" "${BINARY_DST}"
 
 sed \
   -e "s|__PROJECT_DIR__|${PROJECT_DIR}|g" \
   -e "s|__RUN_USER__|${RUN_USER}|g" \
+  -e "s|__BINARY__|${BINARY_DST}|g" \
   "${PROJECT_DIR}/deploy/systemd/irrigation.service.template" \
   > /etc/systemd/system/irrigation.service
 
 if systemctl list-unit-files nodered.service >/dev/null 2>&1; then
   mkdir -p /etc/systemd/system/nodered.service.d
-  sed "s|__PROJECT_DIR__|${PROJECT_DIR}|g" \
+  sed \
+    -e "s|__PROJECT_DIR__|${PROJECT_DIR}|g" \
+    -e "s|__BINARY_DIR__|${BINARY_DIR}|g" \
     "${PROJECT_DIR}/deploy/systemd/nodered-override.conf.template" \
     > /etc/systemd/system/nodered.service.d/irrigation.conf
 fi
