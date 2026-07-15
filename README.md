@@ -1,131 +1,131 @@
-# Sistema de irrigação automatizado
+# Automated irrigation system
 
-Sistema de irrigação para Raspberry Pi com agendamentos, acionamento manual,
-histórico e painel web no Node-RED.
+Irrigation system for Raspberry Pi with scheduling, manual activation, history,
+and a Node-RED web dashboard.
 
-A aplicação atual foi reestruturada com uma arquitetura em camadas, código
-testável e dependências invertidas. Os diretórios históricos das versões
-anteriores foram removidos da árvore principal; a versão que deve ser instalada
-e executada está na raiz deste repositório.
+The current application was restructured with layered architecture, testable
+code, and inverted dependencies. Historical directories from previous versions
+were removed from the main tree; the version to install and run is at the root
+of this repository.
 
-Classes, métodos, funções, variáveis e comandos principais seguem nomenclatura
-em inglês. Os nomes dos arquivos e campos JSON foram mantidos para preservar a
-compatibilidade com o dashboard e dados existentes.
+Main classes, methods, functions, variables, and commands use English naming.
+File names and JSON fields were kept unchanged to preserve compatibility with
+the dashboard and existing data.
 
-## Funcionalidades
+## Features
 
-- Cadastro, edição, ativação, desativação e remoção de agendamentos.
-- Acionamento automático das eletroválvulas.
-- Retomada de uma irrigação interrompida enquanto o agendamento ainda é válido.
-- Início atrasado quando o sistema volta durante a janela de irrigação.
-- Acionamento e desligamento manual.
-- Tempo configurável para o desligamento automático no modo manual.
-- Registro e pesquisa do histórico por dia ou intervalo de datas.
-- Visualização do estado das válvulas no dashboard do Node-RED.
-- Suporte a agendamentos que atravessam a meia-noite.
-- Driver GPIO simulado para desenvolvimento sem Raspberry Pi.
+- Create, edit, enable, disable, and delete schedules.
+- Automatic solenoid valve activation.
+- Resume an interrupted irrigation while the schedule is still valid.
+- Delayed start when the system comes back online during an irrigation window.
+- Manual activation and shutdown.
+- Configurable automatic shutdown time for manual mode.
+- History logging and search by day or date range.
+- Valve state visualization in the Node-RED dashboard.
+- Support for schedules that cross midnight.
+- Simulated GPIO driver for development without a Raspberry Pi.
 
-## Arquitetura
+## Architecture
 
 ```text
 .
-├── data/                         # Dados persistidos em JSON Lines
-├── deploy/systemd/               # Serviço do scheduler e override do Node-RED
-├── node-red/flows.json           # Dashboard e integração atualizados
-├── scripts/instalar-raspberry.sh # Instalação automatizada no Raspberry Pi
+├── data/                         # Persisted data in JSON Lines
+├── deploy/systemd/               # Scheduler service and Node-RED override
+├── node-red/flows.json           # Updated dashboard and integration
+├── scripts/instalar-raspberry.sh # Automated Raspberry Pi installation
 ├── src/irrigacao/
-│   ├── application/              # Casos de uso e orquestração
-│   ├── domain/                   # Entidades, regras e contratos
-│   ├── infrastructure/           # JSON Lines, GPIO e relógio
-│   ├── bootstrap.py              # Injeção das dependências
-│   └── cli.py                    # Interface usada pelo systemd e Node-RED
-├── tests/                        # Testes unitários
-└── pyproject.toml                # Pacote, dependências e ferramentas
+│   ├── application/              # Use cases and orchestration
+│   ├── domain/                   # Entities, rules, and contracts
+│   ├── infrastructure/           # JSON Lines, GPIO, and clock
+│   ├── bootstrap.py              # Dependency injection
+│   └── cli.py                    # Interface used by systemd and Node-RED
+├── tests/                        # Unit tests
+└── pyproject.toml                # Package, dependencies, and tooling
 ```
 
-As responsabilidades foram separadas seguindo SOLID:
+Responsibilities were separated following SOLID principles:
 
-- As entidades validam apenas regras do domínio.
-- Cada serviço representa um conjunto coeso de casos de uso.
-- Persistência, relógio e GPIO são contratos injetados nos serviços.
-- O driver real pode ser substituído pelo simulado sem alterar as regras.
-- A interface do Node-RED chama uma CLI fina; ela não contém regras de negócio.
+- Entities validate only domain rules.
+- Each service represents a cohesive set of use cases.
+- Persistence, clock, and GPIO are contracts injected into the services.
+- The real driver can be replaced by the simulated one without changing rules.
+- The Node-RED interface calls a thin CLI; it contains no business rules.
 
-Os arquivos continuam no formato JSON Lines (um objeto JSON por linha),
-compatível com os nós de leitura do fluxo original. As gravações agora usam
-lock e substituição atômica para reduzir o risco de corrupção quando Node-RED e
-scheduler acessam os dados simultaneamente.
+Files remain in JSON Lines format (one JSON object per line), compatible with
+the read nodes from the original flow. Writes now use locking and atomic
+replacement to reduce the risk of corruption when Node-RED and the scheduler
+access data concurrently.
 
-## Hardware padrão
+## Default hardware
 
-O projeto usa a numeração física dos pinos (`GPIO.BOARD`). A configuração
-inicial em [`data/valvulas.json`](data/valvulas.json) é:
+The project uses physical pin numbering (`GPIO.BOARD`). The initial
+configuration in [`data/valvulas.json`](data/valvulas.json) is:
 
-| Função | Pino físico |
+| Function | Physical pin |
 |---|---:|
-| Eletroválvula da Seção 1 | 13 |
-| Eletroválvula da Seção 2 | 11 |
-| Bomba | 15 |
+| Section 1 solenoid valve | 13 |
+| Section 2 solenoid valve | 11 |
+| Pump | 15 |
 
-Adapte `data/valvulas.json` e `IRRIGATION_PUMP_PIN` à instalação real. Use
-módulos relé/transistor adequados: os GPIOs não devem alimentar diretamente
-bomba ou eletroválvulas. Confirme ainda a lógica elétrica do seu relé antes de
-energizar o circuito; esta implementação considera nível alto como ligado.
+Adapt `data/valvulas.json` and `IRRIGATION_PUMP_PIN` to the real installation.
+Use proper relay/transistor modules: GPIO pins must not power the pump or
+solenoid valves directly. Also confirm the electrical logic of your relay before
+energizing the circuit; this implementation treats high level as on.
 
-## Requisitos
+## Requirements
 
-- Raspberry Pi com Raspberry Pi OS e Python 3.10 ou superior.
-- Acesso aos pinos GPIO.
-- Node-RED para usar o painel web.
-- O módulo `node-red-dashboard` para importar o dashboard existente.
+- Raspberry Pi with Raspberry Pi OS and Python 3.10 or newer.
+- Access to GPIO pins.
+- Node-RED to use the web dashboard.
+- The `node-red-dashboard` module to import the existing dashboard.
 
-## Instalação no Raspberry Pi
+## Installation on Raspberry Pi
 
-Clone o repositório e execute o instalador:
+Clone the repository and run the installer:
 
 ```bash
-git clone <URL-DESTE-REPOSITORIO>
+git clone <THIS-REPOSITORY-URL>
 cd Sistema-de-irriga-o
 sudo ./scripts/instalar-raspberry.sh
 ```
 
-O script:
+The script:
 
-1. instala Python, `venv` e `pip` pelo sistema;
-2. cria `.venv` e instala o projeto com o driver `RPi.GPIO`;
-3. inclui o usuário no grupo `gpio`;
-4. instala e inicia o serviço `irrigacao.service`;
-5. configura o diretório e o `PATH` do serviço Node-RED, quando ele existe.
+1. installs Python, `venv`, and `pip` through the system package manager;
+2. creates `.venv` and installs the project with the `RPi.GPIO` driver;
+3. adds the user to the `gpio` group;
+4. installs and starts the `irrigacao.service` service;
+5. configures the Node-RED service directory and `PATH` when it exists.
 
-Depois da primeira instalação, reinicie a sessão ou o Raspberry Pi para que a
-alteração do grupo `gpio` tenha efeito:
+After the first installation, restart the session or reboot the Raspberry Pi so
+the `gpio` group change takes effect:
 
 ```bash
 sudo reboot
 ```
 
-### Configurar o Node-RED
+### Configure Node-RED
 
-Se o dashboard ainda não estiver instalado, execute com o usuário que roda o
-Node-RED:
+If the dashboard is not installed yet, run the following command with the user
+that runs Node-RED:
 
 ```bash
 cd ~/.node-red
 npm install node-red-dashboard
 ```
 
-No editor do Node-RED:
+In the Node-RED editor:
 
-1. abra o menu **Import**;
-2. selecione [`node-red/flows.json`](node-red/flows.json);
-3. confirme o deploy;
-4. abra `http://IP_DO_RASPBERRY:1880/ui`.
+1. open the **Import** menu;
+2. select [`node-red/flows.json`](node-red/flows.json);
+3. confirm the deploy;
+4. open `http://RASPBERRY_IP:1880/ui`.
 
-O fluxo usa os comandos instalados no `.venv` e lê os arquivos em `data/`. O
-scheduler não é iniciado pelo fluxo: ele é mantido pelo `systemd` para reiniciar
-automaticamente em caso de falha ou reboot.
+The flow uses the commands installed in `.venv` and reads the files in `data/`.
+The scheduler is not started by the flow: it is managed by `systemd` so it can
+restart automatically after failures or reboots.
 
-## Operação do serviço
+## Service operation
 
 ```bash
 sudo systemctl status irrigacao
@@ -134,19 +134,19 @@ sudo systemctl stop irrigacao
 journalctl -u irrigacao -f
 ```
 
-Para alterar a configuração sem editar o código, crie
+To change configuration without editing code, create
 `/etc/default/sistema-irrigacao`:
 
 ```bash
-IRRIGATION_DATA_DIR=/caminho/absoluto/para/data
+IRRIGATION_DATA_DIR=/absolute/path/to/data
 IRRIGATION_GPIO_DRIVER=rpi
 IRRIGATION_PUMP_PIN=15
 IRRIGATION_POLL_INTERVAL=2
 ```
 
-Após a alteração, reinicie o serviço.
+Restart the service after changing the file.
 
-## Desenvolvimento sem Raspberry Pi
+## Development without Raspberry Pi
 
 ```bash
 python3 -m venv .venv
@@ -155,45 +155,45 @@ pip install -e '.[dev]'
 export IRRIGATION_GPIO_DRIVER=mock
 ```
 
-Comandos úteis:
+Useful commands:
 
 ```bash
-# Executar o scheduler em primeiro plano
+# Run the scheduler in the foreground
 irrigacao run
 
-# Cadastrar: horário,duração em minutos,pino físico
+# Create: time,duration in minutes,physical pin
 irrigacao schedule create '06:30,15,13'
 
-# Editar: id,horário,duração,pino
+# Update: id,time,duration,pin
 irrigacao schedule update '1,07:00,10,13'
 
-# Desativar ou reativar
+# Disable or re-enable
 irrigacao schedule enabled '1,0'
 irrigacao schedule enabled '1,1'
 
-# Remover
+# Delete
 irrigacao schedule delete 1
 
-# Acionamento manual
+# Manual activation
 irrigacao valve '13,on'
 irrigacao valve '13,off'
 
-# Alterar o tempo padrão manual
+# Change the default manual time
 irrigacao settings 5
 
-# Pesquisar histórico
+# Search history
 irrigacao history 'day,,'
 irrigacao history 'range,2026-07-01,2026-07-31'
 ```
 
-No modo manual, o comando `on` permanece ativo até o tempo padrão terminar
-ou outro comando `off` desligar a válvula. Isso mantém o comportamento esperado
-pelo nó `exec` do Node-RED.
+In manual mode, the `on` command remains active until the default time ends or
+another `off` command turns the valve off. This preserves the behavior expected
+by the Node-RED `exec` node.
 
-Os comandos antigos em português continuam aceitos como aliases de
-compatibilidade, mas a documentação e os fluxos novos usam a CLI em inglês.
+Legacy Portuguese commands are still accepted as compatibility aliases, but the
+documentation and new flows use the English CLI.
 
-## Testes e qualidade
+## Tests and quality
 
 ```bash
 source .venv/bin/activate
@@ -202,53 +202,46 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-Os testes não acessam GPIO real. Eles verificam validação, compatibilidade com
-o campo legado `led`, persistência, início atrasado, reinício, desligamento,
-agendamento desativado e intervalo que atravessa a meia-noite.
+Tests do not access real GPIO. They verify validation, compatibility with the
+legacy `led` field, persistence, delayed start, restart, shutdown, disabled
+schedules, and intervals that cross midnight.
 
-## Dados e migração da Parte 7
+## Data and Part 7 migration
 
-Os arquivos operacionais ficam em `data/`:
+Operational files are stored in `data/`:
 
-- `agendamentos.json`: agendamentos e seu estado de execução;
-- `valvulas.json`: pinos, seções e estados;
-- `configuracoes.json`: tempo padrão do acionamento manual;
-- `historico.json`: log de acionamentos;
-- `pesquisaHistoricoResultado.json`: resultado consumido pelo dashboard.
+- `agendamentos.json`: schedules and their execution state;
+- `valvulas.json`: pins, sections, and states;
+- `configuracoes.json`: default manual activation time;
+- `historico.json`: activation log;
+- `pesquisaHistoricoResultado.json`: result consumed by the dashboard.
 
-A instalação nova começa sem agendamentos. Para migrar cadastros da versão final
-anterior, informe no comando uma cópia externa do diretório legado
-`Parte - 7/projeto`:
+A new installation starts without schedules. To migrate entries from the
+previous final version, pass an external copy of the legacy `Parte - 7/projeto`
+directory to the command:
 
 ```bash
 sudo systemctl stop irrigacao
 cp -a data "data.backup.$(date +%Y%m%d-%H%M%S)"
 source .venv/bin/activate
-irrigacao migrate-part-7 --source /caminho/para/Parte\ -\ 7/projeto
+irrigacao migrate-part-7 --source /path/to/Parte\ -\ 7/projeto
 sudo systemctl start irrigacao
 ```
 
-O migrador converte o campo antigo `led` para `valvula`, mantém IDs e dados e
-zera os estados de execução, evitando reativar uma irrigação antiga. O leitor
-Python aceita ambos durante a transição, mas o dashboard novo espera `valvula`.
+The migrator converts the old `led` field to `valvula`, keeps IDs and data, and
+resets execution states to avoid reactivating old irrigation runs. The Python
+reader accepts both fields during the transition, but the new dashboard expects
+`valvula`.
 
-Antes de substituir dados em produção, faça uma cópia de segurança e deixe os
-campos `status` com valor `0`, evitando interpretar como ativa uma execução
-interrompida há muito tempo.
+Before replacing production data, create a backup and keep `status` fields set
+to `0`, avoiding interpretation of a long-interrupted execution as active.
 
-## Telas
+## Screens
 
-| Agendamentos | Novo agendamento |
+| Schedules | New schedule |
 |---|---|
-| ![Agendamentos](screenshot%20application/agendamentos.png) | ![Cadastro](screenshot%20application/cadastro%20agendamentos.png) |
+| ![Schedules](screenshot%20application/agendamentos.png) | ![Create schedule](screenshot%20application/cadastro%20agendamentos.png) |
 
-| Válvulas | Tempo padrão | Logs |
+| Valves | Default time | Logs |
 |---|---|---|
-| ![Válvulas](screenshot%20application/valvulas.png) | ![Tempo padrão](screenshot%20application/tempo%20padrao.png) | ![Logs](screenshot%20application/logs.png) |
-
-## Estrutura limpa
-
-Os diretórios `Parte - 1` a `Parte - 7`, caches locais e artefatos gerados foram
-removidos porque não fazem parte da aplicação refatorada. A árvore ativa é
-composta por `src/`, `data/`, `node-red/`, `deploy/`, `scripts/`, `tests/` e os
-arquivos de configuração da raiz.
+| ![Valves](screenshot%20application/valvulas.png) | ![Default time](screenshot%20application/tempo%20padrao.png) | ![Logs](screenshot%20application/logs.png) |
