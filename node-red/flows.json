@@ -58,13 +58,29 @@
     "y": 200,
     "wires": [
       [
-        "7c602e02.7e8c7",
-        "d98e5f28.7a7c9"
+        "a9c1b3d4.e5f607"
       ],
       [
         "a74e60b8.3d5b4"
       ],
       []
+    ]
+  },
+  {
+    "id": "a9c1b3d4.e5f607",
+    "type": "function",
+    "z": "33af9e8a.0fb3f2",
+    "name": "Confirma cadastro realizado",
+    "func": "const output = String(msg.payload || \"\").trim();\n\nif (!output) {\n    return null;\n}\n\nmsg.payload = output;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 1990,
+    "y": 200,
+    "wires": [
+      [
+        "7c602e02.7e8c7",
+        "d98e5f28.7a7c9"
+      ]
     ]
   },
   {
@@ -214,13 +230,29 @@
     "y": 520,
     "wires": [
       [
-        "7c602e02.7e8c7",
-        "d98e5f28.7a7c9"
+        "b8d2c4e6.f70123"
       ],
       [
         "e95d01ea.97e4c"
       ],
       []
+    ]
+  },
+  {
+    "id": "b8d2c4e6.f70123",
+    "type": "function",
+    "z": "33af9e8a.0fb3f2",
+    "name": "Confirma edição realizada",
+    "func": "const output = String(msg.payload || \"\").trim();\n\nif (!output) {\n    return null;\n}\n\nmsg.payload = output;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 1210,
+    "y": 520,
+    "wires": [
+      [
+        "7c602e02.7e8c7",
+        "d98e5f28.7a7c9"
+      ]
     ]
   },
   {

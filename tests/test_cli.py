@@ -63,6 +63,62 @@ def test_schedule_delete_stops_valve_of_active_schedule(capsys, tmp_path):
     assert valve["status"] == 0
 
 
+def test_schedule_create_rejects_duplicate_valve(capsys, tmp_path):
+    first_exit_code = execute(["schedule", "create", "06:30,15,13"])
+    capsys.readouterr()
+
+    second_exit_code = execute(["schedule", "create", "07:00,10,13"])
+    captured = capsys.readouterr()
+    schedules = [
+        json.loads(line)
+        for line in (tmp_path / "schedules.json").read_text().splitlines()
+    ]
+
+    assert first_exit_code == 0
+    assert second_exit_code == 2
+    assert "This valve/section already has a schedule" in captured.err
+    assert len(schedules) == 1
+
+
+def test_schedule_update_rejects_duplicate_valve(capsys, tmp_path):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "id": "1",
+                        "time": "06:30",
+                        "duration_minutes": "15",
+                        "valve_pin": "13",
+                        "status": 0,
+                        "enabled": 1,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "2",
+                        "time": "07:00",
+                        "duration_minutes": "10",
+                        "valve_pin": "14",
+                        "status": 0,
+                        "enabled": 1,
+                    }
+                ),
+                "",
+            ]
+        )
+    )
+
+    exit_code = execute(["schedule", "update", "2,07:30,10,13"])
+    captured = capsys.readouterr()
+    second_schedule = json.loads(schedules_file.read_text().splitlines()[1])
+
+    assert exit_code == 2
+    assert "This valve/section already has a schedule" in captured.err
+    assert second_schedule["valve_pin"] == "14"
+
+
 def test_schedule_list_reports_schedule_specific_running_status(
     capsys, tmp_path, monkeypatch
 ):

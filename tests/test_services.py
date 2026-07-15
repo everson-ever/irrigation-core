@@ -489,6 +489,68 @@ def test_runtime_status_is_false_when_active_schedule_valve_was_manually_stopped
     assert rows[0]["valve_status"] is False
 
 
+def test_schedule_create_rejects_duplicate_valve(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    service.create("10:00", "10", "13")
+
+    with pytest.raises(ValidationError, match="valve/section already has a schedule"):
+        service.create("11:00", "5", "13")
+
+    assert len(service.list_all()) == 1
+
+
+def test_schedule_update_rejects_valve_used_by_different_schedule(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    schedules_repo.add(
+        {
+            "time": "11:00",
+            "duration_minutes": "5",
+            "valve_pin": "14",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="valve/section already has a schedule"):
+        service.update("2", "11:30", "6", "13")
+
+    assert schedules_repo.find_by_id("2")["valve_pin"] == "14"
+
+
+def test_schedule_update_allows_unchanged_valve(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    service.create("10:00", "10", "13")
+
+    updated = service.update("1", "10:30", "15", "13")
+
+    assert updated["time"] == "10:30"
+    assert updated["duration_minutes"] == "15"
+    assert updated["valve_pin"] == "13"
+
+
+def test_schedule_create_allows_reusing_valve_after_delete(tmp_path):
+    schedules, valves, _, _ = create_schedule_service_with_valve(tmp_path)
+    schedules.create("10:00", "10", "13")
+    schedules.delete("1", valves)
+
+    created = schedules.create("11:00", "5", "13")
+
+    assert created["valve_pin"] == "13"
+    assert [schedule.valve_pin for schedule in schedules.list_all()] == [13]
+
+
 def test_manual_turn_on_uses_provided_duration_instead_of_default(tmp_path):
     valves_repo = JsonLinesRepository(tmp_path / "valves.json")
     settings_repo = JsonLinesRepository(tmp_path / "settings.json")
@@ -705,9 +767,30 @@ def test_delete_stops_valve_of_active_schedule(tmp_path):
 
 
 def test_delete_keeps_shared_valve_on_for_overlapping_schedule(tmp_path):
-    schedules, valves, valves_repo, gpio = create_schedule_service_with_valve(tmp_path)
-    schedules.create("10:00", "10", "13")
-    schedules.create("10:05", "10", "13")
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
+    gpio = RecordingMockGPIO(15)
+    valves = ValveService(valves_repo, gpio)
+    schedules = ScheduleService(schedules_repo)
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    schedules_repo.add(
+        {
+            "time": "10:05",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
     schedules.set_status("1", True)
     schedules.set_status("2", True)
     valves.turn_on(13, force_hardware=True)

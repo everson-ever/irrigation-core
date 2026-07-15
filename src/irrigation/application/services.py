@@ -24,6 +24,8 @@ WEEKDAYS = (
 
 
 class ScheduleService:
+    DUPLICATE_VALVE_MESSAGE = "This valve/section already has a schedule"
+
     def __init__(self, repository: Repository) -> None:
         self._repository = repository
 
@@ -63,6 +65,7 @@ class ScheduleService:
                 "enabled": 1,
             }
         )
+        self._reject_duplicate_valve(schedule.valve_pin)
         return self._repository.add(schedule.to_dict())
 
     def update(
@@ -83,7 +86,17 @@ class ScheduleService:
                 "enabled": int(current.enabled),
             }
         )
+        self._reject_duplicate_valve(edited.valve_pin, exclude_id=edited.id)
         return self._repository.update(edited.to_dict())
+
+    def _reject_duplicate_valve(
+        self, valve_pin: int, exclude_id: str | None = None
+    ) -> None:
+        for schedule in self.list_all():
+            if exclude_id is not None and schedule.id == exclude_id:
+                continue
+            if schedule.valve_pin == valve_pin:
+                raise ValidationError(self.DUPLICATE_VALVE_MESSAGE)
 
     def set_enabled(self, record_id: str, enabled: Any) -> dict[str, Any]:
         current = self.get(record_id)

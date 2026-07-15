@@ -29,6 +29,7 @@ def test_schedule_create_has_loading_error_and_success_navigation():
 
     create_template = nodes["681694c2.ce0b1c"]["format"]
     create_exec = nodes["1a73e6be.d28d09"]
+    create_success = nodes["a9c1b3d4.e5f607"]
     create_error = nodes["a74e60b8.3d5b4"]
     navigate = nodes["d98e5f28.7a7c9"]
 
@@ -36,7 +37,11 @@ def test_schedule_create_has_loading_error_and_success_navigation():
     assert "Cadastrando agendamento..." in create_template
     assert "schedule_create_error" in create_template
     assert "create_state.submitting = false" in create_template
-    assert "d98e5f28.7a7c9" in create_exec["wires"][0]
+    assert 'replace(/^Error:\\s*/, "")' in create_error["func"]
+    assert "msg.payload = String(msg.payload)" in create_error["func"]
+    assert create_exec["wires"][0] == ["a9c1b3d4.e5f607"]
+    assert "if (!output)" in create_success["func"]
+    assert create_success["wires"] == [["7c602e02.7e8c7", "d98e5f28.7a7c9"]]
     assert create_error["wires"] == [[nodes["681694c2.ce0b1c"]["id"]]]
     assert '{ tab: "Agendamentos" }' in navigate["func"]
 
@@ -46,6 +51,7 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
 
     schedule_template = nodes["25072c26.808454"]["format"]
     update_exec = nodes["46dd0feb.e4f05"]
+    update_success = nodes["b8d2c4e6.f70123"]
     update_error = nodes["e95d01ea.97e4c"]
 
     assert "scope.schedule_form.id = schedule.id" in schedule_template
@@ -69,8 +75,30 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "scope.editing_state.submitting = true" in schedule_template
     assert "schedule_update_error" in schedule_template
     assert "scope.editing_state.submitting = false" in schedule_template
-    assert "d98e5f28.7a7c9" in update_exec["wires"][0]
+    assert 'replace(/^Error:\\s*/, "")' in update_error["func"]
+    assert "msg.payload = String(msg.payload)" in update_error["func"]
+    assert update_exec["wires"][0] == ["b8d2c4e6.f70123"]
+    assert "if (!output)" in update_success["func"]
+    assert update_success["wires"] == [["7c602e02.7e8c7", "d98e5f28.7a7c9"]]
     assert update_error["wires"] == [[nodes["25072c26.808454"]["id"]]]
+
+
+def test_schedule_forms_display_cli_validation_errors():
+    nodes = load_nodes()
+
+    create_template = nodes["681694c2.ce0b1c"]["format"]
+    edit_template = nodes["25072c26.808454"]["format"]
+    create_error = nodes["a74e60b8.3d5b4"]
+    update_error = nodes["e95d01ea.97e4c"]
+
+    assert 'ng-if="create_error"' in create_template
+    assert "{{ create_error }}" in create_template
+    assert 'msg.topic = "schedule_create_error"' in create_error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in create_error["func"]
+    assert 'ng-if="schedule_error"' in edit_template
+    assert "{{ schedule_error }}" in edit_template
+    assert 'msg.topic = "schedule_update_error"' in update_error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in update_error["func"]
 
 
 def test_schedule_list_uses_cli_runtime_status_output():
