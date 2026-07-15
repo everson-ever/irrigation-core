@@ -22,6 +22,16 @@ def _csv(value: str, expected_fields: int, description: str) -> list[str]:
     return parts
 
 
+def _csv_range(
+    value: str, expected_fields: tuple[int, ...], description: str
+) -> list[str]:
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) not in expected_fields:
+        options = " or ".join(str(item) for item in expected_fields)
+        raise ValueError(f"{description} must contain {options} comma-separated fields")
+    return parts
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="irrigation")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -32,9 +42,9 @@ def create_parser() -> argparse.ArgumentParser:
     schedule_actions = schedule.add_subparsers(dest="action", required=True)
     schedule_actions.add_parser("list")
     create = schedule_actions.add_parser("create")
-    create.add_argument("data", help="HH:MM,minutes,pin")
+    create.add_argument("data", help="HH:MM,minutes,pin[,weekdays]")
     update = schedule_actions.add_parser("update")
-    update.add_argument("data", help="id,HH:MM,minutes,pin")
+    update.add_argument("data", help="id,HH:MM,minutes,pin[,weekdays]")
     delete = schedule_actions.add_parser("delete")
     delete.add_argument("id")
     enabled = schedule_actions.add_parser("enabled")
@@ -90,11 +100,15 @@ def _dispatch(app: Application, args: argparse.Namespace):
                 app.valves().list_all(),
             )
         if args.action == "create":
-            schedule_time, minutes, pin = _csv(args.data, 3, "schedule")
-            return service.create(schedule_time, minutes, pin)
+            parts = _csv_range(args.data, (3, 4), "schedule")
+            schedule_time, minutes, pin = parts[:3]
+            weekdays = parts[3] if len(parts) == 4 else None
+            return service.create(schedule_time, minutes, pin, weekdays)
         if args.action == "update":
-            record_id, schedule_time, minutes, pin = _csv(args.data, 4, "update")
-            return service.update(record_id, schedule_time, minutes, pin)
+            parts = _csv_range(args.data, (4, 5), "update")
+            record_id, schedule_time, minutes, pin = parts[:4]
+            weekdays = parts[4] if len(parts) == 5 else None
+            return service.update(record_id, schedule_time, minutes, pin, weekdays)
         if args.action == "delete":
             return {"deleted": service.delete(args.id, app.valves())}
         record_id, enabled = _csv(args.data, 2, "enabled flag")

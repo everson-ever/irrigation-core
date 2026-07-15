@@ -25,6 +25,83 @@ def test_schedule_delete_removes_existing_record(capsys):
     assert output == {"deleted": True}
 
 
+def test_schedule_create_persists_weekdays(capsys, tmp_path):
+    exit_code = execute(["schedule", "create", "06:30,15,13,mon+wed+fri"])
+    output = json.loads(capsys.readouterr().out)
+    schedule = json.loads((tmp_path / "schedules.json").read_text().splitlines()[0])
+
+    assert exit_code == 0
+    assert output["weekdays"] == ["mon", "wed", "fri"]
+    assert schedule["weekdays"] == ["mon", "wed", "fri"]
+
+
+def test_schedule_create_defaults_to_every_day(capsys):
+    exit_code = execute(["schedule", "create", "06:30,15,13"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["weekdays"] == ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def test_schedule_update_persists_weekdays_and_preserves_status(capsys, tmp_path):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "06:30",
+                "duration_minutes": "15",
+                "valve_pin": "13",
+                "status": 1,
+                "enabled": 1,
+                "weekdays": ["mon"],
+            }
+        )
+        + "\n"
+    )
+
+    exit_code = execute(["schedule", "update", "1,07:00,10,13,tue+thu"])
+    output = json.loads(capsys.readouterr().out)
+    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+
+    assert exit_code == 0
+    assert output["status"] == 1
+    assert output["weekdays"] == ["tue", "thu"]
+    assert schedule["weekdays"] == ["tue", "thu"]
+
+
+def test_schedule_update_without_weekdays_preserves_selection(capsys, tmp_path):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "06:30",
+                "duration_minutes": "15",
+                "valve_pin": "13",
+                "status": 0,
+                "enabled": 1,
+                "weekdays": ["mon", "wed"],
+            }
+        )
+        + "\n"
+    )
+
+    exit_code = execute(["schedule", "update", "1,07:00,10,13"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["weekdays"] == ["mon", "wed"]
+
+
+def test_schedule_create_rejects_empty_weekdays(capsys):
+    exit_code = execute(["schedule", "create", "06:30,15,13,"])
+    err = capsys.readouterr().err
+
+    assert exit_code == 2
+    assert "weekdays must contain at least one weekday" in err
+
+
 def test_schedule_delete_missing_record_is_a_no_op(capsys):
     exit_code = execute(["schedule", "delete", "999"])
     output = json.loads(capsys.readouterr().out)

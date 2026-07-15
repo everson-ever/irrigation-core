@@ -12,6 +12,7 @@ File names and JSON fields are part of the current dashboard contract.
 ## Features
 
 - Create, edit, enable, disable, and delete schedules.
+- Select which weekdays each schedule runs on, including every day.
 - Automatic solenoid valve activation.
 - Resume an interrupted irrigation while the schedule is still valid.
 - Delayed start when the system comes back online during an irrigation window.
@@ -198,7 +199,7 @@ Useful Docker commands:
 
 ```bash
 # Run CLI commands against the same mounted data directory
-docker compose run --rm scheduler irrigation schedule create '06:30,15,13'
+docker compose run --rm scheduler irrigation schedule create '06:30,15,13,mon+wed+fri'
 docker compose run --rm scheduler irrigation valve '13,on' --no-wait
 docker compose run --rm scheduler irrigation history 'day,,'
 
@@ -226,11 +227,12 @@ Useful commands:
 # Run the scheduler in the foreground
 irrigation run
 
-# Create: time,duration in minutes,physical pin
-irrigation schedule create '06:30,15,13'
+# Create: time,duration in minutes,physical pin,weekdays
+irrigation schedule create '06:30,15,13,mon+wed+fri'
+irrigation schedule create '06:30,15,13,everyday'
 
-# Update: id,time,duration,pin
-irrigation schedule update '1,07:00,10,13'
+# Update: id,time,duration,pin,weekdays
+irrigation schedule update '1,07:00,10,13,tue+thu'
 
 # Disable or re-enable
 irrigation schedule enabled '1,0'
@@ -262,6 +264,11 @@ no-op, exit code 0), and exits with status 2 and an `Error: ...` message on
 currently running also turns off its valve, unless another enabled schedule
 still needs the same valve. The dashboard shows a dismissible error banner
 above the schedule list when a delete command fails.
+
+The optional schedule weekday field accepts stable identifiers joined with
+`+`: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`. Use `everyday` for all
+seven days. Existing schedules without a `weekdays` field are treated as
+every-day schedules.
 
 ## Tests and quality
 

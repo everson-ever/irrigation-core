@@ -54,7 +54,11 @@ class ScheduleService:
         return records
 
     def create(
-        self, schedule_time: str, duration_minutes: Any, valve_pin: Any
+        self,
+        schedule_time: str,
+        duration_minutes: Any,
+        valve_pin: Any,
+        weekdays: Any = None,
     ) -> dict[str, Any]:
         schedule = Schedule.from_dict(
             {
@@ -63,6 +67,7 @@ class ScheduleService:
                 "valve_pin": valve_pin,
                 "status": 0,
                 "enabled": 1,
+                "weekdays": weekdays,
             }
         )
         self._reject_duplicate_valve(schedule.valve_pin)
@@ -74,6 +79,7 @@ class ScheduleService:
         schedule_time: str,
         duration_minutes: Any,
         valve_pin: Any,
+        weekdays: Any = None,
     ) -> dict[str, Any]:
         current = self.get(record_id)
         edited = Schedule.from_dict(
@@ -84,6 +90,7 @@ class ScheduleService:
                 "valve_pin": valve_pin,
                 "status": int(current.status),
                 "enabled": int(current.enabled),
+                "weekdays": current.weekdays if weekdays is None else weekdays,
             }
         )
         self._reject_duplicate_valve(edited.valve_pin, exclude_id=edited.id)

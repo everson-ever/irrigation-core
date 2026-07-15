@@ -9,6 +9,19 @@ from typing import Any
 
 from .exceptions import ValidationError
 
+WEEKDAY_IDS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_WEEKDAY_INDEX = {weekday: index for index, weekday in enumerate(WEEKDAY_IDS)}
+_WEEKDAY_ALIASES = {
+    "monday": "mon",
+    "tuesday": "tue",
+    "wednesday": "wed",
+    "thursday": "thu",
+    "friday": "fri",
+    "saturday": "sat",
+    "sunday": "sun",
+}
+_ALL_WEEKDAY_ALIASES = {"all", "everyday", "every-day", "every_day", "daily"}
+
 
 def _int_value(value: Any, field: str, minimum: int | None = None) -> int:
     try:
@@ -27,6 +40,48 @@ def _schedule_time(value: Any) -> str:
         raise ValidationError("schedule time must use HH:MM format") from exc
 
 
+def _normalize_weekdays(value: Any = None) -> tuple[str, ...]:
+    if value is None:
+        return WEEKDAY_IDS
+
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if not text:
+            raise ValidationError("weekdays must contain at least one weekday")
+        if text in _ALL_WEEKDAY_ALIASES:
+            return WEEKDAY_IDS
+        raw_values = [
+            item.strip()
+            for item in text.replace("|", ",")
+            .replace(";", ",")
+            .replace("+", ",")
+            .split(",")
+        ]
+    else:
+        try:
+            raw_values = list(value)
+        except TypeError as exc:
+            raise ValidationError("weekdays must be a list or string") from exc
+
+    normalized: set[str] = set()
+    for raw in raw_values:
+        weekday = str(raw).strip().lower()
+        if not weekday:
+            continue
+        if weekday.isdigit():
+            index = int(weekday)
+            if 0 <= index <= 6:
+                weekday = WEEKDAY_IDS[index]
+        weekday = _WEEKDAY_ALIASES.get(weekday, weekday)
+        if weekday not in _WEEKDAY_INDEX:
+            raise ValidationError(f"unknown weekday: {raw}")
+        normalized.add(weekday)
+
+    if not normalized:
+        raise ValidationError("weekdays must contain at least one weekday")
+    return tuple(weekday for weekday in WEEKDAY_IDS if weekday in normalized)
+
+
 @dataclass(frozen=True, slots=True)
 class Schedule:
     id: str
@@ -35,6 +90,10 @@ class Schedule:
     valve_pin: int
     status: bool = False
     enabled: bool = True
+    weekdays: tuple[str, ...] = WEEKDAY_IDS
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "weekdays", _normalize_weekdays(self.weekdays))
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Schedule:
@@ -50,6 +109,7 @@ class Schedule:
             valve_pin=_int_value(pin, "valve_pin", 1),
             status=bool(_int_value(data.get("status", 0), "status", 0)),
             enabled=bool(_int_value(data.get("enabled", 1), "enabled", 0)),
+            weekdays=_normalize_weekdays(data.get("weekdays")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +120,7 @@ class Schedule:
             "valve_pin": str(self.valve_pin),
             "status": int(self.status),
             "enabled": int(self.enabled),
+            "weekdays": list(self.weekdays),
         }
 
     def interval_at(self, now: datetime) -> tuple[datetime, datetime]:
@@ -75,7 +136,10 @@ class Schedule:
 
     def is_running_at(self, now: datetime) -> bool:
         start, end = self.interval_at(now)
-        return self.enabled and start <= now < end
+        return self.enabled and self.runs_on(start) and start <= now < end
+
+    def runs_on(self, day: datetime | date) -> bool:
+        return WEEKDAY_IDS[day.weekday()] in self.weekdays
 
 
 @dataclass(frozen=True, slots=True)

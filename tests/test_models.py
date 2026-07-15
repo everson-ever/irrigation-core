@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from irrigation.domain.exceptions import ValidationError
-from irrigation.domain.models import Schedule
+from irrigation.domain.models import WEEKDAY_IDS, Schedule
 
 
 def test_schedule_requires_valve_field():
@@ -75,3 +75,92 @@ def test_midnight_crossing_schedule_reports_running_after_midnight():
 
     assert schedule.is_running_at(datetime(2026, 7, 15, 0, 2)) is True
     assert schedule.is_running_at(datetime(2026, 7, 15, 0, 5)) is False
+
+
+def test_schedule_accepts_weekday_subset_and_preserves_canonical_order():
+    schedule = Schedule.from_dict(
+        {
+            "time": "06:30",
+            "duration_minutes": 15,
+            "valve_pin": 13,
+            "weekdays": ["fri", "mon", "mon", "wed"],
+        }
+    )
+
+    assert schedule.weekdays == ("mon", "wed", "fri")
+    assert schedule.to_dict()["weekdays"] == ["mon", "wed", "fri"]
+
+
+def test_schedule_accepts_all_weekdays_alias():
+    schedule = Schedule.from_dict(
+        {
+            "time": "06:30",
+            "duration_minutes": 15,
+            "valve_pin": 13,
+            "weekdays": "everyday",
+        }
+    )
+
+    assert schedule.weekdays == WEEKDAY_IDS
+
+
+def test_legacy_schedule_without_weekdays_defaults_to_every_day():
+    schedule = Schedule.from_dict(
+        {"time": "06:30", "duration_minutes": 15, "valve_pin": 13}
+    )
+
+    assert schedule.weekdays == WEEKDAY_IDS
+    assert schedule.is_running_at(datetime(2026, 7, 19, 6, 30)) is True
+
+
+def test_schedule_rejects_invalid_weekdays():
+    with pytest.raises(ValidationError, match="unknown weekday"):
+        Schedule.from_dict(
+            {
+                "time": "06:30",
+                "duration_minutes": 15,
+                "valve_pin": 13,
+                "weekdays": ["monday", "funday"],
+            }
+        )
+
+
+def test_schedule_rejects_empty_weekdays():
+    with pytest.raises(ValidationError, match="at least one weekday"):
+        Schedule.from_dict(
+            {
+                "time": "06:30",
+                "duration_minutes": 15,
+                "valve_pin": 13,
+                "weekdays": [],
+            }
+        )
+
+
+def test_weekday_data_survives_from_dict_and_to_dict_conversion():
+    schedule = Schedule.from_dict(
+        {
+            "id": "1",
+            "time": "06:30",
+            "duration_minutes": "15",
+            "valve_pin": "13",
+            "weekdays": "sun+mon",
+        }
+    )
+
+    assert schedule.to_dict() == {
+        "id": "1",
+        "time": "06:30",
+        "duration_minutes": "15",
+        "valve_pin": "13",
+        "status": 0,
+        "enabled": 1,
+        "weekdays": ["mon", "sun"],
+    }
+
+
+def test_midnight_crossing_schedule_uses_start_day_for_weekday_rule():
+    schedule = Schedule("1", "23:55", 10, 13, weekdays=("tue",))
+
+    assert schedule.is_running_at(datetime(2026, 7, 15, 0, 2)) is True
+    assert schedule.is_running_at(datetime(2026, 7, 16, 0, 2)) is False

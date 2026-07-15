@@ -3,7 +3,7 @@
 ## Metadata
 
 ```yaml
-status: backlog
+status: done
 priority: medium
 type: feature
 ```

@@ -98,6 +98,81 @@ def test_late_start_and_turn_off_at_end(tmp_path):
     assert history.list_all()[0]["end"] == "10:10"
 
 
+def test_schedule_starts_on_configured_weekday(tmp_path):
+    controller, schedules, valves, history, gpio, _ = create_controller(
+        tmp_path, datetime(2026, 7, 14, 10, 0)
+    )
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+            "weekdays": ["tue"],
+        }
+    )
+
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert gpio.operations == [("on", 13)]
+    assert history.list_all()[0]["weekday"] == "Tuesday"
+
+
+def test_schedule_does_not_start_on_unconfigured_weekday(tmp_path):
+    controller, schedules, valves, history, gpio, _ = create_controller(
+        tmp_path, datetime(2026, 7, 14, 10, 0)
+    )
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+            "weekdays": ["mon"],
+        }
+    )
+
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["status"] == 0
+    assert gpio.operations == []
+    assert history.list_all() == []
+
+
+def test_all_weekday_schedule_runs_every_day(tmp_path):
+    controller, schedules, _, history, gpio, clock = create_controller(
+        tmp_path, datetime(2026, 7, 14, 10, 0)
+    )
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+            "weekdays": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        }
+    )
+
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 10, 11)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 19, 10, 0)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 1
+    assert gpio.operations == [("on", 13), ("off", 13), ("on", 13)]
+    assert [record["weekday"] for record in history.list_all()] == [
+        "Tuesday",
+        "Sunday",
+    ]
+
+
 def test_repeated_cycles_do_not_duplicate_automatic_start(tmp_path):
     controller, schedules, _, history, gpio, _ = create_controller(
         tmp_path, datetime(2026, 7, 14, 10, 5)
@@ -397,6 +472,61 @@ def test_midnight_crossing_schedule_stops_at_exact_end_boundary(tmp_path):
     assert gpio.operations == [("on", 13), ("off", 13)]
 
 
+def test_midnight_crossing_schedule_finishes_on_next_day_for_selected_start_day(
+    tmp_path,
+):
+    controller, schedules, valves, history, gpio, clock = create_controller(
+        tmp_path, datetime(2026, 7, 15, 0, 2)
+    )
+    schedules.add(
+        {
+            "time": "23:55",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 0,
+            "enabled": 1,
+            "weekdays": ["tue"],
+        }
+    )
+
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert history.list_all()[0]["end"] == "00:05"
+
+    clock.value = datetime(2026, 7, 15, 0, 5)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 0
+    assert gpio.operations == [("on", 13), ("off", 13)]
+
+
+def test_midnight_crossing_schedule_does_not_start_after_unselected_start_day(
+    tmp_path,
+):
+    controller, schedules, valves, history, gpio, _ = create_controller(
+        tmp_path, datetime(2026, 7, 15, 0, 2)
+    )
+    schedules.add(
+        {
+            "time": "23:55",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 0,
+            "enabled": 1,
+            "weekdays": ["wed"],
+        }
+    )
+
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["status"] == 0
+    assert gpio.operations == []
+    assert history.list_all() == []
+
+
 def test_schedule_runtime_status_is_specific_to_shared_valve_schedule(tmp_path):
     schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
     valves_repo = JsonLinesRepository(tmp_path / "valves.json")
@@ -498,6 +628,38 @@ def test_schedule_create_rejects_duplicate_valve(tmp_path):
         service.create("11:00", "5", "13")
 
     assert len(service.list_all()) == 1
+
+
+def test_schedule_create_persists_selected_weekdays(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+
+    created = service.create("10:00", "10", "13", "fri+mon")
+
+    assert created["weekdays"] == ["mon", "fri"]
+    assert service.get("1").weekdays == ("mon", "fri")
+
+
+def test_schedule_update_persists_selected_weekdays_without_resetting_status(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    service.create("10:00", "10", "13", "mon")
+    service.set_status("1", True)
+
+    updated = service.update("1", "10:30", "15", "13", "tue+thu")
+
+    assert updated["status"] == 1
+    assert updated["weekdays"] == ["tue", "thu"]
+
+
+def test_schedule_update_without_weekdays_preserves_existing_selection(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ScheduleService(schedules_repo)
+    service.create("10:00", "10", "13", "mon+wed")
+
+    updated = service.update("1", "10:30", "15", "13")
+
+    assert updated["weekdays"] == ["mon", "wed"]
 
 
 def test_schedule_update_rejects_valve_used_by_different_schedule(tmp_path):

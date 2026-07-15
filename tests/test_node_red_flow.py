@@ -37,6 +37,17 @@ def test_schedule_create_has_loading_error_and_success_navigation():
     assert "Cadastrando agendamento..." in create_template
     assert "schedule_create_error" in create_template
     assert "create_state.submitting = false" in create_template
+    assert "create_form.weekdays" in create_template
+    assert "Todos os dias" in create_template
+    assert "hasSelectedWeekday(create_form.weekdays)" in create_template
+    assert "weekdays: scope.normalizeWeekdays(scope.create_form.weekdays)" in (
+        create_template
+    )
+    assert "selectedWeekdays" in nodes["38e56a9f.2ca156"]["func"]
+    assert (
+        "`${time},${duration_minutes},${section},${selectedWeekdays}`"
+        in nodes["38e56a9f.2ca156"]["func"]
+    )
     assert 'replace(/^Error:\\s*/, "")' in create_error["func"]
     assert "msg.payload = String(msg.payload)" in create_error["func"]
     assert create_exec["wires"][0] == ["a9c1b3d4.e5f607"]
@@ -51,6 +62,7 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
 
     schedule_template = nodes["25072c26.808454"]["format"]
     update_exec = nodes["46dd0feb.e4f05"]
+    update_formatter = nodes["c86fb12c.66d1e"]
     update_success = nodes["b8d2c4e6.f70123"]
     update_error = nodes["e95d01ea.97e4c"]
 
@@ -67,6 +79,17 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert (
         "scope.schedule_form.valve_pin = parseInt(schedule.valve_pin, 10)"
         in schedule_template
+    )
+    assert (
+        "scope.schedule_form.weekdays = scope.normalizeWeekdays(schedule.weekdays)"
+        in (schedule_template)
+    )
+    assert "hasSelectedWeekday(schedule_form.weekdays)" in schedule_template
+    assert "weekdays: scope.normalizeWeekdays(schedule.weekdays)" in schedule_template
+    assert "selectedWeekdays" in update_formatter["func"]
+    assert (
+        "`${id},${time},${duration_minutes},${valve_pin},${selectedWeekdays}`"
+        in update_formatter["func"]
     )
     assert "time: scope.formatEditTime(schedule.time)" in schedule_template
     assert "!editing_state.editing && schedules.length > 0" in schedule_template
@@ -112,6 +135,19 @@ def test_schedule_list_uses_cli_runtime_status_output():
     assert schedule_loader["wires"][0] == ["afe05d94.376be"]
     assert "JSON.parse(text)" in formatter["func"]
     assert 'msg.topic = "schedules"' in formatter["func"]
+
+
+def test_schedule_list_displays_weekdays():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+
+    assert "<th>Dias</th>" in schedule_template
+    assert 'data-label="Dias">{{ formatWeekdays(schedule.weekdays) }}' in (
+        schedule_template
+    )
+    assert 'return "Todos os dias"' in schedule_template
+    assert '{ id: "mon", label: "Seg" }' in schedule_template
 
 
 def test_schedule_table_uses_schedule_status_for_badges_and_actions():
