@@ -5,6 +5,7 @@ from datetime import datetime
 
 import pytest
 
+from irrigation.bootstrap import Application
 from irrigation.cli import execute
 from irrigation.infrastructure.sqlite_repository import (
     ScheduleSqliteRepository,
@@ -35,6 +36,24 @@ def test_schedule_delete_removes_existing_record(capsys):
 
     assert exit_code == 0
     assert output == {"deleted": True}
+
+
+def test_health_command_reports_controller_heartbeat(capsys):
+    offline_exit_code = execute(["health", "--max-age-seconds", "60"])
+    offline_output = json.loads(capsys.readouterr().out)
+
+    app = Application.create()
+    app.runtime_health().touch(datetime.now())
+
+    online_exit_code = execute(["health", "--max-age-seconds", "60"])
+    online_output = json.loads(capsys.readouterr().out)
+
+    assert offline_exit_code == 0
+    assert offline_output["status"] == "offline"
+    assert offline_output["last_seen_at"] is None
+    assert online_exit_code == 0
+    assert online_output["status"] == "online"
+    assert online_output["component"] == "irrigation-core"
 
 
 def test_schedule_create_persists_weekdays(capsys, tmp_path):

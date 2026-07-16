@@ -127,6 +127,14 @@ body.nr-dashboard-theme {
   background: #6df0a9;
   box-shadow: 0 0 0 4px rgba(109, 240, 169, .13);
 }
+.ir-online.is-offline .ir-online-dot {
+  background: #ff7a7a;
+  box-shadow: 0 0 0 4px rgba(255, 122, 122, .16);
+}
+.ir-online.is-reconnecting .ir-online-dot {
+  background: #ffd166;
+  box-shadow: 0 0 0 4px rgba(255, 209, 102, .18);
+}
 .ir-avatar {
   display: grid;
   width: 34px;
@@ -750,7 +758,7 @@ body.nr-dashboard-theme {
       </span>
     </div>
     <div class="ir-system">
-      <div class="ir-online"><span class="ir-online-dot"></span>Sistema online</div>
+      <div class="ir-online" ng-class="systemStatusClass()" title="{{ systemStatusTitle() }}"><span class="ir-online-dot"></span>{{ systemStatusLabel() }}</div>
       <span class="ir-avatar">IR</span>
     </div>
   </header>
@@ -1034,9 +1042,16 @@ body.nr-dashboard-theme {
   scope.action_menu_id = scope.action_menu_id || null;
   scope.mobile_menu_open = scope.mobile_menu_open || false;
   scope.schedule_countdown_ends = scope.schedule_countdown_ends || {};
+  scope.system_status = scope.system_status || { status: "reconnecting", label: "Verificando sistema" };
+  scope.system_status_timeout_ms = 25000;
+  scope.system_status_timer = scope.system_status_timer || null;
 
   scope.$watch("msg", function(msg) {
     if (!msg) return;
+    if (msg.topic === "system_health") {
+      scope.applySystemHealth(msg.payload);
+      return;
+    }
     if (msg.topic === "schedule_error" || msg.topic === "schedule_update_error" || msg.topic === "schedule_enabled_error") {
       scope.editing_state.submitting = false;
       scope.editing_state.enabled_submitting = false;
@@ -1079,6 +1094,37 @@ body.nr-dashboard-theme {
   scope.closeMobileMenu = function() {
     scope.mobile_menu_open = false;
   };
+  scope.applySystemHealth = function(payload) {
+    var status = payload && payload.status === "online" ? "online" : "offline";
+    scope.system_status = {
+      status: status,
+      label: payload && payload.label ? payload.label : (status === "online" ? "Sistema online" : "Sistema offline"),
+      last_seen_at: payload && payload.last_seen_at ? payload.last_seen_at : null,
+      checked_at: payload && payload.checked_at ? payload.checked_at : null
+    };
+    scope.armSystemStatusTimeout();
+  };
+  scope.armSystemStatusTimeout = function() {
+    if (scope.system_status_timer) clearTimeout(scope.system_status_timer);
+    scope.system_status_timer = setTimeout(function() {
+      scope.$applyAsync(function() {
+        scope.system_status = { status: "offline", label: "Sistema offline", last_seen_at: scope.system_status.last_seen_at || null };
+      });
+    }, scope.system_status_timeout_ms);
+  };
+  scope.systemStatusClass = function() {
+    return "is-" + ((scope.system_status && scope.system_status.status) || "reconnecting");
+  };
+  scope.systemStatusLabel = function() {
+    return (scope.system_status && scope.system_status.label) || "Verificando sistema";
+  };
+  scope.systemStatusTitle = function() {
+    if (!scope.system_status || !scope.system_status.last_seen_at) return "Aguardando verificação do sistema";
+    return "Último heartbeat do controlador: " + scope.system_status.last_seen_at;
+  };
+  scope.$on("$destroy", function() {
+    if (scope.system_status_timer) clearTimeout(scope.system_status_timer);
+  });
   scope.findValve = function(schedule) {
     var pin = String(schedule.valve_pin || "");
     for (var i = 0; i < scope.valves.length; i += 1) {

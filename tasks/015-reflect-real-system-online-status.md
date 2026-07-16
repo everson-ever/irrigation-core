@@ -1,7 +1,7 @@
 ## Metadata
 
 ```yaml
-status: backlog
+status: in_progress
 priority: medium
 type: bug
 ```
@@ -195,13 +195,13 @@ The task is complete when:
 
 ## Implementation checklist
 
-- [ ] Confirm the task number and filename.
-- [ ] Inspect all files listed in the impact analysis.
-- [ ] Reassess the affected files before coding and update this task if needed.
-- [ ] Implement the smallest coherent change.
-- [ ] Add or update specs.
-- [ ] Run focused checks.
-- [ ] Run the full validation suite.
+- [x] Confirm the task number and filename.
+- [x] Inspect all files listed in the impact analysis.
+- [x] Reassess the affected files before coding and update this task if needed.
+- [x] Implement the smallest coherent change.
+- [x] Add or update specs.
+- [x] Run focused checks.
+- [x] Run the full validation suite.
 - [ ] Validate the implementation against every acceptance criterion.
 - [ ] Move the issue to `done` only after implementation and validation pass.
 
@@ -211,6 +211,22 @@ The task is complete when:
   `novo-agendamento.html`; check `historico.html` too when starting
   implementation, since it wasn't confirmed to contain the badge during
   this task's initial investigation.
-- Decision on which "online" signal to use (websocket-only, backend health
-  check, or combined) should be recorded here once the investigation is
-  done, before implementation starts.
+- `historico.html` also had the static badge and was updated with the same
+  dynamic status handling.
+- Decision: use a combined signal rather than websocket-only. The
+  `irrigation run` daemon persists a heartbeat in SQLite on each controller
+  loop. Node-RED polls `/opt/irrigation/bin/irrigation health` every 10
+  seconds and forwards a `system_health` message to every dashboard template
+  with the badge. Each template also marks the system offline locally if no
+  heartbeat message arrives for 25 seconds, which covers a dropped dashboard
+  websocket, stopped Node-RED flow, or a browser/network interruption after
+  the page has loaded.
+- Tradeoff: this project has no HTTP backend/API layer; adding one only for
+  `/health` would be a larger architectural change. The CLI heartbeat uses
+  the same deployment boundary Node-RED already depends on and checks the
+  actual long-running controller process, not just whether the CLI binary can
+  start.
+- Automated validation passed with `.venv/bin/pytest -q` and
+  `.venv/bin/ruff check .`. Manual browser validation with Node-RED and the
+  Raspberry Pi service stopped/started is still pending, so the task remains
+  `in_progress` rather than `done`.

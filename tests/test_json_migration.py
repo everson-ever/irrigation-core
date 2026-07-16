@@ -115,3 +115,11 @@ def test_deployment_database_contains_the_default_settings_row():
         {"id": "1", "default_duration_minutes": 5}
     ]
     assert SqliteRepository(connection, "valves").list_all() == []
+    assert (
+        connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'runtime_health'"
+        ).fetchone()
+        is not None
+    )
+    assert connection.execute("SELECT count(*) FROM runtime_health").fetchone()[0] == 0

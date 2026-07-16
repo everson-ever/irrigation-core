@@ -36,6 +36,15 @@ def _run_command(app: Application, _args: argparse.Namespace):
     return None
 
 
+def _health_command(app: Application, args: argparse.Namespace):
+    max_age_seconds = (
+        args.max_age_seconds
+        if args.max_age_seconds is not None
+        else (app.settings.poll_interval * 3) + 5
+    )
+    return app.runtime_health().status(datetime.now(), max_age_seconds)
+
+
 def _schedule_command(app: Application, args: argparse.Namespace):
     service = app.schedules()
     if args.action == "list":
@@ -132,6 +141,7 @@ def _history_command(app: Application, args: argparse.Namespace):
 
 _COMMAND_HANDLERS = {
     "run": _run_command,
+    "health": _health_command,
     "schedule": _schedule_command,
     "valve": _valve_command,
     "settings": _settings_command,
@@ -145,6 +155,14 @@ def create_parser() -> argparse.ArgumentParser:
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     subcommands.add_parser("run", help="starts automatic control")
+
+    health = subcommands.add_parser("health", help="checks the controller heartbeat")
+    health.add_argument(
+        "--max-age-seconds",
+        type=float,
+        default=None,
+        help="maximum heartbeat age accepted as online",
+    )
 
     schedule = subcommands.add_parser("schedule")
     schedule_actions = schedule.add_subparsers(dest="action", required=True)

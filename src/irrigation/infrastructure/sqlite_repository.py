@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS history (
     mode TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS runtime_health (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_seen_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);
 """
 
@@ -202,6 +207,30 @@ class SqliteRepository:
         if self.table == "valves":
             record["pin"] = str(record["pin"])
         return {"id": record.pop("id"), **record}
+
+
+class RuntimeHealthSqliteRepository:
+    """Stores the automatic controller heartbeat."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def touch(self, last_seen_at: str) -> None:
+        with _write_transaction(self.connection):
+            self.connection.execute(
+                """
+                INSERT INTO runtime_health (id, last_seen_at)
+                VALUES (1, ?)
+                ON CONFLICT(id) DO UPDATE SET last_seen_at = excluded.last_seen_at
+                """,
+                (last_seen_at,),
+            )
+
+    def last_seen_at(self) -> str | None:
+        row = self.connection.execute(
+            "SELECT last_seen_at FROM runtime_health WHERE id = 1"
+        ).fetchone()
+        return None if row is None else str(row["last_seen_at"])
 
 
 class ScheduleSqliteRepository:

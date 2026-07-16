@@ -10,6 +10,7 @@ from irrigation.application.services import (
     HistoryService,
     IrrigationController,
     ManualControlService,
+    RuntimeHealthService,
     ScheduleService,
     SettingsService,
     ValveService,
@@ -20,6 +21,7 @@ from irrigation.infrastructure.gpio import create_gpio
 from irrigation.infrastructure.json_migration import migrate_legacy_json
 from irrigation.infrastructure.json_repository import JsonLinesRepository
 from irrigation.infrastructure.sqlite_repository import (
+    RuntimeHealthSqliteRepository,
     ScheduleSqliteRepository,
     SqliteRepository,
     connect_database,
@@ -55,6 +57,9 @@ class Application:
             JsonLinesRepository(self.settings.history_search_results_path),
         )
 
+    def runtime_health(self) -> RuntimeHealthService:
+        return RuntimeHealthService(RuntimeHealthSqliteRepository(self._connection))
+
     def valves(self) -> ValveService:
         gpio = create_gpio(self.settings.gpio_driver, self.settings.pump_pin)
         return ValveService(SqliteRepository(self._connection, "valves"), gpio)
@@ -76,4 +81,5 @@ class Application:
             self.history(),
             SystemClock(),
             self.settings.poll_interval,
+            self.runtime_health(),
         )

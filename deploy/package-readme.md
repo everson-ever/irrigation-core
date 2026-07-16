@@ -97,7 +97,12 @@ sudo systemctl status irrigation
 sudo systemctl restart irrigation
 sudo systemctl stop irrigation
 journalctl -u irrigation -f
+/opt/irrigation/bin/irrigation health
 ```
+
+The dashboard status badge uses the `irrigation health` command through
+Node-RED. The command reports `online` only when the long-running
+`irrigation.service` controller has updated its heartbeat recently.
 
 ## Configuration
 

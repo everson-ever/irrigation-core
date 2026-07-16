@@ -263,6 +263,46 @@ def test_schedule_list_uses_cli_runtime_status_output():
     assert 'msg.topic = "schedules"' in formatter["func"]
 
 
+def test_system_online_badge_uses_controller_health_heartbeat():
+    nodes = load_nodes()
+
+    injector = nodes["15f3a91c.0b7e01"]
+    health_exec = nodes["4cf2d6a8.7b9012"]
+    formatter = nodes["8f6d41c2.a2e913"]
+    templates = [
+        nodes["25072c26.808454"]["format"],
+        nodes["681694c2.ce0b1c"]["format"],
+        nodes["dad8cd89.f8f81"]["format"],
+    ]
+
+    assert injector["type"] == "inject"
+    assert injector["repeat"] == "10"
+    assert injector["once"] is True
+    assert injector["wires"] == [["4cf2d6a8.7b9012"]]
+
+    assert health_exec["type"] == "exec"
+    assert health_exec["command"] == "/opt/irrigation/bin/irrigation health"
+    assert health_exec["addpay"] is False
+    assert health_exec["wires"][0] == ["8f6d41c2.a2e913"]
+    assert health_exec["wires"][1] == ["8f6d41c2.a2e913"]
+
+    assert 'msg.topic = "system_health"' in formatter["func"]
+    assert 'health.status === "online"' in formatter["func"]
+    assert "Sistema offline" in formatter["func"]
+    assert formatter["wires"] == [
+        ["25072c26.808454", "681694c2.ce0b1c", "dad8cd89.f8f81"]
+    ]
+
+    for template in templates:
+        assert 'ng-class="systemStatusClass()"' in template
+        assert "{{ systemStatusLabel() }}" in template
+        assert 'msg.topic === "system_health"' in template
+        assert "scope.applySystemHealth(msg.payload)" in template
+        assert "scope.system_status_timeout_ms = 25000" in template
+        assert "Sistema offline" in template
+        assert ".ir-online.is-offline .ir-online-dot" in template
+
+
 def test_valves_and_settings_are_loaded_through_cli_commands():
     nodes = load_nodes()
 

@@ -8,7 +8,7 @@ import secrets
 import time
 from collections.abc import Iterable
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
@@ -457,6 +457,43 @@ class AuthService:
         return hmac.compare_digest(digest, expected)
 
 
+class RuntimeHealthService:
+    """Tracks whether the long-running automatic controller is alive."""
+
+    def __init__(self, repository: Any) -> None:
+        self._repository = repository
+
+    def touch(self, now: datetime) -> None:
+        self._repository.touch(_utc_isoformat(now))
+
+    def status(self, now: datetime, max_age_seconds: float) -> dict[str, Any]:
+        last_seen = self._repository.last_seen_at()
+        age_seconds = None
+        online = False
+        if last_seen is not None:
+            last_seen_at = datetime.fromisoformat(last_seen)
+            age_seconds = max(0.0, (_as_utc(now) - last_seen_at).total_seconds())
+            online = age_seconds <= max_age_seconds
+
+        return {
+            "status": "online" if online else "offline",
+            "component": "irrigation-core",
+            "last_seen_at": last_seen,
+            "age_seconds": age_seconds,
+            "max_age_seconds": max_age_seconds,
+        }
+
+
+def _utc_isoformat(value: datetime) -> str:
+    return _as_utc(value).isoformat(timespec="seconds")
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class ManualControlService:
     def __init__(
         self,
@@ -645,12 +682,14 @@ class IrrigationController:
         history: HistoryService,
         clock: Clock,
         poll_interval: float = 2.0,
+        runtime_health: RuntimeHealthService | None = None,
     ) -> None:
         self._schedules = schedules
         self._valves = valves
         self._history = history
         self._clock = clock
         self._poll_interval = poll_interval
+        self._runtime_health = runtime_health
         self._started_in_this_process: set[str] = set()
 
     def run_once(self) -> None:
@@ -762,10 +801,15 @@ class IrrigationController:
         self._valves.configure()
         try:
             while True:
+                self._touch_health()
                 self.run_once()
                 time.sleep(self._poll_interval)
         finally:
             self._valves.close()
+
+    def _touch_health(self) -> None:
+        if self._runtime_health is not None:
+            self._runtime_health.touch(self._clock.now())
 
     def _start(
         self,

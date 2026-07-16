@@ -70,6 +70,8 @@ body.nr-dashboard-theme {
 .ir-system { gap: 14px; }
 .ir-online { gap: 7px; padding: 7px 11px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-size: 12px; font-weight: 700; }
 .ir-online-dot { width: 8px; height: 8px; border-radius: 50%; background: #6df0a9; box-shadow: 0 0 0 4px rgba(109, 240, 169, .13); }
+.ir-online.is-offline .ir-online-dot { background: #ff7a7a; box-shadow: 0 0 0 4px rgba(255, 122, 122, .16); }
+.ir-online.is-reconnecting .ir-online-dot { background: #ffd166; box-shadow: 0 0 0 4px rgba(255, 209, 102, .18); }
 .ir-avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .16); font-size: 11px; font-weight: 800; }
 .ir-layout { display: flex; min-height: calc(100vh - 60px); }
 .ir-sidebar {
@@ -236,7 +238,7 @@ body.nr-dashboard-theme {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       <span class="ir-brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg><span>Irriga</span></span>
     </a>
-    <div class="ir-system"><div class="ir-online"><span class="ir-online-dot"></span>Sistema online</div><span class="ir-avatar">IR</span></div>
+    <div class="ir-system"><div class="ir-online" ng-class="systemStatusClass()" title="{{ systemStatusTitle() }}"><span class="ir-online-dot"></span>{{ systemStatusLabel() }}</div><span class="ir-avatar">IR</span></div>
   </header>
 
   <div class="ir-layout">
@@ -327,8 +329,15 @@ body.nr-dashboard-theme {
   scope.history_query = scope.history_query || "";
   scope.history_records = scope.history_records || [];
   scope.filter_description = scope.filter_description || "período atual";
+  scope.system_status = scope.system_status || { status: "reconnecting", label: "Verificando sistema" };
+  scope.system_status_timeout_ms = 25000;
+  scope.system_status_timer = scope.system_status_timer || null;
 
   scope.$watch("msg", function(msg) {
+    if (msg && msg.topic === "system_health") {
+      scope.applySystemHealth(msg.payload);
+      return;
+    }
     if (msg && Array.isArray(msg.payload)) scope.history_records = msg.payload;
   });
 
@@ -336,6 +345,37 @@ body.nr-dashboard-theme {
     if (event) event.preventDefault();
     window.location.hash = "#!/" + index;
   };
+  scope.applySystemHealth = function(payload) {
+    var status = payload && payload.status === "online" ? "online" : "offline";
+    scope.system_status = {
+      status: status,
+      label: payload && payload.label ? payload.label : (status === "online" ? "Sistema online" : "Sistema offline"),
+      last_seen_at: payload && payload.last_seen_at ? payload.last_seen_at : null,
+      checked_at: payload && payload.checked_at ? payload.checked_at : null
+    };
+    scope.armSystemStatusTimeout();
+  };
+  scope.armSystemStatusTimeout = function() {
+    if (scope.system_status_timer) clearTimeout(scope.system_status_timer);
+    scope.system_status_timer = setTimeout(function() {
+      scope.$applyAsync(function() {
+        scope.system_status = { status: "offline", label: "Sistema offline", last_seen_at: scope.system_status.last_seen_at || null };
+      });
+    }, scope.system_status_timeout_ms);
+  };
+  scope.systemStatusClass = function() {
+    return "is-" + ((scope.system_status && scope.system_status.status) || "reconnecting");
+  };
+  scope.systemStatusLabel = function() {
+    return (scope.system_status && scope.system_status.label) || "Verificando sistema";
+  };
+  scope.systemStatusTitle = function() {
+    if (!scope.system_status || !scope.system_status.last_seen_at) return "Aguardando verificação do sistema";
+    return "Último heartbeat do controlador: " + scope.system_status.last_seen_at;
+  };
+  scope.$on("$destroy", function() {
+    if (scope.system_status_timer) clearTimeout(scope.system_status_timer);
+  });
   scope.inputValue = function(id) {
     var input = document.getElementById(id);
     return input ? input.value : "";
