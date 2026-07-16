@@ -554,6 +554,17 @@ body.nr-dashboard-theme {
 .ir-modal.is-small { width: min(430px, 100%); }
 .ir-modal-title { margin: 0; color: var(--ir-ink) !important; font-size: 23px; line-height: 1.15; }
 .ir-modal-text { margin: 8px 0 20px; color: var(--ir-muted) !important; font-size: 13px; line-height: 1.5; }
+.ir-modal-warning {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #ffc9a8;
+  border-radius: 10px;
+  background: #fff4ec;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
 .ir-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .ir-field label { display: block; margin-bottom: 7px; color: #26312f; font-size: 12px; font-weight: 800; }
 .ir-field input, .ir-field select {
@@ -960,6 +971,7 @@ body.nr-dashboard-theme {
     <p class="ir-eyebrow">Excluir agendamento</p>
     <h2 class="ir-modal-title">Confirmar exclusão?</h2>
     <p class="ir-modal-text">O agendamento das {{ delete_state.time }} para {{ delete_state.section }} será removido. Esta ação não pode ser desfeita.</p>
+    <div class="ir-modal-warning" ng-if="delete_state.running">Atenção: este agendamento está em execução agora (regando neste momento).</div>
     <div class="ir-modal-actions">
       <button type="button" class="ir-secondary-button" ng-click="closeDeleteConfirmation()">Cancelar</button>
       <button type="button" class="ir-danger-button" ng-click="send({payload:confirmDeleteSchedule()})">Excluir agendamento</button>
@@ -1034,7 +1046,7 @@ body.nr-dashboard-theme {
   scope.manual_pending = scope.manual_pending || {};
   scope.manual_pending_timers = scope.manual_pending_timers || {};
   scope.manual_pending_timeout_ms = 15000;
-  scope.delete_state = scope.delete_state || { open: false, schedule: null, time: "", section: "" };
+  scope.delete_state = scope.delete_state || { open: false, schedule: null, time: "", section: "", running: false };
   scope.schedule_error = scope.schedule_error || null;
   scope.schedule_filter = scope.schedule_filter || "all";
   scope.search_query = scope.search_query || "";
@@ -1317,8 +1329,13 @@ body.nr-dashboard-theme {
     scope.delete_state.schedule = schedule;
     scope.delete_state.time = scope.formatScheduleTimes(schedule);
     scope.delete_state.section = scope.sectionLabel(schedule);
+    scope.delete_state.running = scope.sectionStatus(schedule) === 1;
   };
-  scope.closeDeleteConfirmation = function() { scope.delete_state.open = false; scope.delete_state.schedule = null; };
+  scope.closeDeleteConfirmation = function() {
+    scope.delete_state.open = false;
+    scope.delete_state.schedule = null;
+    scope.delete_state.running = false;
+  };
   scope.dismissScheduleError = function() { scope.schedule_error = null; };
   scope.confirmDeleteSchedule = function() {
     var schedule = scope.delete_state.schedule;

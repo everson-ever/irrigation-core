@@ -358,6 +358,24 @@ def test_schedule_table_uses_schedule_status_for_badges_and_actions():
     assert 'ng-if="sectionStatus(schedule) !== 1"' in schedule_template
 
 
+def test_delete_confirmation_warns_when_schedule_is_running():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+
+    assert 'ng-if="delete_state.running"' in schedule_template
+    assert "está em execução agora" in schedule_template
+    assert "scope.delete_state = scope.delete_state ||" in schedule_template
+    assert "running: false" in schedule_template
+    assert (
+        "scope.delete_state.running = scope.sectionStatus(schedule) === 1"
+        in schedule_template
+    )
+    assert "scope.delete_state.running = false" in schedule_template
+    assert "scope.closeDeleteConfirmation();" in schedule_template
+    assert "return scope.sendId(schedule.id);" in schedule_template
+
+
 def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
     nodes = load_nodes()
 
