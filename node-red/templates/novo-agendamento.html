@@ -35,22 +35,22 @@ body.nr-dashboard-theme {
   background: transparent !important;
   box-shadow: none !important;
 }
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell p,
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h1,
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h2,
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h3,
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell h4 {
+.nr-dashboard-theme .nr-dashboard-template .ir-shell p,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h1,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h2,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h3,
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h4 {
   background-color: transparent !important;
 }
-.nr-dashboard-theme .nr-dashboard-template .ir-create-shell svg path { fill: none !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-shell svg path { fill: none !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-eyebrow { color: var(--ir-green) !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-title { color: var(--ir-ink) !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-subtitle { color: var(--ir-muted) !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-summary-main { color: #fff !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-summary-detail { color: #82918f !important; }
 
-.ir-create-shell, .ir-create-shell * { box-sizing: border-box !important; }
-.ir-create-shell {
+.ir-shell, .ir-shell * { box-sizing: border-box !important; }
+.ir-shell {
   width: 100%;
   min-height: 100vh;
   margin: 0;
@@ -59,16 +59,126 @@ body.nr-dashboard-theme {
   background: var(--ir-panel);
   box-shadow: none;
 }
-.ir-create-topbar {
+.ir-topbar {
   display: flex;
-  height: 46px;
+  height: 60px;
   align-items: center;
-  gap: 15px;
-  padding: 0 24px;
+  justify-content: space-between;
+  padding: 0 22px;
   background: var(--ir-green);
   color: #fff;
-  font-size: 13px;
+}
+.ir-brand, .ir-system, .ir-brand-mark, .ir-online {
+  display: flex;
+  align-items: center;
+}
+.ir-brand { gap: 12px; font-size: 16px; font-weight: 800; }
+.ir-brand-mark { gap: 10px; }
+.ir-brand svg { width: 21px; height: 21px; }
+.ir-menu-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ir-menu-button:hover { background: rgba(255, 255, 255, .12); }
+.ir-menu-icon { width: 21px; height: 21px; opacity: .95; }
+.ir-system { gap: 14px; }
+.ir-online {
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ir-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6df0a9;
+  box-shadow: 0 0 0 4px rgba(109, 240, 169, .13);
+}
+.ir-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .16);
+  font-size: 11px;
   font-weight: 800;
+}
+.ir-layout { display: flex; min-height: calc(100vh - 60px); }
+.ir-mobile-backdrop { display: none; }
+.ir-sidebar {
+  display: flex;
+  width: 240px;
+  flex: 0 0 240px;
+  flex-direction: column;
+  padding: 22px 14px;
+  border-right: 1px solid var(--ir-line);
+  background: #f6f8f9;
+}
+.ir-nav-label {
+  margin: 0 10px 10px;
+  color: #9aa2a4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.ir-nav { display: grid; gap: 3px; }
+.ir-nav-button {
+  display: flex;
+  width: 100%;
+  height: 41px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: transparent;
+  color: #13211f;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+.ir-nav-button:hover { background: #edf2f1; }
+.ir-nav-button.is-active { background: var(--ir-green); color: #fff; }
+.ir-nav-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.ir-side-card {
+  margin-top: auto;
+  padding: 16px 14px;
+  border: 1px solid var(--ir-line);
+  border-radius: 11px;
+  background: #fff;
+}
+.ir-side-card-label {
+  margin: 0 0 8px;
+  color: var(--ir-green);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ir-side-card strong { display: block; font-size: 20px; line-height: 1.1; }
+.ir-side-card span { display: block; margin-top: 6px; color: var(--ir-muted); font-size: 12px; }
+.ir-content { min-width: 0; flex: 1; padding: clamp(30px, 4vw, 60px) clamp(24px, 5vw, 76px) 42px; }
+.ir-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 27px;
 }
 .ir-breadcrumb-button {
   display: inline-flex;
@@ -83,8 +193,9 @@ body.nr-dashboard-theme {
   text-decoration: none;
 }
 .ir-breadcrumb-button svg { width: 15px; height: 15px; }
-.ir-breadcrumb-separator { opacity: .55; font-size: 19px; font-weight: 400; }
-.ir-create-content { width: 100%; padding: clamp(30px, 4vw, 60px) clamp(24px, 5vw, 76px) 42px; }
+.ir-back-link { flex: 0 0 auto; margin-top: 4px; color: #6b7475; font-size: 12px; font-weight: 850; }
+.ir-back-link:hover { color: var(--ir-green); }
+.ir-page-heading .ir-subtitle { margin-bottom: 0; }
 .ir-eyebrow {
   margin: 0 0 7px;
   color: var(--ir-green);
@@ -313,13 +424,42 @@ body.nr-dashboard-theme {
 .ir-primary-button svg { width: 16px; height: 16px; }
 .ir-primary-button:disabled, .ir-secondary-button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none; }
 
-@media (max-width: 760px) {
-  .ir-create-content { padding: 30px 24px; }
+@media (max-width: 820px) {
+  .ir-layout { min-height: calc(100vh - 60px); }
+  .ir-mobile-backdrop {
+    position: fixed;
+    inset: 60px 0 0;
+    z-index: 900;
+    display: block;
+    background: rgba(5, 24, 22, .42);
+  }
+  .ir-sidebar {
+    position: fixed;
+    top: 60px;
+    bottom: 0;
+    left: 0;
+    z-index: 901;
+    display: flex;
+    max-width: min(82vw, 280px);
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+    box-shadow: 18px 0 36px rgba(7, 26, 24, .22);
+  }
+  .ir-sidebar.is-mobile-open { transform: translateX(0); }
+  .ir-content { padding: 30px 24px; }
   .ir-valves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
-  .ir-create-topbar { height: 52px; padding: 0 15px; }
-  .ir-create-content { padding: 25px 15px 28px; }
+  .ir-topbar { height: 56px; padding: 0 14px; }
+  .ir-mobile-backdrop { inset: 56px 0 0; }
+  .ir-sidebar { top: 56px; }
+  .ir-brand { gap: 9px; }
+  .ir-system { gap: 8px; }
+  .ir-online { padding: 6px 8px; }
+  .ir-avatar { display: none; }
+  .ir-content { padding: 25px 15px 28px; }
+  .ir-page-heading { display: block; }
+  .ir-back-link { margin-top: 14px; }
   .ir-title { font-size: 27px; }
   .ir-main-fields { grid-template-columns: 1fr; gap: 17px; }
   .ir-weekdays-head { display: block; }
@@ -334,20 +474,61 @@ body.nr-dashboard-theme {
 }
 </style>
 
-<section class="ir-create-shell">
-  <header class="ir-create-topbar">
-    <a class="ir-breadcrumb-button" href="#!/0" ng-click="navigateToTab(0, $event)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-      Agendamentos
-    </a>
-    <span class="ir-breadcrumb-separator">›</span>
-    <span>Novo agendamento</span>
+<section class="ir-shell">
+  <header class="ir-topbar">
+    <div class="ir-brand">
+      <button type="button" class="ir-menu-button" aria-label="Abrir menu" ng-click="toggleMobileMenu($event)">
+        <svg class="ir-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="ir-brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg>
+        <span>Irriga</span>
+      </span>
+    </div>
+    <div class="ir-system">
+      <div class="ir-online"><span class="ir-online-dot"></span>Sistema online</div>
+      <span class="ir-avatar">IR</span>
+    </div>
   </header>
 
-  <main class="ir-create-content">
-    <p class="ir-eyebrow">Novo horário</p>
-    <h1 class="ir-title">Programar uma rega</h1>
-    <p class="ir-subtitle">Defina quando a irrigação deve ligar, por quanto tempo e em qual seção.</p>
+  <div class="ir-layout">
+    <div class="ir-mobile-backdrop" ng-if="mobile_menu_open" ng-click="closeMobileMenu()"></div>
+    <aside class="ir-sidebar" ng-class="{'is-mobile-open': mobile_menu_open}">
+      <p class="ir-nav-label">Irrigação</p>
+      <nav class="ir-nav" aria-label="Navegação principal">
+        <a class="ir-nav-button" href="#!/0" ng-click="navigateToTab(0, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+          Agendamentos
+        </a>
+        <button type="button" class="ir-nav-button is-active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Novo agendamento
+        </button>
+        <a class="ir-nav-button" href="#!/2" ng-click="navigateToTab(2, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Histórico
+        </a>
+      </nav>
+
+      <div class="ir-side-card">
+        <p class="ir-side-card-label">Novo horário</p>
+        <strong>Rega</strong>
+        <span>Configure seção, dias e duração.</span>
+      </div>
+    </aside>
+
+    <main class="ir-content">
+      <div class="ir-page-heading">
+        <div>
+          <p class="ir-eyebrow">Novo horário</p>
+          <h1 class="ir-title">Programar uma rega</h1>
+          <p class="ir-subtitle">Defina quando a irrigação deve ligar, por quanto tempo e em qual seção.</p>
+        </div>
+        <a class="ir-breadcrumb-button ir-back-link" href="#!/0" ng-click="navigateToTab(0, $event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          Agendamentos
+        </a>
+      </div>
 
     <form class="ir-form">
       <div class="ir-feedback is-error" ng-if="create_error">
@@ -446,7 +627,8 @@ body.nr-dashboard-theme {
         </button>
       </div>
     </form>
-  </main>
+    </main>
+  </div>
 </section>
 
 <script type="text/javascript" charset="utf-8">
@@ -465,6 +647,7 @@ body.nr-dashboard-theme {
   scope.create_state = scope.create_state || { submitting: false };
   scope.create_error = scope.create_error || null;
   scope.valves = scope.valves || [];
+  scope.mobile_menu_open = scope.mobile_menu_open || false;
 
   scope.$watch("msg", function(msg) {
     if (!msg) return;
@@ -478,8 +661,16 @@ body.nr-dashboard-theme {
 
   scope.navigateToTab = function(index, event) {
     if (event) event.preventDefault();
+    scope.closeMobileMenu();
     window.location.hash = "#!/" + index;
     window.location.reload();
+  };
+  scope.toggleMobileMenu = function(event) {
+    if (event) event.preventDefault();
+    scope.mobile_menu_open = !scope.mobile_menu_open;
+  };
+  scope.closeMobileMenu = function() {
+    scope.mobile_menu_open = false;
   };
   scope.toTimeValue = function(value) {
     var parts = String(value || "").split(":");
