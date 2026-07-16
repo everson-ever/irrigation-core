@@ -44,6 +44,28 @@ def test_schedule_mobile_menu_opens_sidebar():
     assert "scope.closeMobileMenu();" in schedule_template
 
 
+def test_schedule_list_shows_loading_indicator_before_data_arrives():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+
+    assert "scope.schedules_loaded = scope.schedules_loaded || false" in (
+        schedule_template
+    )
+    assert "scope.schedules_loaded = true" in schedule_template
+    assert 'ng-if="!schedules_loaded"' in schedule_template
+    assert "ir-loading-spinner" in schedule_template
+    assert "Carregando agendamentos..." in schedule_template
+    assert (
+        'ng-if="!editing_state.editing && schedules_loaded && schedules.length > 0"'
+        in schedule_template
+    )
+    assert (
+        'ng-if="!editing_state.editing && schedules_loaded && schedules.length === 0"'
+        in schedule_template
+    )
+
+
 def test_schedule_create_has_loading_error_and_success_navigation():
     nodes = load_nodes()
 
@@ -123,8 +145,14 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
         in update_formatter["func"]
     )
     assert "time: scope.formatEditTime(schedule.time)" in schedule_template
-    assert "!editing_state.editing && schedules.length > 0" in schedule_template
-    assert "!editing_state.editing && schedules.length === 0" in schedule_template
+    assert (
+        "!editing_state.editing && schedules_loaded && schedules.length > 0"
+        in schedule_template
+    )
+    assert (
+        "!editing_state.editing && schedules_loaded && schedules.length === 0"
+        in schedule_template
+    )
     assert 'editing_state.submitting">Salvando alterações...' in schedule_template
     assert "scope.editing_state.submitting = true" in schedule_template
     assert "schedule_update_error" in schedule_template

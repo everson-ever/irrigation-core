@@ -506,6 +506,21 @@ body.nr-dashboard-theme {
 }
 .ir-empty-icon { color: var(--ir-green); }
 .ir-empty-icon svg { width: 38px; height: 38px; }
+.ir-loading-spinner {
+  width: 38px;
+  height: 38px;
+  color: var(--ir-green);
+  animation: ir-spin .8s linear infinite;
+}
+.ir-loading-spinner circle {
+  opacity: .25;
+}
+.ir-loading-spinner path {
+  opacity: .9;
+}
+@keyframes ir-spin {
+  to { transform: rotate(360deg); }
+}
 .ir-empty h2 { margin: 12px 0 0; font-size: 18px; }
 .ir-empty p { margin: 7px 0 0; color: var(--ir-muted); font-size: 13px; }
 .ir-modal-backdrop {
@@ -748,7 +763,14 @@ body.nr-dashboard-theme {
         </button>
       </div>
 
-      <div class="ir-table-wrap" ng-if="!editing_state.editing && schedules.length > 0">
+      <div class="ir-empty" ng-if="!schedules_loaded">
+        <div>
+          <svg class="ir-loading-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M20 12a8 8 0 0 0-8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <h2>Carregando agendamentos...</h2>
+        </div>
+      </div>
+
+      <div class="ir-table-wrap" ng-if="!editing_state.editing && schedules_loaded && schedules.length > 0">
         <table class="ir-table" id="table" border="0">
           <colgroup><col style="width:14%"><col style="width:11%"><col style="width:24%"><col style="width:18%"><col style="width:18%"><col style="width:15%"></colgroup>
           <thead>
@@ -820,7 +842,7 @@ body.nr-dashboard-theme {
         </table>
       </div>
 
-      <div class="ir-empty" ng-if="!editing_state.editing && schedules.length === 0">
+      <div class="ir-empty" ng-if="!editing_state.editing && schedules_loaded && schedules.length === 0">
         <div>
           <div class="ir-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></div>
           <h2>Nenhum agendamento cadastrado</h2>
@@ -828,7 +850,7 @@ body.nr-dashboard-theme {
         </div>
       </div>
 
-      <div class="ir-empty" ng-if="!editing_state.editing && schedules.length > 0 && visibleSchedules().length === 0">
+      <div class="ir-empty" ng-if="!editing_state.editing && schedules_loaded && schedules.length > 0 && visibleSchedules().length === 0">
         <div><h2>Nenhum resultado encontrado</h2><p>Tente alterar a busca ou o filtro selecionado.</p></div>
       </div>
     </main>
@@ -896,6 +918,7 @@ body.nr-dashboard-theme {
 <script>
 (function(scope) {
   scope.schedules = scope.schedules || [];
+  scope.schedules_loaded = scope.schedules_loaded || false;
   scope.valves = scope.valves || [];
   scope.weekday_options = [
     { id: "mon", label: "Seg" },
@@ -943,6 +966,7 @@ body.nr-dashboard-theme {
     }
     scope.schedule_error = null;
     scope.schedules = msg.payload;
+    scope.schedules_loaded = true;
     if (scope.editing_state.submitting) {
       scope.editing_state.submitting = false;
       scope.editing_state.editing = false;
