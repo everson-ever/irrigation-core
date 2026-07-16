@@ -7,7 +7,7 @@ The application uses a layered architecture, testable code, and inverted
 dependencies. The version to install and run is at the root of this repository.
 
 Main classes, methods, functions, variables, and commands use English naming.
-File names and JSON fields are part of the current dashboard contract.
+The CLI JSON output is part of the current dashboard contract.
 
 ## Features
 
@@ -27,7 +27,7 @@ File names and JSON fields are part of the current dashboard contract.
 
 ```text
 .
-├── data/                         # Persisted data in JSON Lines
+├── data/                         # SQLite database and search snapshot
 ├── deploy/systemd/               # Scheduler service and Node-RED override
 ├── node-red/flows.json           # Updated dashboard and integration
 ├── scripts/build-binary.sh       # Compiles src/irrigation into dist/irrigation
@@ -35,7 +35,7 @@ File names and JSON fields are part of the current dashboard contract.
 ├── src/irrigation/
 │   ├── application/              # Use cases and orchestration
 │   ├── domain/                   # Entities, rules, and contracts
-│   ├── infrastructure/           # JSON Lines, GPIO, and clock
+│   ├── infrastructure/           # SQLite, legacy import, GPIO, and clock
 │   ├── bootstrap.py              # Dependency injection
 │   └── cli.py                    # Interface used by systemd and Node-RED
 ├── tests/                        # Unit tests
@@ -50,20 +50,24 @@ Responsibilities were separated following SOLID principles:
 - The real driver can be replaced by the simulated one without changing rules.
 - The Node-RED interface calls a thin CLI; it contains no business rules.
 
-Files use JSON Lines format (one JSON object per line). Writes use locking and
-atomic replacement to reduce the risk of corruption when Node-RED and the
-scheduler access data concurrently.
+Authoritative data is stored in `data/irrigation.db`. SQLite transactions, WAL
+mode, foreign keys, and a busy timeout keep concurrent scheduler and Node-RED
+CLI access safe. Schedules and their weekdays use separate related tables;
+history dates are indexed for range searches. On first start, installations
+that still have the legacy JSON Lines files are imported automatically while
+the original files are left in place for verification.
 
 ## Hardware configuration
 
 The project uses physical pin numbering (`GPIO.BOARD`). Deployment packages
-ship with an empty `data/valves.json`, because the valve pins are only known
-after the system is wired. Add one JSON object per line after installation, for
-example:
+ship with an empty `valves` table because the valve pins are only known after
+the system is wired. Configure it with SQLite after installation, for example:
 
-```jsonl
-{"id":"1","pin":"13","status":0,"section":"Front garden","manually_turned_off":0}
-{"id":"2","pin":"11","status":0,"section":"Back garden","manually_turned_off":0}
+```bash
+sqlite3 data/irrigation.db <<'SQL'
+INSERT INTO valves (pin, section) VALUES (13, 'Front garden');
+INSERT INTO valves (pin, section) VALUES (11, 'Back garden');
+SQL
 ```
 
 The values above are examples, not recommended defaults. Configure the pump pin
@@ -147,8 +151,9 @@ In the Node-RED editor:
 3. confirm the deploy;
 4. open `http://RASPBERRY_IP:1880/ui`.
 
-The flow uses the binary installed at `/opt/irrigation/bin/irrigation` and
-reads the files in `data/`.
+The flow uses the binary installed at `/opt/irrigation/bin/irrigation`. Valves
+and settings are read through CLI commands; only the transient history-search
+snapshot is read directly from `data/`.
 The scheduler is not started by the flow: it is managed by `systemd` so it can
 restart automatically after failures or reboots.
 
@@ -244,9 +249,11 @@ irrigation schedule delete 1
 # Manual activation
 irrigation valve '13,on'
 irrigation valve '13,off'
+irrigation valve list
 
 # Change the default manual time
 irrigation settings 5
+irrigation settings show
 
 # Search history
 irrigation history 'day,,'
@@ -285,13 +292,17 @@ midnight.
 
 ## Data
 
-Operational files are stored in `data/`:
+Operational data is stored in `data/`:
 
-- `schedules.json`: schedules and their execution state;
-- `valves.json`: pins, sections, and states;
-- `settings.json`: default manual activation time;
-- `history.json`: activation log;
-- `history_search_results.json`: result consumed by the dashboard.
+- `irrigation.db`: authoritative schedules, normalized schedule weekdays,
+  valves, settings, and indexed history;
+- `history_search_results.json`: transient result snapshot consumed by the
+  dashboard after a history search.
+
+The old `schedules.json`, `valves.json`, `settings.json`, and `history.json`
+files are only migration inputs. When `irrigation.db` does not exist, startup
+imports every legacy file found and preserves its IDs. The legacy files are not
+modified or deleted.
 
 A new installation starts without schedules. Do not reuse files from previous
 systems; create schedules and valve configuration for the new installation.

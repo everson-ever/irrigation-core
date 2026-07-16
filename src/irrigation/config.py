@@ -27,5 +27,10 @@ class Settings:
             gpio_driver=os.getenv("IRRIGATION_GPIO_DRIVER", "rpi").lower(),
         )
 
-    def file_path(self, name: str) -> Path:
-        return self.data_dir / name
+    @property
+    def database_path(self) -> Path:
+        return self.data_dir / "irrigation.db"
+
+    @property
+    def history_search_results_path(self) -> Path:
+        return self.data_dir / "history_search_results.json"

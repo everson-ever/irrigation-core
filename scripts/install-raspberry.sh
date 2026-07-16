@@ -43,4 +43,6 @@ chown -R "${RUN_USER}:${RUN_USER}" "${PROJECT_DIR}/data"
 systemctl daemon-reload
 systemctl enable --now irrigation.service
 
-echo "Installation complete. Import node-red/flows.json using the Node-RED editor."
+echo "Installation complete. Operational data is stored in data/irrigation.db."
+echo "Legacy JSON data is imported automatically when the database does not exist."
+echo "Import node-red/flows.json using the Node-RED editor."

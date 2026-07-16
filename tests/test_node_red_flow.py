@@ -141,8 +141,9 @@ def test_schedule_enabled_toggle_has_flow_wiring_and_error_feedback():
 
     assert action_router["outputs"] == 4
     assert 'payload.ui_action === "toggle_enabled"' in action_router["func"]
-    assert "msg.payload = { id: payload.id, enabled: payload.enabled }" in (
-        action_router["func"]
+    assert (
+        "msg.payload = { id: payload.id, enabled: payload.enabled }"
+        in (action_router["func"])
     )
     assert action_router["wires"][3] == ["e7a2d5c1.4b8f9a"]
 
@@ -190,6 +191,32 @@ def test_schedule_list_uses_cli_runtime_status_output():
     assert schedule_loader["wires"][0] == ["afe05d94.376be"]
     assert "JSON.parse(text)" in formatter["func"]
     assert 'msg.topic = "schedules"' in formatter["func"]
+
+
+def test_valves_and_settings_are_loaded_through_cli_commands():
+    nodes = load_nodes()
+
+    valves = nodes["8d0b3804.e60cf8"]
+    settings = nodes["d19f016a.a6ac8"]
+
+    assert valves["type"] == "exec"
+    assert valves["command"] == "/opt/irrigation/bin/irrigation valve list"
+    assert valves["addpay"] is False
+    assert valves["wires"][0] == ["a51e1954.c69208"]
+    assert "filename" not in valves
+
+    assert settings["type"] == "exec"
+    assert settings["command"] == "/opt/irrigation/bin/irrigation settings show"
+    assert settings["addpay"] is False
+    assert settings["wires"][0] == ["a7ddf74d.7238a8"]
+    assert "filename" not in settings
+
+
+def test_history_search_snapshot_remains_a_json_file_input():
+    history = load_nodes()["dbd8eebe.dbaa"]
+
+    assert history["type"] == "file in"
+    assert history["filename"] == "data/history_search_results.json"
 
 
 def test_schedule_list_displays_weekdays():

@@ -320,7 +320,7 @@
     "type": "function",
     "z": "33af9e8a.0fb3f2",
     "name": "Formata records cadastrados",
-    "func": "records = []\nmsg.payload = msg.payload.replace(/}/g, '},,')\nrecords = msg.payload.split(',,')\n\nrecords.pop();\n\nfor (let i = 0; i < records.length; i++) {\n    records[i] = JSON.parse(records[i])\n}\n\n\nrecords.sort((a,b) => {\n    return a.time > b.time;\n})\n\nmsg.topic = \"valves\";\nmsg.payload = records\nreturn msg;\n",
+    "func": "const text = String(msg.payload || \"\").trim();\nmsg.topic = \"valves\";\nmsg.payload = text ? JSON.parse(text) : [];\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "x": 880,
@@ -334,20 +334,23 @@
   },
   {
     "id": "8d0b3804.e60cf8",
-    "type": "file in",
+    "type": "exec",
     "z": "33af9e8a.0fb3f2",
-    "name": "Valvulas do sistema",
-    "filename": "data/valves.json",
-    "format": "utf8",
-    "chunk": false,
-    "sendError": false,
-    "encoding": "none",
+    "name": "Válvulas do sistema",
+    "command": "/opt/irrigation/bin/irrigation valve list",
+    "addpay": false,
+    "append": "",
+    "useSpawn": "false",
+    "timer": "",
+    "oldrc": false,
     "x": 570,
     "y": 780,
     "wires": [
       [
         "a51e1954.c69208"
-      ]
+      ],
+      [],
+      []
     ]
   },
   {
@@ -423,20 +426,23 @@
   },
   {
     "id": "d19f016a.a6ac8",
-    "type": "file in",
+    "type": "exec",
     "z": "33af9e8a.0fb3f2",
     "name": "Configurações cadastradas",
-    "filename": "data/settings.json",
-    "format": "utf8",
-    "chunk": false,
-    "sendError": false,
-    "encoding": "none",
+    "command": "/opt/irrigation/bin/irrigation settings show",
+    "addpay": false,
+    "append": "",
+    "useSpawn": "false",
+    "timer": "",
+    "oldrc": false,
     "x": 580,
     "y": 1260,
     "wires": [
       [
         "a7ddf74d.7238a8"
-      ]
+      ],
+      [],
+      []
     ]
   },
   {
@@ -464,7 +470,7 @@
     "type": "function",
     "z": "33af9e8a.0fb3f2",
     "name": "Formata records cadastrados",
-    "func": "records = []\nmsg.payload = msg.payload.replace(/}/g, '},,')\nrecords = msg.payload.split(',,')\n\nrecords.pop();\n\nfor (let i = 0; i < records.length; i++) {\n    records[i] = JSON.parse(records[i])\n}\n\n\nrecords.sort((a,b) => {\n    return a.time > b.time;\n})\n\n//if (records.length > 0) {\n    msg.payload = records\n    return msg;\n//}\n\n\n\n",
+    "func": "const text = String(msg.payload || \"\").trim();\nconst record = text ? JSON.parse(text) : null;\nmsg.payload = record ? [record] : [];\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "x": 860,

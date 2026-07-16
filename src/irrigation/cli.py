@@ -59,7 +59,9 @@ def _schedule_command(app: Application, args: argparse.Namespace):
     return service.set_enabled(record_id, enabled)
 
 
-def _valve_command(app: Application, args: argparse.Namespace) -> dict[str, bool]:
+def _valve_command(app: Application, args: argparse.Namespace):
+    if args.data == "list":
+        return [valve.to_dict() for valve in app.valves().list_all()]
     valve_data = [part.strip() for part in args.data.split(",")]
     if len(valve_data) not in (2, 3, 4):
         raise ValueError("valve must contain 2 to 4 comma-separated fields")
@@ -89,7 +91,13 @@ def _valve_command(app: Application, args: argparse.Namespace) -> dict[str, bool
 
 
 def _settings_command(app: Application, args: argparse.Namespace):
-    return app.runtime_settings().update_default_duration(args.minutes)
+    service = app.runtime_settings()
+    if args.value == "show":
+        return {
+            "id": "1",
+            "default_duration_minutes": service.default_duration_minutes(),
+        }
+    return service.update_default_duration(args.value)
 
 
 def _history_command(app: Application, args: argparse.Namespace):
@@ -132,7 +140,7 @@ def create_parser() -> argparse.ArgumentParser:
     enabled.add_argument("data", help="id,0|1")
 
     valve = subcommands.add_parser("valve")
-    valve.add_argument("data", help="pin,on|off[,minutes][,schedule_id]")
+    valve.add_argument("data", help="list or pin,on|off[,minutes][,schedule_id]")
     valve.add_argument(
         "--no-wait",
         action="store_true",
@@ -140,7 +148,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     settings = subcommands.add_parser("settings")
-    settings.add_argument("minutes")
+    settings.add_argument("value", help="show or default duration in minutes")
 
     history = subcommands.add_parser("history")
     history.add_argument("data", help="day,, or range,YYYY-MM-DD,YYYY-MM-DD")

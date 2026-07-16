@@ -289,11 +289,15 @@ class HistoryService:
     def search_range(self, start_date: date, end_date: date) -> list[dict[str, Any]]:
         if start_date > end_date:
             raise ValidationError("start date must be before end date")
-        results = [
-            item
-            for item in self._history.list_all()
-            if start_date <= date.fromisoformat(str(item["date"])) <= end_date
-        ]
+        indexed_search = getattr(self._history, "find_by_date_range", None)
+        if callable(indexed_search):
+            results = indexed_search(start_date.isoformat(), end_date.isoformat())
+        else:
+            results = [
+                item
+                for item in self._history.list_all()
+                if start_date <= date.fromisoformat(str(item["date"])) <= end_date
+            ]
         self._search_result.replace_all(results)
         return results
 

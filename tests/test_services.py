@@ -13,6 +13,11 @@ from irrigation.application.services import (
 from irrigation.domain.exceptions import ValidationError
 from irrigation.infrastructure.gpio import MockGPIO
 from irrigation.infrastructure.json_repository import JsonLinesRepository
+from irrigation.infrastructure.sqlite_repository import (
+    ScheduleSqliteRepository,
+    SqliteRepository,
+    connect_database,
+)
 
 
 class FakeClock:
@@ -38,9 +43,10 @@ class RecordingMockGPIO(MockGPIO):
 
 
 def create_controller(tmp_path, now: datetime):
-    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
-    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
-    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    connection = connect_database(tmp_path / "irrigation.db")
+    schedules_repo = ScheduleSqliteRepository(connection)
+    valves_repo = SqliteRepository(connection, "valves")
+    history_repo = SqliteRepository(connection, "history")
     result_repo = JsonLinesRepository(tmp_path / "results.json")
     valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
     gpio = RecordingMockGPIO(15)

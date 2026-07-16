@@ -6,6 +6,18 @@ from datetime import datetime
 import pytest
 
 from irrigation.cli import execute
+from irrigation.infrastructure.sqlite_repository import (
+    ScheduleSqliteRepository,
+    SqliteRepository,
+    connect_database,
+)
+
+
+def _repository(tmp_path, table):
+    connection = connect_database(tmp_path / "irrigation.db")
+    if table == "schedules":
+        return ScheduleSqliteRepository(connection)
+    return SqliteRepository(connection, table)
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +40,7 @@ def test_schedule_delete_removes_existing_record(capsys):
 def test_schedule_create_persists_weekdays(capsys, tmp_path):
     exit_code = execute(["schedule", "create", "06:30,15,13,mon+wed+fri"])
     output = json.loads(capsys.readouterr().out)
-    schedule = json.loads((tmp_path / "schedules.json").read_text().splitlines()[0])
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     assert exit_code == 0
     assert output["weekdays"] == ["mon", "wed", "fri"]
@@ -62,7 +74,7 @@ def test_schedule_update_persists_weekdays_and_preserves_status(capsys, tmp_path
 
     exit_code = execute(["schedule", "update", "1,07:00,10,13,tue+thu"])
     output = json.loads(capsys.readouterr().out)
-    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     assert exit_code == 0
     assert output["status"] == 1
@@ -100,11 +112,11 @@ def test_schedule_enabled_updates_record(capsys, tmp_path):
 
     disable_exit_code = execute(["schedule", "enabled", "1,0"])
     disabled_output = json.loads(capsys.readouterr().out)
-    disabled_schedule = json.loads((tmp_path / "schedules.json").read_text())
+    disabled_schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     enable_exit_code = execute(["schedule", "enabled", "1,1"])
     enabled_output = json.loads(capsys.readouterr().out)
-    enabled_schedule = json.loads((tmp_path / "schedules.json").read_text())
+    enabled_schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     assert disable_exit_code == 0
     assert disabled_output["enabled"] == 0
@@ -135,7 +147,7 @@ def test_schedule_enabled_rejects_invalid_flag_without_changing_record(
 
     exit_code = execute(["schedule", "enabled", "1,2"])
     captured = capsys.readouterr()
-    schedule = json.loads(schedules_file.read_text().splitlines()[0])
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     assert exit_code == 2
     assert "enabled must be 0 or 1" in captured.err
@@ -174,14 +186,13 @@ def test_schedule_delete_stops_valve_of_active_schedule(capsys, tmp_path):
     execute(["schedule", "create", "10:00,10,13"])
     capsys.readouterr()
 
-    schedules_file = tmp_path / "schedules.json"
-    schedule = json.loads(schedules_file.read_text().splitlines()[0])
-    schedule["status"] = 1
-    schedules_file.write_text(json.dumps(schedule) + "\n")
+    schedules = _repository(tmp_path, "schedules")
+    schedule = schedules.find_by_id("1")
+    schedules.update({**schedule, "status": 1})
 
     exit_code = execute(["schedule", "delete", "1"])
     output = json.loads(capsys.readouterr().out)
-    valve = json.loads(valves_file.read_text().splitlines()[0])
+    valve = _repository(tmp_path, "valves").find_by_id("1")
 
     assert exit_code == 0
     assert output == {"deleted": True}
@@ -194,10 +205,7 @@ def test_schedule_create_rejects_duplicate_valve(capsys, tmp_path):
 
     second_exit_code = execute(["schedule", "create", "07:00,10,13"])
     captured = capsys.readouterr()
-    schedules = [
-        json.loads(line)
-        for line in (tmp_path / "schedules.json").read_text().splitlines()
-    ]
+    schedules = _repository(tmp_path, "schedules").list_all()
 
     assert first_exit_code == 0
     assert second_exit_code == 2
@@ -237,7 +245,7 @@ def test_schedule_update_rejects_duplicate_valve(capsys, tmp_path):
 
     exit_code = execute(["schedule", "update", "2,07:30,10,13"])
     captured = capsys.readouterr()
-    second_schedule = json.loads(schedules_file.read_text().splitlines()[1])
+    second_schedule = _repository(tmp_path, "schedules").find_by_id("2")
 
     assert exit_code == 2
     assert "This valve/section already has a schedule" in captured.err
@@ -329,13 +337,14 @@ def test_schedule_list_reports_active_schedule_as_stopped_after_manual_off(
     capsys.readouterr()
     list_exit_code = execute(["schedule", "list"])
     output = json.loads(capsys.readouterr().out)
-    valve = json.loads(valves_file.read_text().splitlines()[0])
+    valve = _repository(tmp_path, "valves").find_by_id("1")
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
 
     assert turn_off_exit_code == 0
     assert list_exit_code == 0
     assert valve["status"] == 0
     assert valve["manually_turned_off"] == 1
-    assert json.loads(schedules_file.read_text().splitlines()[0])["status"] == 0
+    assert schedule["status"] == 0
     assert output[0]["is_running"] is False
     assert output[0]["valve_status"] is False
 
@@ -377,8 +386,8 @@ def test_manual_on_after_manual_off_turns_valve_on_and_clears_manual_flag(
 
     exit_code = execute(["valve", "13,on,10,1", "--no-wait"])
     output = json.loads(capsys.readouterr().out)
-    schedule = json.loads(schedules_file.read_text().splitlines()[0])
-    valve = json.loads(valves_file.read_text().splitlines()[0])
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
+    valve = _repository(tmp_path, "valves").find_by_id("1")
 
     assert exit_code == 0
     assert output == {"changed": True}
@@ -430,10 +439,70 @@ def test_manual_on_clears_expired_schedule_status_used_by_controller(
 
     exit_code = execute(["valve", "13,on,10", "--no-wait"])
     output = json.loads(capsys.readouterr().out)
-    schedule = json.loads(schedules_file.read_text().splitlines()[0])
-    valve = json.loads(valves_file.read_text().splitlines()[0])
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
+    valve = _repository(tmp_path, "valves").find_by_id("1")
 
     assert exit_code == 0
     assert output == {"changed": True}
     assert schedule["status"] == 0
     assert valve["status"] == 1
+
+
+def test_valve_list_returns_database_records(capsys, tmp_path):
+    (tmp_path / "valves.json").write_text(
+        json.dumps({"id": "3", "pin": "13", "status": 0, "section": "Horta"}) + "\n"
+    )
+
+    exit_code = execute(["valve", "list"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output == [
+        {
+            "id": "3",
+            "pin": "13",
+            "status": 0,
+            "section": "Horta",
+            "manually_turned_off": 0,
+        }
+    ]
+
+
+def test_settings_show_returns_current_database_row(capsys):
+    assert execute(["settings", "5"]) == 0
+    capsys.readouterr()
+
+    exit_code = execute(["settings", "show"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output == {"id": "1", "default_duration_minutes": 5}
+
+
+def test_history_range_reads_database_and_refreshes_json_snapshot(capsys, tmp_path):
+    records = [
+        {
+            "id": str(index),
+            "valve": "Horta",
+            "date": day,
+            "start": "10:00",
+            "end": "10:05",
+            "weekday": "Thursday",
+            "mode": "Manual",
+        }
+        for index, day in enumerate(("2026-07-15", "2026-07-16"), start=1)
+    ]
+    (tmp_path / "history.json").write_text(
+        "".join(json.dumps(record) + "\n" for record in records)
+    )
+
+    exit_code = execute(["history", "range,2026-07-16,2026-07-16"])
+    output = json.loads(capsys.readouterr().out)
+    snapshot = [
+        json.loads(line)
+        for line in (tmp_path / "history_search_results.json").read_text().splitlines()
+    ]
+
+    assert exit_code == 0
+    assert [record["id"] for record in output] == ["2"]
+    assert snapshot == output

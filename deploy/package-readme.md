@@ -7,7 +7,7 @@ file needed to install it — **without the Python source code**.
 
 ```
 .
-├── data/                          # Schedules, valves, and history
+├── data/                          # SQLite database and search snapshot
 ├── deploy/systemd/                # systemd service templates
 ├── dist/irrigation                # Compiled binary (no Python required)
 ├── node-red/flows.json            # Node-RED dashboard/flow
@@ -58,20 +58,26 @@ file needed to install it — **without the Python source code**.
 
 ## Default data
 
-`data/` ships without installation-specific valve pins or history:
+`data/irrigation.db` ships without installation-specific valve pins or history.
+It contains the normalized schema and a default manual watering duration of 5
+minutes. After wiring the system, add valves using physical pin numbering
+(`GPIO.BOARD`), for example:
 
-- `valves.json`: empty. After wiring the system, add one JSON object per line
-  using physical pin numbering (`GPIO.BOARD`), for example:
+```bash
+sqlite3 data/irrigation.db <<'SQL'
+INSERT INTO valves (pin, section) VALUES (13, 'Front garden');
+INSERT INTO valves (pin, section) VALUES (11, 'Back garden');
+SQL
+```
 
-  ```jsonl
-  {"id":"1","pin":"13","status":0,"section":"Front garden","manually_turned_off":0}
-  {"id":"2","pin":"11","status":0,"section":"Back garden","manually_turned_off":0}
-  ```
+These pin numbers are only examples. Replace them with the physical pins used
+in the installation. `history_search_results.json` remains an empty transient
+dashboard snapshot.
 
-  These pin numbers are only examples. Replace them with the physical pins used
-  in the installation.
-- `schedules.json` and `history*.json`: empty.
-- `settings.json`: default manual watering duration of 5 minutes.
+Upgrades from the legacy JSON Lines format are automatic: if
+`data/irrigation.db` does not exist, the first application start imports
+`schedules.json`, `valves.json`, `settings.json`, and `history.json`, preserving
+IDs and leaving those files untouched for verification.
 
 ## Service operation
 
@@ -95,6 +101,6 @@ IRRIGATION_POLL_INTERVAL=5
 ```
 
 Set `IRRIGATION_PUMP_PIN` to the physical pin chosen for the pump relay; it is
-configured separately and must not be added to `valves.json`.
+configured separately and must not be added to the `valves` table.
 
 Restart the service after editing the file.
