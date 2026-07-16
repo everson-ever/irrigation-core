@@ -915,7 +915,7 @@ body.nr-dashboard-theme {
               <td data-label="Ações">
                 <div class="ir-row-actions">
                   <button type="button" class="ir-danger-button" ng-if="sectionStatus(schedule) === 1" ng-disabled="manual_pending[schedule.id]" ng-click="send({payload:turnScheduleOff(schedule)})">
-                    <span>□</span>{{ manual_pending[schedule.id] === "off" ? "Desligando..." : "Desligar agora" }}
+                    <span>□</span>{{ manual_pending[schedule.id] === "off" ? "Desligando..." : "Desligar" }}
                   </button>
                   <label class="ir-switch" ng-if="sectionStatus(schedule) !== 1" title="Ativar ou pausar agendamento">
                     <input type="checkbox" ng-checked="isScheduleEnabled(schedule)" ng-disabled="editing_state.enabled_submitting" ng-click="send({payload:toggleScheduleEnabled(schedule)})">
@@ -928,7 +928,7 @@ body.nr-dashboard-theme {
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                   </button>
                   <div class="ir-action-menu" ng-if="action_menu_id === schedule.id">
-                    <button type="button" ng-if="sectionStatus(schedule) !== 1" ng-disabled="manual_pending[schedule.id]" ng-click="openManualDuration(schedule)">{{ manual_pending[schedule.id] === "on" ? "Ligando..." : "Ligar agora" }}</button>
+                    <button type="button" ng-if="sectionStatus(schedule) !== 1" ng-disabled="manual_pending[schedule.id]" ng-click="openManualDuration(schedule)">{{ manual_pending[schedule.id] === "on" ? "Ligando..." : "Ligar" }}</button>
                     <button type="button" class="is-danger" ng-click="openDeleteConfirmation(schedule)">Excluir agendamento</button>
                   </div>
                 </div>
