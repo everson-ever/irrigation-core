@@ -2,6 +2,12 @@ import json
 from pathlib import Path
 
 FLOW_PATH = Path(__file__).resolve().parents[1] / "node-red" / "flows.json"
+SETTINGS_TEMPLATE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "node-red"
+    / "templates"
+    / "configuracoes.html"
+)
 
 
 def load_nodes():
@@ -48,6 +54,94 @@ def test_schedule_mobile_menu_opens_sidebar():
     assert "scope.closeMobileMenu();" in schedule_template
     assert 'href="#!/3"' in schedule_template
     assert "Configurações" in schedule_template
+
+
+def test_settings_dashboard_removes_default_duration_widgets():
+    nodes = load_nodes()
+
+    removed_node_ids = {
+        "98667ea6.f9c95",
+        "96f7b3d7.32c99",
+        "f885d082.99431",
+        "f6c23874.7f2538",
+        "5e998328.9aa40c",
+        "92612eb4.8c939",
+        "d0cffdef.54ded",
+        "d19f016a.a6ac8",
+        "a7ddf74d.7238a8",
+    }
+
+    assert removed_node_ids.isdisjoint(nodes)
+    assert all(
+        node.get("name") not in {"Editar tempo padrão", "Tempo atual"}
+        for node in nodes.values()
+    )
+    assert all(
+        node.get("label") != "Tempo padrão para desligar"
+        for node in nodes.values()
+    )
+    assert all(
+        node.get("command") != "/opt/irrigation/bin/irrigation settings show"
+        for node in nodes.values()
+    )
+
+
+def test_settings_template_uses_standard_shell_and_mobile_menu():
+    nodes = load_nodes()
+
+    settings_template = nodes["d6f0b5a1.42c8e3"]["format"]
+
+    assert 'class="ir-shell"' in settings_template
+    assert 'class="ir-topbar"' in settings_template
+    assert 'class="ir-menu-button"' in settings_template
+    assert 'ng-click="toggleMobileMenu($event)"' in settings_template
+    assert 'ng-if="mobile_menu_open"' in settings_template
+    assert "is-mobile-open" in settings_template
+    assert ".ir-sidebar.is-mobile-open { transform: translateX(0); }" in (
+        settings_template
+    )
+    assert 'class="ir-sidebar" ng-class="{\'is-mobile-open\': mobile_menu_open}"' in (
+        settings_template
+    )
+    assert 'class="ir-nav-button is-active" href="#!/3"' in settings_template
+    assert "scope.mobile_menu_open = scope.mobile_menu_open || false" in (
+        settings_template
+    )
+    assert "scope.toggleMobileMenu = function(event)" in settings_template
+    assert "scope.closeMobileMenu = function()" in settings_template
+
+
+def test_settings_template_preserves_password_change_contract_and_mirror():
+    nodes = load_nodes()
+
+    settings_template = nodes["d6f0b5a1.42c8e3"]["format"]
+
+    assert settings_template == SETTINGS_TEMPLATE_PATH.read_text()
+    assert "ir-settings-" not in settings_template
+    assert 'class="ir-config-sections"' in settings_template
+    assert 'class="ir-config-menu"' in settings_template
+    assert 'class="ir-config-menu-button"' in settings_template
+    assert 'class="ir-config-panel"' in settings_template
+    assert "scope.active_config_section = scope.active_config_section || \"\"" in (
+        settings_template
+    )
+    assert "scope.selectConfigSection = function(section)" in settings_template
+    assert "scope.isConfigSectionActive = function(section)" in settings_template
+    assert "ng-click=\"selectConfigSection('password')\"" in settings_template
+    assert "ng-if=\"!active_config_section\"" in settings_template
+    assert "ng-if=\"isConfigSectionActive('password')\"" in settings_template
+    assert 'id="password-section-title">Senha</h2>' in settings_template
+    assert 'class="ir-section-card"' in settings_template
+    assert 'class="ir-field"' in settings_template
+    assert 'class="ir-primary-button"' in settings_template
+    assert 'class="ir-feedback"' in settings_template
+    assert 'ng-submit="submitPasswordChange($event)"' in settings_template
+    assert 'ui_action: "change_password"' in settings_template
+    assert 'msg.topic === "password_changed"' in settings_template
+    assert 'msg.topic === "password_change_error"' in settings_template
+    assert 'window.location.href = "/ui/logout"' in settings_template
+    assert "Tempo padrão para desligar" not in settings_template
+    assert "Tempo atual" not in settings_template
 
 
 def test_schedule_list_shows_loading_indicator_before_data_arrives():
@@ -273,6 +367,7 @@ def test_system_online_badge_uses_controller_health_heartbeat():
         nodes["25072c26.808454"]["format"],
         nodes["681694c2.ce0b1c"]["format"],
         nodes["dad8cd89.f8f81"]["format"],
+        nodes["d6f0b5a1.42c8e3"]["format"],
     ]
 
     assert injector["type"] == "inject"
@@ -290,7 +385,12 @@ def test_system_online_badge_uses_controller_health_heartbeat():
     assert 'health.status === "online"' in formatter["func"]
     assert "Sistema offline" in formatter["func"]
     assert formatter["wires"] == [
-        ["25072c26.808454", "681694c2.ce0b1c", "dad8cd89.f8f81"]
+        [
+            "25072c26.808454",
+            "681694c2.ce0b1c",
+            "dad8cd89.f8f81",
+            "d6f0b5a1.42c8e3",
+        ]
     ]
 
     for template in templates:
@@ -303,23 +403,16 @@ def test_system_online_badge_uses_controller_health_heartbeat():
         assert ".ir-online.is-offline .ir-online-dot" in template
 
 
-def test_valves_and_settings_are_loaded_through_cli_commands():
+def test_valves_are_loaded_through_cli_command():
     nodes = load_nodes()
 
     valves = nodes["8d0b3804.e60cf8"]
-    settings = nodes["d19f016a.a6ac8"]
 
     assert valves["type"] == "exec"
     assert valves["command"] == "/opt/irrigation/bin/irrigation valve list"
     assert valves["addpay"] is False
     assert valves["wires"][0] == ["a51e1954.c69208"]
     assert "filename" not in valves
-
-    assert settings["type"] == "exec"
-    assert settings["command"] == "/opt/irrigation/bin/irrigation settings show"
-    assert settings["addpay"] is False
-    assert settings["wires"][0] == ["a7ddf74d.7238a8"]
-    assert "filename" not in settings
 
 
 def test_history_search_snapshot_remains_a_json_file_input():
@@ -390,8 +483,8 @@ def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
     )
     assert "scope.manual_pending_timeout_ms = 15000" in schedule_template
     assert 'ng-disabled="manual_pending[schedule.id]"' in schedule_template
-    assert '"Ligando..." : "Ligar agora"' in schedule_template
-    assert '"Desligando..." : "Desligar agora"' in schedule_template
+    assert '"Ligando..." : "Ligar"' in schedule_template
+    assert '"Desligando..." : "Desligar"' in schedule_template
     assert 'scope.startManualPending(schedule, "on")' in schedule_template
     assert 'scope.startManualPending(schedule, "off")' in schedule_template
     assert "setTimeout(function()" in schedule_template
@@ -440,7 +533,9 @@ def test_settings_tab_has_password_change_flow():
 
     assert settings_template["group"] == "a4c9b2e1.7d5f3a"
     assert "Trocar senha" in settings_template["format"]
-    assert 'href="#!/0">Agendamentos' in settings_template["format"]
+    assert 'href="#!/0" ng-click="navigateToTab(0, $event)"' in (
+        settings_template["format"]
+    )
     assert "submitPasswordChange" in settings_template["format"]
     assert 'window.location.href = "/ui/logout"' in settings_template["format"]
     assert "current_password" in settings_template["format"]
