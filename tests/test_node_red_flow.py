@@ -24,6 +24,26 @@ def test_dashboard_menu_order_and_history_label():
     ]
 
 
+def test_schedule_mobile_menu_opens_sidebar():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+
+    assert 'class="ir-menu-button"' in schedule_template
+    assert 'ng-click="toggleMobileMenu($event)"' in schedule_template
+    assert 'ng-if="mobile_menu_open"' in schedule_template
+    assert "is-mobile-open" in schedule_template
+    assert ".ir-sidebar.is-mobile-open { transform: translateX(0); }" in (
+        schedule_template
+    )
+    assert "scope.mobile_menu_open = scope.mobile_menu_open || false" in (
+        schedule_template
+    )
+    assert "scope.toggleMobileMenu = function(event)" in schedule_template
+    assert "scope.closeMobileMenu = function()" in schedule_template
+    assert "scope.closeMobileMenu();" in schedule_template
+
+
 def test_schedule_create_has_loading_error_and_success_navigation():
     nodes = load_nodes()
 
