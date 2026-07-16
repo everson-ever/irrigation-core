@@ -42,6 +42,7 @@ def _schedule_command(app: Application, args: argparse.Namespace):
         return service.list_with_runtime_status(
             datetime.now(),
             app.valves().list_all(),
+            app.history(),
         )
     if args.action == "create":
         parts = _csv(args.data, (3, 4), "schedule")

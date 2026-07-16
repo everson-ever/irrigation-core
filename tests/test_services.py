@@ -694,6 +694,235 @@ def test_runtime_status_is_false_when_active_schedule_valve_was_manually_stopped
     assert rows[0]["valve_status"] is False
 
 
+def test_history_active_end_returns_manual_record_end(tmp_path):
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    service = HistoryService(history_repo, result_repo)
+    service.record(
+        "Horta",
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 12),
+        "Manual",
+    )
+
+    active_end = service.active_end("Horta", datetime(2026, 7, 14, 10, 5))
+
+    assert active_end == datetime(2026, 7, 14, 10, 12)
+    assert service.has_active_manual("Horta", datetime(2026, 7, 14, 10, 5)) is True
+    assert service.has_active_automatic("Horta", datetime(2026, 7, 14, 10, 5)) is False
+
+
+def test_history_active_end_returns_automatic_record_end(tmp_path):
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    service = HistoryService(history_repo, result_repo)
+    service.record(
+        "Horta",
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+        "Automatic",
+    )
+
+    active_end = service.active_end("Horta", datetime(2026, 7, 14, 10, 5))
+
+    assert active_end == datetime(2026, 7, 14, 10, 10)
+    assert service.has_active_manual("Horta", datetime(2026, 7, 14, 10, 5)) is False
+    assert service.has_active_automatic("Horta", datetime(2026, 7, 14, 10, 5)) is True
+
+
+def test_history_active_end_returns_none_when_no_record_is_active(tmp_path):
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    service = HistoryService(history_repo, result_repo)
+    service.record(
+        "Horta",
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+        "Automatic",
+    )
+
+    assert service.active_end("Horta", datetime(2026, 7, 14, 10, 11)) is None
+
+
+def test_runtime_status_includes_remaining_seconds_for_running_schedule(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 1,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
+    history = HistoryService(history_repo, result_repo)
+    history.record(
+        "Horta",
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+        "Automatic",
+    )
+
+    rows = ScheduleService(schedules_repo).list_with_runtime_status(
+        datetime(2026, 7, 14, 10, 4),
+        ValveService(valves_repo, MockGPIO(15)).list_all(),
+        history,
+    )
+
+    assert rows[0]["is_running"] is True
+    assert rows[0]["valve_status"] is True
+    assert rows[0]["remaining_seconds"] == 360
+
+
+def test_runtime_status_omits_remaining_seconds_for_stopped_schedule(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
+    history = HistoryService(history_repo, result_repo)
+    history.record(
+        "Horta",
+        datetime(2026, 7, 14, 10, 0),
+        datetime(2026, 7, 14, 10, 10),
+        "Automatic",
+    )
+
+    rows = ScheduleService(schedules_repo).list_with_runtime_status(
+        datetime(2026, 7, 14, 10, 4),
+        ValveService(valves_repo, MockGPIO(15)).list_all(),
+        history,
+    )
+
+    assert rows[0]["is_running"] is False
+    assert rows[0]["valve_status"] is False
+    assert "remaining_seconds" not in rows[0]
+
+
+def test_runtime_status_uses_manual_run_duration_for_remaining_seconds(tmp_path):
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    settings_repo = JsonLinesRepository(tmp_path / "settings.json")
+    history_repo = JsonLinesRepository(tmp_path / "history.json")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "5",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add({"pin": "13", "status": 0, "section": "Horta"})
+    settings_repo.add({"default_duration_minutes": 5})
+    schedule_service = ScheduleService(schedules_repo)
+    valve_service = ValveService(valves_repo, MockGPIO(15))
+    history = HistoryService(history_repo, result_repo)
+    manual = ManualControlService(
+        valve_service,
+        SettingsService(settings_repo),
+        history,
+        FakeClock(datetime(2026, 7, 14, 10, 0)),
+        poll_interval=0,
+        schedules=schedule_service,
+    )
+
+    manual.turn_on(13, duration_minutes=12, wait=False, schedule_id="1")
+    rows = schedule_service.list_with_runtime_status(
+        datetime(2026, 7, 14, 10, 1),
+        valve_service.list_all(),
+        history,
+    )
+
+    assert rows[0]["duration_minutes"] == "5"
+    assert rows[0]["is_running"] is True
+    assert rows[0]["remaining_seconds"] == 660
+
+
+def test_automatic_runtime_status_remaining_seconds_decreases(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 0))
+    controller, schedules, valves, history_repo, _, clock = items
+    schedules.add(
+        {
+            "time": "10:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    controller.run_once()
+    schedule_service = ScheduleService(schedules)
+    valve_service = ValveService(valves, MockGPIO(15))
+    history = HistoryService(
+        history_repo,
+        JsonLinesRepository(tmp_path / "history-results.json"),
+    )
+
+    clock.value = datetime(2026, 7, 14, 10, 2)
+    first = schedule_service.list_with_runtime_status(
+        clock.now(), valve_service.list_all(), history
+    )
+    clock.value = datetime(2026, 7, 14, 10, 5)
+    second = schedule_service.list_with_runtime_status(
+        clock.now(), valve_service.list_all(), history
+    )
+
+    assert first[0]["remaining_seconds"] == 480
+    assert second[0]["remaining_seconds"] == 300
+
+
+def test_multi_time_schedule_reports_remaining_seconds_for_active_slot(tmp_path):
+    items = create_controller(tmp_path, datetime(2026, 7, 14, 6, 0))
+    controller, schedules, valves, history_repo, _, clock = items
+    schedules.add(
+        {
+            "time": "06:00|12:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 6, 10)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 12, 0)
+    controller.run_once()
+    schedule_service = ScheduleService(schedules)
+    valve_service = ValveService(valves, MockGPIO(15))
+    history = HistoryService(
+        history_repo,
+        JsonLinesRepository(tmp_path / "history-results.json"),
+    )
+
+    rows = schedule_service.list_with_runtime_status(
+        datetime(2026, 7, 14, 12, 4),
+        valve_service.list_all(),
+        history,
+    )
+
+    assert rows[0]["remaining_seconds"] == 360
+    assert [(record["start"], record["end"]) for record in history_repo.list_all()] == [
+        ("06:00", "06:10"),
+        ("12:00", "12:10"),
+    ]
+
+
 def test_schedule_create_rejects_duplicate_valve(tmp_path):
     schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
     service = ScheduleService(schedules_repo)

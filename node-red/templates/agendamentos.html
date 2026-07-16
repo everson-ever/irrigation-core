@@ -860,7 +860,7 @@ body.nr-dashboard-theme {
             <tr ng-repeat="schedule in visibleSchedules() track by schedule.id" ng-class="{'is-watering': sectionStatus(schedule) === 1}">
               <td data-label="Horário">
                 <span class="ir-time">{{ formatScheduleTimes(schedule) }}</span>
-                <span class="ir-time-note is-live" ng-if="sectionStatus(schedule) === 1">regando agora</span>
+                <span class="ir-time-note is-live" ng-if="sectionStatus(schedule) === 1">regando agora<span ng-if="scheduleCountdown(schedule) !== '--'"> · faltam {{ scheduleCountdown(schedule) }}</span></span>
                 <span class="ir-time-note" ng-if="sectionStatus(schedule) !== 1">{{ scheduleDayNote(schedule) }}</span>
               </td>
               <td data-label="Duração">{{ schedule.duration_minutes }} min</td>
@@ -885,7 +885,7 @@ body.nr-dashboard-theme {
                 <span class="ir-sr-only" ng-if="!isScheduleEnabled(schedule)">Inativo</span>
                 <span class="ir-sr-only" ng-if="sectionStatus(schedule) === 0">Desligada</span>
                 <span class="ir-sr-only" ng-if="sectionStatus(schedule) === 1">Ligada</span>
-                <span class="ir-status ir-status-watering" ng-if="sectionStatus(schedule) === 1">Regando agora</span>
+                <span class="ir-status ir-status-watering" ng-if="sectionStatus(schedule) === 1">Regando agora<span ng-if="scheduleCountdown(schedule) !== '--'"> · {{ scheduleCountdown(schedule) }}</span></span>
                 <span class="ir-status ir-status-on" ng-if="sectionStatus(schedule) !== 1 && isScheduleEnabled(schedule)">Ativo</span>
                 <span class="ir-status ir-status-off" ng-if="sectionStatus(schedule) !== 1 && !isScheduleEnabled(schedule)">Inativo</span>
               </td>
@@ -1029,6 +1029,7 @@ body.nr-dashboard-theme {
   scope.sort_ascending = scope.sort_ascending !== false;
   scope.action_menu_id = scope.action_menu_id || null;
   scope.mobile_menu_open = scope.mobile_menu_open || false;
+  scope.schedule_countdown_ends = scope.schedule_countdown_ends || {};
 
   scope.$watch("msg", function(msg) {
     if (!msg) return;
@@ -1053,6 +1054,7 @@ body.nr-dashboard-theme {
     }
     scope.schedule_error = null;
     scope.schedules = msg.payload;
+    scope.syncScheduleCountdowns(scope.schedules);
     scope.schedules_loaded = true;
     if (scope.editing_state.submitting) {
       scope.editing_state.submitting = false;
@@ -1168,6 +1170,34 @@ body.nr-dashboard-theme {
     if (hours) return "em " + hours + "h " + mins + "min";
     return "em " + mins + "min";
   };
+  scope.syncScheduleCountdowns = function(schedules) {
+    var activeIds = {};
+    (schedules || []).forEach(function(schedule) {
+      if (!schedule || schedule.id === null || schedule.id === undefined) return;
+      var key = String(schedule.id);
+      activeIds[key] = true;
+      if (scope.sectionStatus(schedule) !== 1) {
+        delete scope.schedule_countdown_ends[key];
+        return;
+      }
+      var remaining = Number(schedule.remaining_seconds);
+      if (isFinite(remaining) && remaining >= 0) {
+        scope.schedule_countdown_ends[key] = Date.now() + remaining * 1000;
+      }
+    });
+    Object.keys(scope.schedule_countdown_ends).forEach(function(key) {
+      if (!activeIds[key]) delete scope.schedule_countdown_ends[key];
+    });
+  };
+  scope.scheduleCountdown = function(schedule) {
+    if (!schedule || schedule.id === null || schedule.id === undefined) return "--";
+    var endAt = scope.schedule_countdown_ends[String(schedule.id)];
+    if (!endAt) return "--";
+    var seconds = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+    var minutes = Math.floor(seconds / 60);
+    var remainder = seconds % 60;
+    return minutes + ":" + String(remainder).padStart(2, "0");
+  };
   scope.scheduleDayNote = function(schedule) {
     if (!scope.isScheduleEnabled(schedule)) return "pausado";
     var today = scope.currentWeekdayId(new Date());
@@ -1212,6 +1242,12 @@ body.nr-dashboard-theme {
     if (!payload || !payload.id) return;
     for (var i = 0; i < scope.schedules.length; i += 1) {
       if (String(scope.schedules[i].id) === String(payload.id)) scope.schedules[i].status = payload.action === "on" ? 1 : 0;
+    }
+    if (payload.action === "on") {
+      var duration = Number(payload.duration_minutes);
+      if (isFinite(duration) && duration > 0) scope.schedule_countdown_ends[String(payload.id)] = Date.now() + duration * 60000;
+    } else {
+      delete scope.schedule_countdown_ends[String(payload.id)];
     }
     scope.clearManualPending(payload.id);
   };
@@ -1331,5 +1367,16 @@ body.nr-dashboard-theme {
     scope.startManualPending(schedule, "off");
     return { ui_action: "manual", action: "off", id: schedule.id, valve_pin: schedule.valve_pin };
   };
+  if (!scope.schedule_countdown_timer) {
+    scope.schedule_countdown_timer = setInterval(function() {
+      if (typeof scope.$applyAsync === "function") scope.$applyAsync();
+    }, 1000);
+    if (typeof scope.$on === "function") {
+      scope.$on("$destroy", function() {
+        clearInterval(scope.schedule_countdown_timer);
+        scope.schedule_countdown_timer = null;
+      });
+    }
+  }
 })(scope);
 </script>

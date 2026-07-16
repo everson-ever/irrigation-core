@@ -332,6 +332,11 @@ def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
     assert 'scope.startManualPending(schedule, "off")' in schedule_template
     assert "setTimeout(function()" in schedule_template
     assert "scope.clearManualPending(payload.id)" in schedule_template
+    assert "scope.schedule_countdown_ends = scope.schedule_countdown_ends || {}" in (
+        schedule_template
+    )
+    assert "scope.schedule_countdown_ends[String(payload.id)]" in schedule_template
+    assert "Date.now() + duration * 60000" in schedule_template
     assert "String(scope.schedules[i].id) === String(payload.id)" in (schedule_template)
     assert 'scope.schedules[i].status = payload.action === "on" ? 1 : 0' in (
         schedule_template
@@ -345,3 +350,16 @@ def test_manual_schedule_action_updates_clicked_schedule_row_immediately():
         "5b92c8ad.78d3e8",
         "25072c26.808454",
     ]
+
+
+def test_schedule_template_displays_running_countdown():
+    nodes = load_nodes()
+
+    schedule_template = nodes["25072c26.808454"]["format"]
+
+    assert "remaining_seconds" in schedule_template
+    assert "scope.syncScheduleCountdowns(scope.schedules)" in schedule_template
+    assert "scope.scheduleCountdown = function(schedule)" in schedule_template
+    assert "faltam {{ scheduleCountdown(schedule) }}" in schedule_template
+    assert "setInterval(function()" in schedule_template
+    assert 'scope.$on("$destroy"' in schedule_template

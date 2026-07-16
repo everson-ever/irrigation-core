@@ -41,10 +41,14 @@ class ScheduleService:
         self,
         now: datetime,
         valves: Iterable[Valve] | None = None,
+        history: HistoryService | None = None,
     ) -> list[dict[str, Any]]:
         valve_status_by_pin = None
+        valve_section_by_pin = None
         if valves is not None:
-            valve_status_by_pin = {valve.pin: valve.status for valve in valves}
+            valve_list = list(valves)
+            valve_status_by_pin = {valve.pin: valve.status for valve in valve_list}
+            valve_section_by_pin = {valve.pin: valve.section for valve in valve_list}
 
         records: list[dict[str, Any]] = []
         for schedule in self.list_all():
@@ -55,6 +59,15 @@ class ScheduleService:
                 valve_status = valve_status_by_pin.get(schedule.valve_pin, False)
             record["is_running"] = is_running
             record["valve_status"] = valve_status
+            if is_running and history is not None and valve_section_by_pin is not None:
+                section = valve_section_by_pin.get(schedule.valve_pin)
+                if section is not None:
+                    active_end = history.active_end(section, now)
+                    if active_end is not None:
+                        remaining_seconds = round(
+                            max(0, (active_end - now).total_seconds())
+                        )
+                        record["remaining_seconds"] = remaining_seconds
             records.append(record)
         return records
 
@@ -254,34 +267,52 @@ class HistoryService:
         return self._history.add(record.to_dict())
 
     def has_active_manual(self, valve: str, now: datetime) -> bool:
-        return self._has_active_record(
-            valve, now, lambda mode: mode == HISTORY_MODE_MANUAL
+        return (
+            self._active_record_end(
+                valve, now, lambda mode: mode == HISTORY_MODE_MANUAL
+            )
+            is not None
         )
 
     def has_active_automatic(self, valve: str, now: datetime) -> bool:
-        return self._has_active_record(
-            valve, now, lambda mode: mode != HISTORY_MODE_MANUAL
+        return (
+            self._active_record_end(
+                valve, now, lambda mode: mode != HISTORY_MODE_MANUAL
+            )
+            is not None
         )
 
-    def _has_active_record(self, valve: str, now: datetime, mode_matches) -> bool:
+    def active_end(self, valve: str, now: datetime) -> datetime | None:
+        return self._active_record_end(valve, now, lambda _mode: True)
+
+    def _active_record_end(
+        self, valve: str, now: datetime, mode_matches
+    ) -> datetime | None:
+        active_ends: list[datetime] = []
         for item in self._history.list_all():
             if str(item.get("valve")) != valve:
                 continue
             if not mode_matches(str(item.get("mode", ""))):
                 continue
-            start = datetime.combine(
-                date.fromisoformat(str(item["date"])),
-                datetime.strptime(str(item["start"]), "%H:%M").time(),
-            )
-            end = datetime.combine(
-                start.date(),
-                datetime.strptime(str(item["end"]), "%H:%M").time(),
-            )
-            if end <= start:
-                end += timedelta(days=1)
+            start, end = self._record_interval(item)
             if start <= now < end:
-                return True
-        return False
+                active_ends.append(end)
+        if not active_ends:
+            return None
+        return max(active_ends)
+
+    def _record_interval(self, item: dict[str, Any]) -> tuple[datetime, datetime]:
+        start = datetime.combine(
+            date.fromisoformat(str(item["date"])),
+            datetime.strptime(str(item["start"]), "%H:%M").time(),
+        )
+        end = datetime.combine(
+            start.date(),
+            datetime.strptime(str(item["end"]), "%H:%M").time(),
+        )
+        if end <= start:
+            end += timedelta(days=1)
+        return start, end
 
     def search_day(self, day: date) -> list[dict[str, Any]]:
         return self.search_range(day, day)

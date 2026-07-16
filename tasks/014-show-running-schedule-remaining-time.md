@@ -3,7 +3,7 @@
 ## Metadata
 
 ```yaml
-status: backlog
+status: done
 priority: medium
 type: feature
 ```
@@ -97,23 +97,23 @@ The schedule list already shows "Regando agora" when a schedule's valve is curre
 
 ### Unit tests
 
-- [ ] `HistoryService.active_end` returns the correct end datetime for an active manual record.
-- [ ] `HistoryService.active_end` returns the correct end datetime for an active automatic record.
-- [ ] `HistoryService.active_end` returns `None` when no record is active for the valve.
-- [ ] `ScheduleService.list_with_runtime_status` includes `remaining_seconds` for a running schedule and omits it for a stopped one.
-- [ ] `remaining_seconds` reflects a manual run's actual (possibly custom) duration, not the schedule's configured `duration_minutes`.
+- [x] `HistoryService.active_end` returns the correct end datetime for an active manual record.
+- [x] `HistoryService.active_end` returns the correct end datetime for an active automatic record.
+- [x] `HistoryService.active_end` returns `None` when no record is active for the valve.
+- [x] `ScheduleService.list_with_runtime_status` includes `remaining_seconds` for a running schedule and omits it for a stopped one.
+- [x] `remaining_seconds` reflects a manual run's actual (possibly custom) duration, not the schedule's configured `duration_minutes`.
 
 ### Integration tests
 
-- [ ] A schedule started automatically shows a decreasing `remaining_seconds` across successive `list_with_runtime_status` calls until it stops.
-- [ ] A schedule started manually via `schedule_id` shows `remaining_seconds` based on the manual duration.
-- [ ] A schedule with multiple time slots reports `remaining_seconds` for whichever slot is currently active.
+- [x] A schedule started automatically shows a decreasing `remaining_seconds` across successive `list_with_runtime_status` calls until it stops.
+- [x] A schedule started manually via `schedule_id` shows `remaining_seconds` based on the manual duration.
+- [x] A schedule with multiple time slots reports `remaining_seconds` for whichever slot is currently active.
 
 ### Regression tests
 
-- [ ] Existing `is_running`/`valve_status` fields in `list_with_runtime_status` remain unchanged for stopped schedules.
-- [ ] `has_active_manual`/`has_active_automatic` continue to return correct booleans after the `_has_active_record` refactor.
-- [ ] The schedule list still renders correctly when `remaining_seconds` is absent (e.g., during upgrade/rollout with older CLI output cached).
+- [x] Existing `is_running`/`valve_status` fields in `list_with_runtime_status` remain unchanged for stopped schedules.
+- [x] `has_active_manual`/`has_active_automatic` continue to return correct booleans after the `_has_active_record` refactor.
+- [x] The schedule list still renders correctly when `remaining_seconds` is absent (e.g., during upgrade/rollout with older CLI output cached).
 
 ### Test data and fixtures
 
@@ -124,28 +124,30 @@ The schedule list already shows "Regando agora" when a schedule's valve is curre
 
 The task is complete when:
 
-- [ ] A running schedule's row shows a live countdown to when it will stop, whether the run was started automatically or manually.
-- [ ] The countdown reflects the actual run's end time, including custom manual durations.
-- [ ] The countdown clears immediately when the run stops and does not show stale values on the next run.
-- [ ] Existing behavior remains unchanged outside the defined scope.
-- [ ] New and changed behavior is covered by specs.
-- [ ] Error cases and relevant edge cases are covered.
-- [ ] The implementation follows the project's architecture and SOLID principles.
-- [ ] The implementation is simple, readable, maintainable, and performant for the expected workload.
-- [ ] Formatting, linting, type checks, and the full test suite pass.
+- [x] A running schedule's row shows a live countdown to when it will stop, whether the run was started automatically or manually.
+- [x] The countdown reflects the actual run's end time, including custom manual durations.
+- [x] The countdown clears immediately when the run stops and does not show stale values on the next run.
+- [x] Existing behavior remains unchanged outside the defined scope.
+- [x] New and changed behavior is covered by specs.
+- [x] Error cases and relevant edge cases are covered.
+- [x] The implementation follows the project's architecture and SOLID principles.
+- [x] The implementation is simple, readable, maintainable, and performant for the expected workload.
+- [x] Formatting, linting, type checks, and the full test suite pass.
 
 ## Implementation checklist
 
-- [ ] Confirm the task number and filename.
-- [ ] Inspect all files listed in the impact analysis.
-- [ ] Reassess the affected files before coding and update this task if needed.
-- [ ] Implement the smallest coherent change.
-- [ ] Add or update specs.
-- [ ] Run focused checks.
-- [ ] Run the full validation suite.
-- [ ] Validate the implementation against every acceptance criterion.
-- [ ] Move the issue to `done` only after implementation and validation pass.
+- [x] Confirm the task number and filename.
+- [x] Inspect all files listed in the impact analysis.
+- [x] Reassess the affected files before coding and update this task if needed.
+- [x] Implement the smallest coherent change.
+- [x] Add or update specs.
+- [x] Run focused checks.
+- [x] Run the full validation suite.
+- [x] Validate the implementation against every acceptance criterion.
+- [x] Move the issue to `done` only after implementation and validation pass.
 
 ## Notes
 
 - The initial request is in Portuguese ("quando um agendamento estiver em execução mostre quanto tempo falta para finalizar, independente se foi acionamento manual ou automático"); the implementation task is intentionally written in English as required by the task-generation convention.
+- Implemented in `src/irrigation/application/services.py`, `src/irrigation/cli.py`, `node-red/templates/agendamentos.html`, `node-red/flows.json`, `tests/test_services.py`, and `tests/test_node_red_flow.py`.
+- Validation run: `.venv/bin/python -m pytest` (`127 passed`), `.venv/bin/python -m ruff check .`, and `.venv/bin/python -m ruff format --check .`.
