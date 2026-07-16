@@ -332,7 +332,6 @@ body.nr-dashboard-theme {
   scope.navigateToTab = function(index, event) {
     if (event) event.preventDefault();
     window.location.hash = "#!/" + index;
-    window.location.reload();
   };
   scope.inputValue = function(id) {
     var input = document.getElementById(id);
