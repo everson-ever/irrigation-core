@@ -40,6 +40,34 @@ def _schedule_time(value: Any) -> str:
         raise ValidationError("schedule time must use HH:MM format") from exc
 
 
+def _normalize_schedule_times(value: Any) -> tuple[str, ...]:
+    if value is None:
+        raise ValidationError("schedule times must contain at least one time")
+
+    if isinstance(value, str):
+        raw_values = [
+            item.strip()
+            for item in value.replace("|", ",")
+            .replace(";", ",")
+            .replace("+", ",")
+            .split(",")
+        ]
+    else:
+        try:
+            raw_values = list(value)
+        except TypeError as exc:
+            raise ValidationError("schedule times must be a list or string") from exc
+
+    times = tuple(_schedule_time(raw) for raw in raw_values if str(raw).strip())
+    if not times:
+        raise ValidationError("schedule times must contain at least one time")
+    if len(times) > 3:
+        raise ValidationError("schedule cannot contain more than three times")
+    if len(set(times)) != len(times):
+        raise ValidationError("schedule times must be distinct")
+    return tuple(sorted(times))
+
+
 def _normalize_weekdays(value: Any = None) -> tuple[str, ...]:
     if value is None:
         return WEEKDAY_IDS
@@ -85,7 +113,7 @@ def _normalize_weekdays(value: Any = None) -> tuple[str, ...]:
 @dataclass(frozen=True, slots=True)
 class Schedule:
     id: str
-    time: str
+    times: tuple[str, ...] | str
     duration_minutes: int
     valve_pin: int
     status: bool = False
@@ -93,7 +121,16 @@ class Schedule:
     weekdays: tuple[str, ...] = WEEKDAY_IDS
 
     def __post_init__(self) -> None:
+        times = _normalize_schedule_times(self.times)
+        duration = _int_value(self.duration_minutes, "duration_minutes", 1)
+        object.__setattr__(self, "times", times)
+        object.__setattr__(self, "duration_minutes", duration)
         object.__setattr__(self, "weekdays", _normalize_weekdays(self.weekdays))
+        self._reject_overlapping_times()
+
+    @property
+    def time(self) -> str:
+        return "|".join(self.times)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> Schedule:
@@ -102,7 +139,7 @@ class Schedule:
             raise ValidationError("valve pin is required")
         return cls(
             id=str(data.get("id", "")),
-            time=_schedule_time(data.get("time")),
+            times=_normalize_schedule_times(data.get("times", data.get("time"))),
             duration_minutes=_int_value(
                 data.get("duration_minutes"), "duration_minutes", 1
             ),
@@ -116,6 +153,7 @@ class Schedule:
         return {
             "id": self.id,
             "time": self.time,
+            "times": list(self.times),
             "duration_minutes": str(self.duration_minutes),
             "valve_pin": str(self.valve_pin),
             "status": int(self.status),
@@ -124,7 +162,21 @@ class Schedule:
         }
 
     def interval_at(self, now: datetime) -> tuple[datetime, datetime]:
-        hour, minute = map(int, self.time.split(":"))
+        intervals = [
+            self._interval_for_time(time_value, now) for time_value in self.times
+        ]
+        for start, end in intervals:
+            if start <= now < end:
+                return start, end
+        past_intervals = [(start, end) for start, end in intervals if start <= now]
+        if past_intervals:
+            return max(past_intervals, key=lambda interval: interval[0])
+        return intervals[0]
+
+    def _interval_for_time(
+        self, time_value: str, now: datetime
+    ) -> tuple[datetime, datetime]:
+        hour, minute = map(int, time_value.split(":"))
         start = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         end = start + timedelta(minutes=self.duration_minutes)
         if now < start:
@@ -135,11 +187,25 @@ class Schedule:
         return start, end
 
     def is_running_at(self, now: datetime) -> bool:
-        start, end = self.interval_at(now)
-        return self.enabled and self.runs_on(start) and start <= now < end
+        return self.enabled and any(
+            self.runs_on(start) and start <= now < end
+            for start, end in (
+                self._interval_for_time(time_value, now) for time_value in self.times
+            )
+        )
 
     def runs_on(self, day: datetime | date) -> bool:
         return WEEKDAY_IDS[day.weekday()] in self.weekdays
+
+    def _reject_overlapping_times(self) -> None:
+        starts = [
+            int(time_value[:2]) * 60 + int(time_value[3:]) for time_value in self.times
+        ]
+        for current, following in zip(starts, starts[1:], strict=False):
+            if following < current + self.duration_minutes:
+                raise ValidationError("schedule times must not overlap")
+        if len(starts) > 1 and starts[0] + 24 * 60 < starts[-1] + self.duration_minutes:
+            raise ValidationError("schedule times must not overlap")
 
 
 @dataclass(frozen=True, slots=True)

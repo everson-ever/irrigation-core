@@ -219,6 +219,7 @@ body.nr-dashboard-theme {
   font-weight: 850;
 }
 .ir-label svg { width: 14px; height: 14px; color: var(--ir-green); }
+.ir-time-stack { display: grid; gap: 9px; }
 .ir-time-control, .ir-duration-control {
   position: relative;
   display: flex;
@@ -229,6 +230,22 @@ body.nr-dashboard-theme {
   background: #fff;
 }
 .ir-time-control:focus-within { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .12); }
+.ir-time-remove {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  margin-right: 11px;
+  background: #f4f7f7;
+  color: #60706d;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 850;
+}
+.ir-time-remove:hover { background: #ffecec; color: #d43f3f; }
 .ir-time-input {
   width: 100%;
   height: 100%;
@@ -275,7 +292,15 @@ body.nr-dashboard-theme {
   font-size: 16px;
   font-weight: 850;
 }
-.ir-quick-options { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+.ir-time-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 9px;
+}
+.ir-quick-options { display: flex; flex-wrap: wrap; gap: 7px; }
 .ir-chip {
   min-height: 27px;
   border: 1px solid var(--ir-line);
@@ -288,6 +313,24 @@ body.nr-dashboard-theme {
   font-weight: 800;
 }
 .ir-chip.is-active, .ir-chip:hover { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
+.ir-add-time-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(17, 135, 125, .28);
+  border-radius: 999px;
+  padding: 0 13px;
+  background: var(--ir-green-soft, #e8f7f2);
+  color: var(--ir-green);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+}
+.ir-add-time-button:hover { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
+.ir-add-time-button:disabled { cursor: not-allowed; opacity: .45; }
 .ir-section-block { min-width: 0; }
 .ir-valves { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .ir-valve-card {
@@ -543,11 +586,19 @@ body.nr-dashboard-theme {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             Horário para ligar
           </label>
-          <div class="ir-time-control"><input class="ir-time-input" type="time" id="time" name="time" ng-model="create_form.time" required></div>
-          <div class="ir-quick-options">
-            <button type="button" class="ir-chip" ng-click="setQuickTime('06:00')">Amanhecer</button>
-            <button type="button" class="ir-chip" ng-click="setQuickTime('12:00')">Meio-dia</button>
-            <button type="button" class="ir-chip" ng-click="setQuickTime('18:00')">Entardecer</button>
+          <div class="ir-time-stack">
+            <div class="ir-time-control" ng-repeat="time in create_form.times track by $index">
+              <input class="ir-time-input" type="time" id="time-{{$index}}" name="time{{$index}}" ng-model="create_form.times[$index]" required>
+              <button type="button" class="ir-time-remove" ng-if="create_form.times.length > 1" ng-click="removeTime(create_form, $index)" aria-label="Remover horário">×</button>
+            </div>
+          </div>
+          <div class="ir-time-toolbar">
+            <div class="ir-quick-options">
+              <button type="button" class="ir-chip" ng-click="setQuickTime('06:00')">Amanhecer</button>
+              <button type="button" class="ir-chip" ng-click="setQuickTime('12:00')">Meio-dia</button>
+              <button type="button" class="ir-chip" ng-click="setQuickTime('18:00')">Entardecer</button>
+            </div>
+            <button type="button" class="ir-add-time-button" ng-disabled="create_form.times.length >= 3" ng-click="addTime(create_form)">+ Adicionar horário</button>
           </div>
         </div>
 
@@ -613,7 +664,7 @@ body.nr-dashboard-theme {
         <span class="ir-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span>
         <div>
           <span class="ir-summary-label">Resumo</span>
-          <p class="ir-summary-main"><span class="ir-highlight">{{ sectionName(create_form.section) }}</span> será regada por <strong>{{ create_form.duration_minutes || 0 }} minutos</strong> às <strong>{{ formatTime(create_form.time) }}</strong>, {{ formatWeekdaysSentence(create_form.weekdays) }}.</p>
+          <p class="ir-summary-main"><span class="ir-highlight">{{ sectionName(create_form.section) }}</span> será regada por <strong>{{ create_form.duration_minutes || 0 }} minutos</strong> às <strong>{{ formatTimes(create_form.times) }}</strong>, {{ formatWeekdaysSentence(create_form.weekdays) }}.</p>
           <p class="ir-summary-detail">Recorrência semanal · consumo estimado indisponível</p>
         </div>
       </div>
@@ -621,7 +672,7 @@ body.nr-dashboard-theme {
       <div class="ir-actions">
         <a class="ir-cancel-button" href="#!/0" ng-click="navigateToTab(0, $event)">Cancelar</a>
         <button type="button" class="ir-secondary-button" disabled title="Disponível em uma próxima versão">Salvar rascunho</button>
-        <button type="button" class="ir-primary-button" ng-disabled="create_state.submitting || !create_form.time || !create_form.duration_minutes || !create_form.section || !hasSelectedWeekday(create_form.weekdays)" ng-click="send({payload:createSchedule()})">
+        <button type="button" class="ir-primary-button" ng-disabled="create_state.submitting || !hasScheduleTimes(create_form.times) || !create_form.duration_minutes || !create_form.section || !hasSelectedWeekday(create_form.weekdays)" ng-click="send({payload:createSchedule()})">
           {{ create_state.submitting ? "Cadastrando..." : "Criar agendamento" }}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
@@ -642,7 +693,8 @@ body.nr-dashboard-theme {
     { id: "sat", label: "Sáb" },
     { id: "sun", label: "Dom" }
   ];
-  scope.create_form = scope.create_form || { time: "", duration_minutes: "", section: "", weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
+  scope.create_form = scope.create_form || { times: [""], duration_minutes: "", section: "", weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
+  if (!Array.isArray(scope.create_form.times)) scope.create_form.times = [scope.create_form.time || ""];
   if (!Array.isArray(scope.create_form.weekdays)) scope.create_form.weekdays = scope.weekday_options.map(function(weekday) { return weekday.id; });
   scope.create_state = scope.create_state || { submitting: false };
   scope.create_error = scope.create_error || null;
@@ -677,7 +729,19 @@ body.nr-dashboard-theme {
     date.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
     return date;
   };
-  scope.setQuickTime = function(value) { scope.create_form.time = scope.toTimeValue(value); };
+  scope.setQuickTime = function(value) {
+    var target = scope.create_form.times.indexOf("");
+    if (target === -1) target = Math.max(0, scope.create_form.times.length - 1);
+    scope.create_form.times[target] = scope.toTimeValue(value);
+  };
+  scope.addTime = function(form) {
+    if (!Array.isArray(form.times)) form.times = [""];
+    if (form.times.length < 3) form.times.push("");
+  };
+  scope.removeTime = function(form, index) {
+    if (!Array.isArray(form.times)) form.times = [""];
+    if (form.times.length > 1) form.times.splice(index, 1);
+  };
   scope.setDuration = function(value) { scope.create_form.duration_minutes = value; };
   scope.adjustDuration = function(delta) { scope.create_form.duration_minutes = Math.max(1, (parseInt(scope.create_form.duration_minutes, 10) || 1) + delta); };
   scope.selectValve = function(valve) { scope.create_form.section = valve.pin; };
@@ -688,6 +752,18 @@ body.nr-dashboard-theme {
     var date = value instanceof Date ? value : new Date(value);
     if (isNaN(date.getTime())) return "--:--";
     return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  };
+  scope.normalizeTimes = function(values) {
+    if (!Array.isArray(values)) values = [values];
+    return values.map(scope.formatTime).filter(function(value) { return value !== "--:--"; });
+  };
+  scope.hasScheduleTimes = function(values) {
+    var times = scope.normalizeTimes(values);
+    return times.length >= 1 && times.length <= 3;
+  };
+  scope.formatTimes = function(values) {
+    var times = scope.normalizeTimes(values);
+    return times.length ? times.join(", ") : "--:--";
   };
   scope.sectionName = function(value) {
     for (var i = 0; i < scope.valves.length; i += 1) {
@@ -736,7 +812,7 @@ body.nr-dashboard-theme {
     scope.create_error = null;
     scope.create_state.submitting = true;
     return {
-      time: scope.formatTime(scope.create_form.time),
+      times: scope.normalizeTimes(scope.create_form.times),
       duration_minutes: scope.create_form.duration_minutes,
       section: scope.create_form.section,
       weekdays: scope.normalizeWeekdays(scope.create_form.weekdays)

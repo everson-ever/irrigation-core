@@ -24,6 +24,60 @@ def test_schedule_rejects_invalid_time():
         Schedule.from_dict({"time": "25:00", "duration_minutes": 5, "valve_pin": 13})
 
 
+def test_schedule_accepts_one_two_or_three_times_in_canonical_order():
+    one = Schedule.from_dict({"time": "06:30", "duration_minutes": 5, "valve_pin": 13})
+    two = Schedule.from_dict(
+        {"times": ["18:00", "06:00"], "duration_minutes": 5, "valve_pin": 13}
+    )
+    three = Schedule.from_dict(
+        {"time": "18:00+06:00+12:00", "duration_minutes": 5, "valve_pin": 13}
+    )
+
+    assert one.times == ("06:30",)
+    assert one.time == "06:30"
+    assert two.times == ("06:00", "18:00")
+    assert two.time == "06:00|18:00"
+    assert three.times == ("06:00", "12:00", "18:00")
+
+
+def test_schedule_rejects_more_than_three_times():
+    with pytest.raises(ValidationError, match="more than three"):
+        Schedule.from_dict(
+            {
+                "time": "06:00+09:00+12:00+18:00",
+                "duration_minutes": 5,
+                "valve_pin": 13,
+            }
+        )
+
+
+def test_schedule_rejects_duplicate_times():
+    with pytest.raises(ValidationError, match="distinct"):
+        Schedule.from_dict(
+            {"times": ["06:00", "06:00"], "duration_minutes": 5, "valve_pin": 13}
+        )
+
+
+def test_schedule_rejects_empty_times():
+    with pytest.raises(ValidationError, match="at least one time"):
+        Schedule.from_dict({"times": [], "duration_minutes": 5, "valve_pin": 13})
+
+
+def test_schedule_rejects_overlapping_times():
+    with pytest.raises(ValidationError, match="must not overlap"):
+        Schedule.from_dict(
+            {"time": "10:00+10:05", "duration_minutes": 10, "valve_pin": 13}
+        )
+
+
+def test_schedule_allows_back_to_back_times():
+    schedule = Schedule.from_dict(
+        {"time": "10:00+10:10", "duration_minutes": 10, "valve_pin": 13}
+    )
+
+    assert schedule.times == ("10:00", "10:10")
+
+
 def test_interval_crosses_midnight():
     schedule = Schedule("1", "23:55", 10, 13)
 
@@ -151,6 +205,7 @@ def test_weekday_data_survives_from_dict_and_to_dict_conversion():
     assert schedule.to_dict() == {
         "id": "1",
         "time": "06:30",
+        "times": ["06:30"],
         "duration_minutes": "15",
         "valve_pin": "13",
         "status": 0,
@@ -159,8 +214,36 @@ def test_weekday_data_survives_from_dict_and_to_dict_conversion():
     }
 
 
+def test_time_data_survives_from_dict_and_to_dict_conversion():
+    schedule = Schedule.from_dict(
+        {
+            "id": "1",
+            "time": "18:00+06:00+12:00",
+            "duration_minutes": "15",
+            "valve_pin": "13",
+        }
+    )
+
+    data = schedule.to_dict()
+
+    assert data["time"] == "06:00|12:00|18:00"
+    assert data["times"] == ["06:00", "12:00", "18:00"]
+
+
 def test_midnight_crossing_schedule_uses_start_day_for_weekday_rule():
     schedule = Schedule("1", "23:55", 10, 13, weekdays=("tue",))
 
     assert schedule.is_running_at(datetime(2026, 7, 15, 0, 2)) is True
     assert schedule.is_running_at(datetime(2026, 7, 16, 0, 2)) is False
+
+
+def test_multi_time_schedule_running_state_uses_each_slot():
+    schedule = Schedule("1", "06:00+18:00", 10, 13)
+
+    assert schedule.is_running_at(datetime(2026, 7, 14, 6, 5)) is True
+    assert schedule.is_running_at(datetime(2026, 7, 14, 18, 5)) is True
+    assert schedule.is_running_at(datetime(2026, 7, 14, 12, 0)) is False
+    assert schedule.interval_at(datetime(2026, 7, 14, 18, 5)) == (
+        datetime(2026, 7, 14, 18, 0),
+        datetime(2026, 7, 14, 18, 10),
+    )

@@ -47,6 +47,26 @@ def test_schedule_create_persists_weekdays(capsys, tmp_path):
     assert schedule["weekdays"] == ["mon", "wed", "fri"]
 
 
+def test_schedule_create_persists_multiple_times(capsys, tmp_path):
+    exit_code = execute(["schedule", "create", "18:00+06:00+12:00,15,13"])
+    output = json.loads(capsys.readouterr().out)
+    schedule = _repository(tmp_path, "schedules").find_by_id("1")
+
+    assert exit_code == 0
+    assert output["time"] == "06:00|12:00|18:00"
+    assert output["times"] == ["06:00", "12:00", "18:00"]
+    assert schedule["time"] == "06:00|12:00|18:00"
+    assert schedule["times"] == ["06:00", "12:00", "18:00"]
+
+
+def test_schedule_create_rejects_fourth_time(capsys):
+    exit_code = execute(["schedule", "create", "06:00+09:00+12:00+18:00,15,13"])
+    err = capsys.readouterr().err
+
+    assert exit_code == 2
+    assert "more than three times" in err
+
+
 def test_schedule_create_defaults_to_every_day(capsys):
     exit_code = execute(["schedule", "create", "06:30,15,13"])
     output = json.loads(capsys.readouterr().out)
@@ -104,6 +124,30 @@ def test_schedule_update_without_weekdays_preserves_selection(capsys, tmp_path):
 
     assert exit_code == 0
     assert output["weekdays"] == ["mon", "wed"]
+
+
+def test_schedule_update_persists_multiple_times(capsys, tmp_path):
+    schedules_file = tmp_path / "schedules.json"
+    schedules_file.write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "time": "06:30",
+                "duration_minutes": "15",
+                "valve_pin": "13",
+                "status": 0,
+                "enabled": 1,
+            }
+        )
+        + "\n"
+    )
+
+    exit_code = execute(["schedule", "update", "1,18:00+06:00,10,13"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["time"] == "06:00|18:00"
+    assert output["times"] == ["06:00", "18:00"]
 
 
 def test_schedule_enabled_updates_record(capsys, tmp_path):

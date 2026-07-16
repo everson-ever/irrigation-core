@@ -52,8 +52,9 @@ Responsibilities were separated following SOLID principles:
 
 Authoritative data is stored in `data/irrigation.db`. SQLite transactions, WAL
 mode, foreign keys, and a busy timeout keep concurrent scheduler and Node-RED
-CLI access safe. Schedules and their weekdays use separate related tables;
-history dates are indexed for range searches. On first start, installations
+CLI access safe. A schedule can contain one to three daily start times, stored
+canonically in its time field, while weekdays use a related table; history dates
+are indexed for range searches. On first start, installations
 that still have the legacy JSON Lines files are imported automatically while
 the original files are left in place for verification.
 
@@ -204,7 +205,7 @@ Useful Docker commands:
 
 ```bash
 # Run CLI commands against the same mounted data directory
-docker compose run --rm scheduler irrigation schedule create '06:30,15,13,mon+wed+fri'
+docker compose run --rm scheduler irrigation schedule create '06:30+18:00,15,13,mon+wed+fri'
 docker compose run --rm scheduler irrigation valve '13,on' --no-wait
 docker compose run --rm scheduler irrigation history 'day,,'
 
@@ -232,12 +233,13 @@ Useful commands:
 # Run the scheduler in the foreground
 irrigation run
 
-# Create: time,duration in minutes,physical pin,weekdays
+# Create: one to three start times,duration in minutes,physical pin,weekdays
 irrigation schedule create '06:30,15,13,mon+wed+fri'
+irrigation schedule create '06:30+12:00+18:00,15,13,mon+wed+fri'
 irrigation schedule create '06:30,15,13,everyday'
 
-# Update: id,time,duration,pin,weekdays
-irrigation schedule update '1,07:00,10,13,tue+thu'
+# Update: id,one to three start times,duration,pin,weekdays
+irrigation schedule update '1,07:00+18:00,10,13,tue+thu'
 
 # Disable or re-enable
 irrigation schedule enabled '1,0'
@@ -277,6 +279,11 @@ The optional schedule weekday field accepts stable identifiers joined with
 seven days. Existing schedules without a `weekdays` field are treated as
 every-day schedules.
 
+The schedule time field accepts one, two, or three `HH:MM` values joined with
+`+`, `;`, or `|`. Times are normalized into chronological order, duplicates and
+overlaps within the same schedule are rejected, and the same duration and
+weekdays apply to every configured time slot.
+
 ## Tests and quality
 
 ```bash
@@ -294,8 +301,8 @@ midnight.
 
 Operational data is stored in `data/`:
 
-- `irrigation.db`: authoritative schedules, normalized schedule weekdays,
-  valves, settings, and indexed history;
+- `irrigation.db`: authoritative schedules, schedule time slots, normalized
+  schedule weekdays, valves, settings, and indexed history;
 - `history_search_results.json`: transient result snapshot consumed by the
   dashboard after a history search.
 

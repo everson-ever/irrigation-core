@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
-from irrigation.domain.models import WEEKDAY_IDS
+from irrigation.domain.models import WEEKDAY_IDS, Schedule
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schedules (
@@ -306,9 +306,20 @@ class ScheduleSqliteRepository:
             "WHEN 'thu' THEN 3 WHEN 'fri' THEN 4 WHEN 'sat' THEN 5 ELSE 6 END",
             (row["id"],),
         ).fetchall()
+        time = str(row["time"])
+        times = list(
+            Schedule.from_dict(
+                {
+                    "time": time,
+                    "duration_minutes": row["duration_minutes"],
+                    "valve_pin": row["valve_pin"],
+                }
+            ).times
+        )
         return {
             "id": str(row["id"]),
-            "time": row["time"],
+            "time": time,
+            "times": times,
             "duration_minutes": str(row["duration_minutes"]),
             "valve_pin": str(row["valve_pin"]),
             "status": row["status"],

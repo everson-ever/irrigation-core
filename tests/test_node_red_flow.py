@@ -80,14 +80,22 @@ def test_schedule_create_has_loading_error_and_success_navigation():
     assert "schedule_create_error" in create_template
     assert "create_state.submitting = false" in create_template
     assert "create_form.weekdays" in create_template
+    assert "create_form.times" in create_template
+    assert "hasScheduleTimes(create_form.times)" in create_template
+    assert 'ng-disabled="create_form.times.length >= 3"' in create_template
+    assert "ir-time-stack" in create_template
+    assert "ir-add-time-button" in create_template
+    assert "ir-time-toolbar" in create_template
     assert "Todos os dias" in create_template
     assert "hasSelectedWeekday(create_form.weekdays)" in create_template
     assert "weekdays: scope.normalizeWeekdays(scope.create_form.weekdays)" in (
         create_template
     )
+    assert "times: scope.normalizeTimes(scope.create_form.times)" in create_template
+    assert "selectedTimes" in nodes["38e56a9f.2ca156"]["func"]
     assert "selectedWeekdays" in nodes["38e56a9f.2ca156"]["func"]
     assert (
-        "`${time},${duration_minutes},${section},${selectedWeekdays}`"
+        "`${selectedTimes},${duration_minutes},${section},${selectedWeekdays}`"
         in nodes["38e56a9f.2ca156"]["func"]
     )
     assert 'replace(/^Error:\\s*/, "")' in create_error["func"]
@@ -111,9 +119,16 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "scope.schedule_form.id = schedule.id" in schedule_template
     assert "scope.toEditTimeValue = function(value)" in schedule_template
     assert "scope.formatEditTime = function(value)" in schedule_template
-    assert "scope.schedule_form.time = scope.toEditTimeValue(schedule.time)" in (
+    assert "scope.toEditTimes = function(schedule)" in schedule_template
+    assert "scope.schedule_form.times = scope.toEditTimes(schedule)" in (
         schedule_template
     )
+    assert "hasScheduleTimes(schedule_form.times)" in schedule_template
+    assert 'ng-disabled="schedule_form.times.length >= 3"' in schedule_template
+    assert "ir-edit-times" in schedule_template
+    assert "ir-edit-time-card" in schedule_template
+    assert "ir-time-limit" in schedule_template
+    assert "ir-time-remove-button" in schedule_template
     assert (
         "scope.schedule_form.duration_minutes = parseInt(schedule.duration_minutes, 10)"
         in schedule_template
@@ -139,12 +154,13 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "enabled: schedule.enabled ? 1 : 0" in schedule_template
     assert "hasSelectedWeekday(schedule_form.weekdays)" in schedule_template
     assert "weekdays: scope.normalizeWeekdays(schedule.weekdays)" in schedule_template
+    assert "times: scope.normalizeTimes(schedule.times)" in schedule_template
+    assert "selectedTimes" in update_formatter["func"]
     assert "selectedWeekdays" in update_formatter["func"]
     assert (
-        "`${id},${time},${duration_minutes},${valve_pin},${selectedWeekdays}`"
+        "`${id},${selectedTimes},${duration_minutes},${valve_pin},${selectedWeekdays}`"
         in update_formatter["func"]
     )
-    assert "time: scope.formatEditTime(schedule.time)" in schedule_template
     assert (
         "!editing_state.editing && schedules_loaded && schedules.length > 0"
         in schedule_template

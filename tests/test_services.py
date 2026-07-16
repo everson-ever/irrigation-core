@@ -179,6 +179,75 @@ def test_all_weekday_schedule_runs_every_day(tmp_path):
     ]
 
 
+def test_multi_time_schedule_runs_each_slot_independently(tmp_path):
+    controller, schedules, valves, history, gpio, clock = create_controller(
+        tmp_path, datetime(2026, 7, 14, 6, 0)
+    )
+    schedules.add(
+        {
+            "time": "06:00|12:00|18:00",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 6, 10)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 12, 0)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 12, 10)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 18, 0)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert gpio.operations == [
+        ("on", 13),
+        ("off", 13),
+        ("on", 13),
+        ("off", 13),
+        ("on", 13),
+    ]
+    assert [(record["start"], record["end"]) for record in history.list_all()] == [
+        ("06:00", "06:10"),
+        ("12:00", "12:10"),
+        ("18:00", "18:10"),
+    ]
+
+
+def test_back_to_back_multi_time_slots_record_separate_intervals(tmp_path):
+    controller, schedules, valves, history, gpio, clock = create_controller(
+        tmp_path, datetime(2026, 7, 14, 10, 0)
+    )
+    schedules.add(
+        {
+            "time": "10:00|10:10",
+            "duration_minutes": "10",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 10, 10)
+    controller.run_once()
+    clock.value = datetime(2026, 7, 14, 10, 20)
+    controller.run_once()
+
+    assert schedules.find_by_id("1")["status"] == 0
+    assert valves.find_by_id("1")["status"] == 0
+    assert gpio.operations == [("on", 13), ("off", 13)]
+    assert [(record["start"], record["end"]) for record in history.list_all()] == [
+        ("10:00", "10:10"),
+        ("10:10", "10:20"),
+    ]
+
+
 def test_repeated_cycles_do_not_duplicate_automatic_start(tmp_path):
     controller, schedules, _, history, gpio, _ = create_controller(
         tmp_path, datetime(2026, 7, 14, 10, 5)

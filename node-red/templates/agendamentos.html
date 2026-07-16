@@ -561,6 +561,78 @@ body.nr-dashboard-theme {
 }
 .ir-field input:focus, .ir-field select:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
 .ir-field-wide { grid-column: 1 / -1; }
+.ir-time-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.ir-time-field-head label { margin-bottom: 0; }
+.ir-time-limit { color: var(--ir-muted); font-size: 11px; font-weight: 700; }
+.ir-edit-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.ir-edit-time-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d4dada;
+  border-radius: 10px;
+  padding: 7px 7px 7px 11px;
+  background: #fff;
+}
+.ir-edit-time-card:focus-within {
+  border-color: var(--ir-green);
+  box-shadow: 0 0 0 3px rgba(17, 135, 125, .1);
+}
+.ir-field .ir-edit-time-card input {
+  height: 32px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 800;
+}
+.ir-field .ir-edit-time-card input:focus { border: 0; box-shadow: none; }
+.ir-time-remove-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: #f4f7f7;
+  color: #60706d;
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 850;
+}
+.ir-time-remove-button:hover { background: #ffecec; color: #d43f3f; }
+.ir-add-time-row { display: flex; justify-content: flex-start; margin-top: 10px; }
+.ir-add-time-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(17, 135, 125, .28);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--ir-green-soft);
+  color: var(--ir-green);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+.ir-add-time-button:hover { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
+.ir-add-time-button:disabled { cursor: not-allowed; opacity: .45; }
 .ir-weekdays { display: flex; flex-wrap: wrap; gap: 7px; }
 .ir-weekday {
   display: inline-flex;
@@ -659,6 +731,7 @@ body.nr-dashboard-theme {
   .ir-action-menu { right: 0; }
   .ir-edit-grid { grid-template-columns: 1fr; }
   .ir-field-wide { grid-column: auto; }
+  .ir-edit-times { grid-template-columns: 1fr; }
   .ir-modal { padding: 20px 16px; }
   .ir-modal-actions { display: grid; grid-template-columns: 1fr; }
   .ir-modal-actions button { width: 100%; }
@@ -786,7 +859,7 @@ body.nr-dashboard-theme {
           <tbody>
             <tr ng-repeat="schedule in visibleSchedules() track by schedule.id" ng-class="{'is-watering': sectionStatus(schedule) === 1}">
               <td data-label="Horário">
-                <span class="ir-time">{{ schedule.time }}</span>
+                <span class="ir-time">{{ formatScheduleTimes(schedule) }}</span>
                 <span class="ir-time-note is-live" ng-if="sectionStatus(schedule) === 1">regando agora</span>
                 <span class="ir-time-note" ng-if="sectionStatus(schedule) !== 1">{{ scheduleDayNote(schedule) }}</span>
               </td>
@@ -888,7 +961,21 @@ body.nr-dashboard-theme {
     <h2 class="ir-modal-title">Editar agendamento</h2>
     <p class="ir-modal-text">Atualize o horário, a duração, a seção e os dias da semana.</p>
     <div class="ir-edit-grid">
-      <div class="ir-field"><label>Horário</label><input type="time" name="time" ng-model="schedule_form.time"></div>
+      <div class="ir-field ir-field-wide">
+        <div class="ir-time-field-head">
+          <label>Horários</label>
+          <span class="ir-time-limit">{{ schedule_form.times.length }}/3 horários</span>
+        </div>
+        <div class="ir-edit-times">
+          <div class="ir-edit-time-card" ng-repeat="time in schedule_form.times track by $index">
+            <input type="time" name="time{{$index}}" ng-model="schedule_form.times[$index]">
+            <button type="button" class="ir-time-remove-button" ng-if="schedule_form.times.length > 1" ng-click="removeTime(schedule_form, $index)" aria-label="Remover horário">×</button>
+          </div>
+        </div>
+        <div class="ir-add-time-row">
+          <button type="button" class="ir-add-time-button" ng-disabled="schedule_form.times.length >= 3" ng-click="addTime(schedule_form)">+ Adicionar horário</button>
+        </div>
+      </div>
       <div class="ir-field"><label>Tempo ligado (min)</label><input type="number" min="1" name="duration_minutes" ng-model="schedule_form.duration_minutes"></div>
       <div class="ir-field ir-field-wide">
         <label>Seção / válvula</label>
@@ -910,7 +997,7 @@ body.nr-dashboard-theme {
     </div>
     <div class="ir-modal-actions">
       <button type="button" class="ir-secondary-button" ng-disabled="editing_state.submitting" ng-click="cancelEdit()">Cancelar</button>
-      <button type="button" class="ir-primary-button" ng-disabled="editing_state.submitting || !schedule_form.time || !schedule_form.duration_minutes || !schedule_form.valve_pin || !hasSelectedWeekday(schedule_form.weekdays)" ng-click="send({payload:editSchedule(schedule_form)})">{{ editing_state.submitting ? "Salvando..." : "Salvar alterações" }}</button>
+      <button type="button" class="ir-primary-button" ng-disabled="editing_state.submitting || !hasScheduleTimes(schedule_form.times) || !schedule_form.duration_minutes || !schedule_form.valve_pin || !hasSelectedWeekday(schedule_form.weekdays)" ng-click="send({payload:editSchedule(schedule_form)})">{{ editing_state.submitting ? "Salvando..." : "Salvar alterações" }}</button>
     </div>
   </div>
 </form>
@@ -929,7 +1016,7 @@ body.nr-dashboard-theme {
     { id: "sat", label: "Sáb" },
     { id: "sun", label: "Dom" }
   ];
-  scope.schedule_form = scope.schedule_form || { id: "", time: "", duration_minutes: "", valve_pin: "", status: "", enabled: true, weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
+  scope.schedule_form = scope.schedule_form || { id: "", times: [""], duration_minutes: "", valve_pin: "", status: "", enabled: true, weekdays: scope.weekday_options.map(function(weekday) { return weekday.id; }) };
   scope.editing_state = scope.editing_state || { editing: false, submitting: false, enabled_submitting: false };
   scope.manual_state = scope.manual_state || { open: false, schedule: null, section: "", duration_minutes: 10 };
   scope.manual_pending = scope.manual_pending || {};
@@ -1022,6 +1109,15 @@ body.nr-dashboard-theme {
     if (!selected.length) return "Nenhum dia";
     return scope.weekday_options.filter(function(weekday) { return selected.indexOf(weekday.id) !== -1; }).map(function(weekday) { return weekday.label; }).join(", ");
   };
+  scope.scheduleTimes = function(schedule) {
+    if (schedule && Array.isArray(schedule.times) && schedule.times.length) return schedule.times;
+    if (schedule && schedule.time) return String(schedule.time).split(/[|;+]/);
+    return [];
+  };
+  scope.formatScheduleTimes = function(schedule) {
+    var times = scope.scheduleTimes(schedule).filter(function(value) { return String(value || "").trim(); });
+    return times.length ? times.join(", ") : "--:--";
+  };
   scope.isScheduleEnabled = function(schedule) {
     if (!schedule || !Object.prototype.hasOwnProperty.call(schedule, "enabled")) return true;
     return schedule.enabled === true || Number(schedule.enabled) === 1;
@@ -1043,22 +1139,24 @@ body.nr-dashboard-theme {
     var now = new Date();
     var candidate = null;
     scope.schedules.forEach(function(schedule) {
-      if (!scope.isScheduleEnabled(schedule) || !schedule.time) return;
-      var parts = String(schedule.time).split(":");
-      for (var offset = 0; offset <= 7; offset += 1) {
-        var date = new Date(now);
-        date.setDate(now.getDate() + offset);
-        date.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
-        if (date <= now || !scope.isWeekdaySelected(schedule.weekdays, scope.currentWeekdayId(date))) continue;
-        if (!candidate || date < candidate.date) candidate = { schedule: schedule, date: date };
-        break;
-      }
+      if (!scope.isScheduleEnabled(schedule)) return;
+      scope.scheduleTimes(schedule).forEach(function(time) {
+        var parts = String(time).split(":");
+        for (var offset = 0; offset <= 7; offset += 1) {
+          var date = new Date(now);
+          date.setDate(now.getDate() + offset);
+          date.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+          if (date <= now || !scope.isWeekdaySelected(schedule.weekdays, scope.currentWeekdayId(date))) continue;
+          if (!candidate || date < candidate.date) candidate = { schedule: schedule, date: date, time: String(time).slice(0, 5) };
+          break;
+        }
+      });
     });
     return candidate;
   };
-  scope.nextWateringTime = function() { var next = scope.nextWatering(); return next ? next.schedule.time : "--:--"; };
+  scope.nextWateringTime = function() { var next = scope.nextWatering(); return next ? next.time : "--:--"; };
   scope.nextWateringShortSection = function() { var next = scope.nextWatering(); return next ? scope.sectionName(next.schedule) : "sem previsão"; };
-  scope.nextWateringSection = function() { var next = scope.nextWatering(); return next ? scope.sectionName(next.schedule) + " · " + next.schedule.time : "Nenhuma rega programada"; };
+  scope.nextWateringSection = function() { var next = scope.nextWatering(); return next ? scope.sectionName(next.schedule) + " · " + next.time : "Nenhuma rega programada"; };
   scope.nextWateringCountdown = function() {
     var next = scope.nextWatering();
     if (!next) return "--";
@@ -1082,10 +1180,10 @@ body.nr-dashboard-theme {
       if (scope.schedule_filter === "active" && !enabled) return false;
       if (scope.schedule_filter === "paused" && enabled) return false;
       if (!query) return true;
-      return (String(schedule.time || "") + " " + scope.sectionLabel(schedule)).toLowerCase().indexOf(query) !== -1;
+      return (scope.formatScheduleTimes(schedule) + " " + scope.sectionLabel(schedule)).toLowerCase().indexOf(query) !== -1;
     });
     return filtered.slice().sort(function(a, b) {
-      var result = String(a.time || "").localeCompare(String(b.time || ""));
+      var result = scope.formatScheduleTimes(a).localeCompare(scope.formatScheduleTimes(b));
       return scope.sort_ascending ? result : -result;
     });
   };
@@ -1131,7 +1229,7 @@ body.nr-dashboard-theme {
     scope.action_menu_id = null;
     scope.delete_state.open = true;
     scope.delete_state.schedule = schedule;
-    scope.delete_state.time = schedule.time || "--:--";
+    scope.delete_state.time = scope.formatScheduleTimes(schedule);
     scope.delete_state.section = scope.sectionLabel(schedule);
   };
   scope.closeDeleteConfirmation = function() { scope.delete_state.open = false; scope.delete_state.schedule = null; };
@@ -1164,11 +1262,31 @@ body.nr-dashboard-theme {
     if (isNaN(date.getTime())) return "";
     return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
   };
+  scope.toEditTimes = function(schedule) {
+    var values = scope.scheduleTimes(schedule);
+    return values.length ? values.map(scope.toEditTimeValue) : [null];
+  };
+  scope.normalizeTimes = function(values) {
+    if (!Array.isArray(values)) values = [values];
+    return values.map(scope.formatEditTime).filter(function(value) { return value; });
+  };
+  scope.hasScheduleTimes = function(values) {
+    var times = scope.normalizeTimes(values);
+    return times.length >= 1 && times.length <= 3;
+  };
+  scope.addTime = function(form) {
+    if (!Array.isArray(form.times)) form.times = [null];
+    if (form.times.length < 3) form.times.push(null);
+  };
+  scope.removeTime = function(form, index) {
+    if (!Array.isArray(form.times)) form.times = [null];
+    if (form.times.length > 1) form.times.splice(index, 1);
+  };
   scope.sendData = function(schedule) {
     scope.schedule_error = null;
     scope.editing_state.submitting = false;
     scope.schedule_form.id = schedule.id;
-    scope.schedule_form.time = scope.toEditTimeValue(schedule.time);
+    scope.schedule_form.times = scope.toEditTimes(schedule);
     scope.schedule_form.duration_minutes = parseInt(schedule.duration_minutes, 10) || null;
     scope.schedule_form.valve_pin = parseInt(schedule.valve_pin, 10) || null;
     scope.schedule_form.weekdays = scope.normalizeWeekdays(schedule.weekdays);
@@ -1190,7 +1308,7 @@ body.nr-dashboard-theme {
   scope.editSchedule = function(schedule) {
     scope.schedule_error = null;
     scope.editing_state.submitting = true;
-    return { ui_action: "edit", id: schedule.id, time: scope.formatEditTime(schedule.time), duration_minutes: schedule.duration_minutes, valve_pin: schedule.valve_pin, weekdays: scope.normalizeWeekdays(schedule.weekdays), status: schedule.status };
+    return { ui_action: "edit", id: schedule.id, times: scope.normalizeTimes(schedule.times), duration_minutes: schedule.duration_minutes, valve_pin: schedule.valve_pin, weekdays: scope.normalizeWeekdays(schedule.weekdays), status: schedule.status };
   };
   scope.openManualDuration = function(schedule) {
     scope.action_menu_id = null;

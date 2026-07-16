@@ -547,13 +547,14 @@ class IrrigationController:
         active_ids: set[str],
         now: datetime,
     ) -> None:
-        _, end = schedule.interval_at(now)
+        start, end = schedule.interval_at(now)
         is_running = schedule.is_running_at(now)
         valve = self._valves.get_by_pin(schedule.valve_pin)
         active_manual = self._history.has_active_manual(valve.section, now)
         keep_valve_on = self._should_keep_valve_on(
             schedule, schedules, active_ids, active_manual
         )
+        started_key = self._started_key(schedule, start)
 
         if not schedule.enabled:
             if schedule.status:
@@ -567,15 +568,21 @@ class IrrigationController:
         if (
             is_running
             and schedule.status
-            and schedule.id not in self._started_in_this_process
+            and started_key not in self._started_in_this_process
         ):
+            restarted = not self._has_started_schedule(schedule)
+            mode = (
+                HISTORY_MODE_RESTARTED
+                if restarted
+                else self._automatic_start_mode(schedule, now)
+            )
             self._start_automatic(
                 schedule,
                 valve,
                 now,
                 end,
-                HISTORY_MODE_RESTARTED,
-                restarted=True,
+                mode,
+                restarted=restarted,
             )
             return
         if not is_running and schedule.status and not active_manual:
@@ -599,7 +606,8 @@ class IrrigationController:
         )
 
     def _automatic_start_mode(self, schedule: Schedule, now: datetime) -> str:
-        if now.strftime("%H:%M") == schedule.time:
+        start, _ = schedule.interval_at(now)
+        if now.strftime("%H:%M") == start.strftime("%H:%M"):
             return HISTORY_MODE_AUTOMATIC
         return HISTORY_MODE_AUTOMATIC_LATE_START
 
@@ -642,11 +650,25 @@ class IrrigationController:
         if not schedule.status:
             self._schedules.set_status(schedule.id, True)
         self._history.record(valve.section, now, end, mode)
-        self._started_in_this_process.add(schedule.id)
+        start, _ = schedule.interval_at(now)
+        self._started_in_this_process.add(self._started_key(schedule, start))
 
     def _stop(self, schedule: Schedule, keep_valve_on: bool = False) -> None:
         valve = self._valves.get_by_pin(schedule.valve_pin)
         if not keep_valve_on and not valve.manually_turned_off:
             self._valves.turn_off(schedule.valve_pin)
         self._schedules.set_status(schedule.id, False)
-        self._started_in_this_process.discard(schedule.id)
+        self._started_in_this_process = {
+            key
+            for key in self._started_in_this_process
+            if not key.startswith(f"{schedule.id}:")
+        }
+
+    def _has_started_schedule(self, schedule: Schedule) -> bool:
+        return any(
+            key.startswith(f"{schedule.id}:") for key in self._started_in_this_process
+        )
+
+    @staticmethod
+    def _started_key(schedule: Schedule, start: datetime) -> str:
+        return f"{schedule.id}:{start.isoformat()}"
