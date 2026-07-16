@@ -13,23 +13,104 @@ from irrigation.bootstrap import Application
 from irrigation.domain.exceptions import IrrigationError
 
 
-def _csv(value: str, expected_fields: int, description: str) -> list[str]:
+def _csv(
+    value: str,
+    expected_fields: int | tuple[int, ...],
+    description: str,
+) -> list[str]:
     parts = [part.strip() for part in value.split(",")]
-    if len(parts) != expected_fields:
+    if isinstance(expected_fields, int):
+        if len(parts) == expected_fields:
+            return parts
         raise ValueError(
             f"{description} must contain {expected_fields} comma-separated fields"
         )
-    return parts
+    if len(parts) in expected_fields:
+        return parts
+    options = " or ".join(str(item) for item in expected_fields)
+    raise ValueError(f"{description} must contain {options} comma-separated fields")
 
 
-def _csv_range(
-    value: str, expected_fields: tuple[int, ...], description: str
-) -> list[str]:
-    parts = [part.strip() for part in value.split(",")]
-    if len(parts) not in expected_fields:
-        options = " or ".join(str(item) for item in expected_fields)
-        raise ValueError(f"{description} must contain {options} comma-separated fields")
-    return parts
+def _run_command(app: Application, _args: argparse.Namespace):
+    app.automatic_controller().run()
+    return None
+
+
+def _schedule_command(app: Application, args: argparse.Namespace):
+    service = app.schedules()
+    if args.action == "list":
+        return service.list_with_runtime_status(
+            datetime.now(),
+            app.valves().list_all(),
+        )
+    if args.action == "create":
+        parts = _csv(args.data, (3, 4), "schedule")
+        schedule_time, minutes, pin = parts[:3]
+        weekdays = parts[3] if len(parts) == 4 else None
+        return service.create(schedule_time, minutes, pin, weekdays)
+    if args.action == "update":
+        parts = _csv(args.data, (4, 5), "update")
+        record_id, schedule_time, minutes, pin = parts[:4]
+        weekdays = parts[4] if len(parts) == 5 else None
+        return service.update(record_id, schedule_time, minutes, pin, weekdays)
+    if args.action == "delete":
+        return {"deleted": service.delete(args.id, app.valves())}
+    record_id, enabled = _csv(args.data, 2, "enabled flag")
+    return service.set_enabled(record_id, enabled)
+
+
+def _valve_command(app: Application, args: argparse.Namespace) -> dict[str, bool]:
+    valve_data = [part.strip() for part in args.data.split(",")]
+    if len(valve_data) not in (2, 3, 4):
+        raise ValueError("valve must contain 2 to 4 comma-separated fields")
+    pin, action = valve_data[:2]
+    duration_minutes = None
+    schedule_id = None
+    if action == "on":
+        duration_minutes = valve_data[2] if len(valve_data) >= 3 else None
+        schedule_id = valve_data[3] if len(valve_data) == 4 else None
+    elif action == "off":
+        schedule_id = valve_data[2] if len(valve_data) == 3 else None
+        if len(valve_data) == 4:
+            raise ValueError("off action must not contain duration")
+    service = app.manual_control()
+    if action == "on":
+        changed = service.turn_on(
+            int(pin),
+            duration_minutes=duration_minutes,
+            wait=not args.no_wait,
+            schedule_id=schedule_id,
+        )
+    elif action == "off":
+        changed = service.turn_off(int(pin), schedule_id=schedule_id)
+    else:
+        raise ValueError("valve action must be on/off")
+    return {"changed": changed}
+
+
+def _settings_command(app: Application, args: argparse.Namespace):
+    return app.runtime_settings().update_default_duration(args.minutes)
+
+
+def _history_command(app: Application, args: argparse.Namespace):
+    action, start, end = _csv(args.data, 3, "history")
+    history_service = app.history()
+    if action == "day":
+        return history_service.search_day(date.today())
+    if action == "range":
+        return history_service.search_range(
+            date.fromisoformat(start), date.fromisoformat(end)
+        )
+    raise ValueError("unknown history action")
+
+
+_COMMAND_HANDLERS = {
+    "run": _run_command,
+    "schedule": _schedule_command,
+    "valve": _valve_command,
+    "settings": _settings_command,
+    "history": _history_command,
+}
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -88,72 +169,7 @@ def _stop_gracefully(_signal, _frame) -> None:
 
 
 def _dispatch(app: Application, args: argparse.Namespace):
-    if args.command == "run":
-        app.automatic_controller().run()
-        return None
-
-    if args.command == "schedule":
-        service = app.schedules()
-        if args.action == "list":
-            return service.list_with_runtime_status(
-                datetime.now(),
-                app.valves().list_all(),
-            )
-        if args.action == "create":
-            parts = _csv_range(args.data, (3, 4), "schedule")
-            schedule_time, minutes, pin = parts[:3]
-            weekdays = parts[3] if len(parts) == 4 else None
-            return service.create(schedule_time, minutes, pin, weekdays)
-        if args.action == "update":
-            parts = _csv_range(args.data, (4, 5), "update")
-            record_id, schedule_time, minutes, pin = parts[:4]
-            weekdays = parts[4] if len(parts) == 5 else None
-            return service.update(record_id, schedule_time, minutes, pin, weekdays)
-        if args.action == "delete":
-            return {"deleted": service.delete(args.id, app.valves())}
-        record_id, enabled = _csv(args.data, 2, "enabled flag")
-        return service.set_enabled(record_id, enabled)
-
-    if args.command == "valve":
-        valve_data = [part.strip() for part in args.data.split(",")]
-        if len(valve_data) not in (2, 3, 4):
-            raise ValueError("valve must contain 2 to 4 comma-separated fields")
-        pin, action = valve_data[:2]
-        duration_minutes = None
-        schedule_id = None
-        if action == "on":
-            duration_minutes = valve_data[2] if len(valve_data) >= 3 else None
-            schedule_id = valve_data[3] if len(valve_data) == 4 else None
-        elif action == "off":
-            schedule_id = valve_data[2] if len(valve_data) == 3 else None
-            if len(valve_data) == 4:
-                raise ValueError("off action must not contain duration")
-        service = app.manual_control()
-        if action == "on":
-            changed = service.turn_on(
-                int(pin),
-                duration_minutes=duration_minutes,
-                wait=not args.no_wait,
-                schedule_id=schedule_id,
-            )
-        elif action == "off":
-            changed = service.turn_off(int(pin), schedule_id=schedule_id)
-        else:
-            raise ValueError("valve action must be on/off")
-        return {"changed": changed}
-
-    if args.command == "settings":
-        return app.runtime_settings().update_default_duration(args.minutes)
-
-    action, start, end = _csv(args.data, 3, "history")
-    history_service = app.history()
-    if action == "day":
-        return history_service.search_day(date.today())
-    if action == "range":
-        return history_service.search_range(
-            date.fromisoformat(start), date.fromisoformat(end)
-        )
-    raise ValueError("unknown history action")
+    return _COMMAND_HANDLERS[args.command](app, args)
 
 
 if __name__ == "__main__":
