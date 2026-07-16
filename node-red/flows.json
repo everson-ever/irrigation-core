@@ -676,6 +676,23 @@
     ]
   },
   {
+    "id": "8c3e14f2.a7b901",
+    "type": "ui_template",
+    "z": "33af9e8a.0fb3f2",
+    "group": "",
+    "name": "Título do sistema",
+    "order": 0,
+    "width": 0,
+    "height": 0,
+    "format": "<script>\ndocument.title = \"Sistema de Irrigação\";\n</script>",
+    "storeOutMessages": false,
+    "fwdInMessages": false,
+    "templateScope": "global",
+    "x": 190,
+    "y": 80,
+    "wires": []
+  },
+  {
     "id": "25072c26.808454",
     "type": "ui_template",
     "z": "33af9e8a.0fb3f2",
