@@ -6,6 +6,7 @@ import sqlite3
 from dataclasses import dataclass, field
 
 from irrigation.application.services import (
+    AuthService,
     HistoryService,
     IrrigationController,
     ManualControlService,
@@ -33,6 +34,7 @@ class Application:
     def __post_init__(self) -> None:
         migrate_legacy_json(self.settings.data_dir, self.settings.database_path)
         self._connection = connect_database(self.settings.database_path)
+        self.auth().ensure_default_credentials()
 
     @classmethod
     def create(cls) -> Application:
@@ -43,6 +45,9 @@ class Application:
 
     def runtime_settings(self) -> SettingsService:
         return SettingsService(SqliteRepository(self._connection, "settings"))
+
+    def auth(self) -> AuthService:
+        return AuthService(SqliteRepository(self._connection, "credentials"))
 
     def history(self) -> HistoryService:
         return HistoryService(

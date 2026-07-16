@@ -15,13 +15,17 @@ def test_dashboard_menu_order_and_history_label():
         nodes["59749dbb.d7d844"],
         nodes["e1bc117a.c215c"],
         nodes["56e52954.09e758"],
+        nodes["7a5ad52a.079c2c"],
     ]
 
     assert [(tab["name"], tab["order"]) for tab in tabs] == [
         ("Agendamentos", 1),
         ("Novo Agendamento", 2),
         ("Histórico", 3),
+        ("Configurações", 4),
     ]
+    assert nodes["7a5ad52a.079c2c"]["disabled"] is False
+    assert nodes["7a5ad52a.079c2c"]["hidden"] is False
 
 
 def test_schedule_mobile_menu_opens_sidebar():
@@ -42,6 +46,8 @@ def test_schedule_mobile_menu_opens_sidebar():
     assert "scope.toggleMobileMenu = function(event)" in schedule_template
     assert "scope.closeMobileMenu = function()" in schedule_template
     assert "scope.closeMobileMenu();" in schedule_template
+    assert 'href="#!/3"' in schedule_template
+    assert "Configurações" in schedule_template
 
 
 def test_schedule_list_shows_loading_indicator_before_data_arrives():
@@ -363,3 +369,41 @@ def test_schedule_template_displays_running_countdown():
     assert "faltam {{ scheduleCountdown(schedule) }}" in schedule_template
     assert "setInterval(function()" in schedule_template
     assert 'scope.$on("$destroy"' in schedule_template
+
+
+def test_settings_tab_has_password_change_flow():
+    nodes = load_nodes()
+
+    settings_template = nodes["d6f0b5a1.42c8e3"]
+    formatter = nodes["bd0f9d62.31aa54"]
+    exec_node = nodes["71b3e8a9.0df426"]
+    success = nodes["f23e94b0.5ca741"]
+    error = nodes["bb947d16.2eaf34"]
+
+    assert settings_template["group"] == "a4c9b2e1.7d5f3a"
+    assert "Trocar senha" in settings_template["format"]
+    assert 'href="#!/0">Agendamentos' in settings_template["format"]
+    assert "submitPasswordChange" in settings_template["format"]
+    assert 'window.location.href = "/ui/logout"' in settings_template["format"]
+    assert "current_password" in settings_template["format"]
+    assert "confirm_password" in settings_template["format"]
+    assert settings_template["wires"] == [["bd0f9d62.31aa54"]]
+
+    assert 'payload.ui_action !== "change_password"' in formatter["func"]
+    assert "next !== confirm" in formatter["func"]
+    assert 'includes(",")' in formatter["func"]
+    assert formatter["outputs"] == 2
+    assert formatter["wires"] == [
+        ["71b3e8a9.0df426"],
+        ["d6f0b5a1.42c8e3"],
+    ]
+
+    assert exec_node["command"] == "/opt/irrigation/bin/irrigation auth change-password"
+    assert exec_node["addpay"] is True
+    assert exec_node["wires"][0] == ["f23e94b0.5ca741"]
+    assert exec_node["wires"][1] == ["bb947d16.2eaf34"]
+    assert 'msg.topic = "password_changed"' in success["func"]
+    assert success["wires"] == [["d6f0b5a1.42c8e3"]]
+    assert 'msg.topic = "password_change_error"' in error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in error["func"]
+    assert error["wires"] == [["d6f0b5a1.42c8e3"]]

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
 import time
 from collections.abc import Iterable
 from dataclasses import replace
@@ -26,6 +29,13 @@ HISTORY_MODE_MANUAL = "Manual"
 HISTORY_MODE_AUTOMATIC = "Automatic"
 HISTORY_MODE_AUTOMATIC_LATE_START = "Automatic: started after scheduled time"
 HISTORY_MODE_RESTARTED = "Restarted"
+
+DEFAULT_AUTH_USERNAME = "admin"
+DEFAULT_AUTH_PASSWORD = "10203040"
+MIN_PASSWORD_LENGTH = 8
+PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256"
+PASSWORD_HASH_ITERATIONS = 200_000
+PASSWORD_SALT_BYTES = 16
 
 
 class ScheduleService:
@@ -356,6 +366,95 @@ class SettingsService:
                 {"id": str(records[0]["id"]), "default_duration_minutes": value}
             )
         return self._repository.add({"default_duration_minutes": value})
+
+
+class AuthService:
+    def __init__(self, repository: Repository) -> None:
+        self._repository = repository
+
+    def ensure_default_credentials(self) -> None:
+        if self._repository.list_all():
+            return
+        self._repository.add(
+            {
+                "username": DEFAULT_AUTH_USERNAME,
+                "password_hash": self._hash_password(DEFAULT_AUTH_PASSWORD),
+            }
+        )
+
+    def verify(self, username: Any, password: Any) -> bool:
+        credential = self._credential_for(username)
+        if credential is None:
+            return False
+        return self._verify_password(str(password), str(credential["password_hash"]))
+
+    def change_password(
+        self,
+        username: Any,
+        current_password: Any,
+        new_password: Any,
+    ) -> dict[str, Any]:
+        credential = self._credential_for(username)
+        if credential is None or not self._verify_password(
+            str(current_password),
+            str(credential["password_hash"]),
+        ):
+            raise ValidationError("invalid username or password")
+
+        password = str(new_password)
+        if len(password) < MIN_PASSWORD_LENGTH:
+            raise ValidationError(
+                f"new password must contain at least {MIN_PASSWORD_LENGTH} characters"
+            )
+
+        return self._repository.update(
+            {
+                "id": str(credential["id"]),
+                "username": str(credential["username"]),
+                "password_hash": self._hash_password(password),
+            }
+        )
+
+    def _credential_for(self, username: Any) -> dict[str, Any] | None:
+        normalized_username = str(username).strip()
+        for credential in self._repository.list_all():
+            if str(credential["username"]) == normalized_username:
+                return credential
+        return None
+
+    @staticmethod
+    def _hash_password(password: str) -> str:
+        salt = secrets.token_bytes(PASSWORD_SALT_BYTES)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            PASSWORD_HASH_ITERATIONS,
+        )
+        return "$".join(
+            (
+                PASSWORD_HASH_ALGORITHM,
+                str(PASSWORD_HASH_ITERATIONS),
+                salt.hex(),
+                digest.hex(),
+            )
+        )
+
+    @staticmethod
+    def _verify_password(password: str, encoded_hash: str) -> bool:
+        try:
+            algorithm, iterations, salt, expected = encoded_hash.split("$", 3)
+            if algorithm != PASSWORD_HASH_ALGORITHM:
+                return False
+            digest = hashlib.pbkdf2_hmac(
+                "sha256",
+                password.encode("utf-8"),
+                bytes.fromhex(salt),
+                int(iterations),
+            ).hex()
+        except (TypeError, ValueError):
+            return False
+        return hmac.compare_digest(digest, expected)
 
 
 class ManualControlService:

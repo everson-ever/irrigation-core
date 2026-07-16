@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 
 from irrigation.application.services import (
+    AuthService,
     HistoryService,
     IrrigationController,
     ManualControlService,
@@ -1295,3 +1296,64 @@ def test_delete_without_valve_service_still_removes_record(tmp_path):
 
     assert deleted is True
     assert schedules.list_all() == []
+
+
+def test_auth_service_seeds_and_verifies_default_credentials(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+
+    service.ensure_default_credentials()
+
+    assert service.verify("admin", "10203040") is True
+    assert service.verify("admin", "wrong-password") is False
+    assert service.verify("other", "10203040") is False
+    assert repository.list_all()[0]["password_hash"] != "10203040"
+
+
+def test_auth_service_changes_password_without_reseeding(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+    service.ensure_default_credentials()
+    original_hash = repository.list_all()[0]["password_hash"]
+
+    service.change_password("admin", "10203040", "87654321")
+    service.ensure_default_credentials()
+
+    assert service.verify("admin", "10203040") is False
+    assert service.verify("admin", "87654321") is True
+    assert repository.list_all()[0]["password_hash"] != original_hash
+    assert len(repository.list_all()) == 1
+
+
+def test_auth_service_rejects_invalid_current_or_short_new_password(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+    service.ensure_default_credentials()
+    original_hash = repository.list_all()[0]["password_hash"]
+
+    with pytest.raises(ValidationError):
+        service.change_password("admin", "wrong-password", "87654321")
+    with pytest.raises(ValidationError):
+        service.change_password("admin", "10203040", "short")
+
+    assert repository.list_all()[0]["password_hash"] == original_hash
+
+
+def test_auth_service_hashes_same_password_with_different_salts(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+    service.ensure_default_credentials()
+
+    first_hash = repository.list_all()[0]["password_hash"]
+    service.change_password("admin", "10203040", "10203040")
+    second_hash = repository.list_all()[0]["password_hash"]
+
+    assert first_hash != second_hash

@@ -27,6 +27,8 @@ services:
       - /node-red-data
       - --flowFile
       - /app/node-red/flows.json
+      - --settings
+      - /app/node-red/settings.js
     depends_on:
       - scheduler
     environment:

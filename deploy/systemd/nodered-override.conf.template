@@ -1,3 +1,5 @@
 [Service]
 WorkingDirectory=__PROJECT_DIR__
 Environment="PATH=__BINARY_DIR__:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="IRRIGATION_BINARY=__BINARY_DIR__/irrigation"
+Environment="NODE_RED_OPTIONS=--settings __PROJECT_DIR__/node-red/settings.js"

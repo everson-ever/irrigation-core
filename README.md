@@ -152,6 +152,11 @@ In the Node-RED editor:
 3. confirm the deploy;
 4. open `http://RASPBERRY_IP:1880/ui`.
 
+The dashboard and Node-RED editor require authentication through
+[`node-red/settings.js`](node-red/settings.js). The default credentials are
+`admin` / `10203040`; change the password after the first login from
+**Configurações → Trocar senha**.
+
 The flow uses the binary installed at `/opt/irrigation/bin/irrigation`. Valves
 and settings are read through CLI commands; only the transient history-search
 snapshot is read directly from `data/`.
@@ -188,6 +193,7 @@ docker compose up --build
 ```
 
 Then open the Node-RED dashboard at `http://localhost:1880/ui`.
+Use the default credentials `admin` / `10203040` on first login.
 
 The Compose environment uses the mock GPIO driver and the repository `data/`
 directory, so it can run on a development machine without Raspberry Pi GPIO

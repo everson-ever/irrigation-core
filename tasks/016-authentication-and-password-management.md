@@ -356,3 +356,13 @@ The task is complete when:
   level needs to be decided during implementation and recorded here before
   coding the gating logic, since a purely client-side (Angular) gate would
   not actually prevent access to the underlying exec-backed data.
+- Implementation decision: use Node-RED's real HTTP authentication boundary
+  via `node-red/settings.js`, not dashboard-only hiding. The settings file
+  protects the editor/admin API through `adminAuth` and protects the
+  `node-red-dashboard` `/ui` route through `ui.middleware`; both call
+  `/opt/irrigation/bin/irrigation auth login ...`, so the dashboard uses the
+  same SQLite-backed PBKDF2 credential as the backend and password changes
+  take effect without rewriting Node-RED settings. This follows the
+  documented Node-RED model for custom editor authentication and dashboard
+  middleware, while avoiding static bcrypt values that would drift from the
+  SQLite credential.

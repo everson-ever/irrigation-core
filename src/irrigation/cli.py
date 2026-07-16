@@ -101,6 +101,23 @@ def _settings_command(app: Application, args: argparse.Namespace):
     return service.update_default_duration(args.value)
 
 
+def _auth_command(app: Application, args: argparse.Namespace):
+    service = app.auth()
+    if args.action == "login":
+        username, password = _csv(args.data, 2, "credentials")
+        return {"authenticated": service.verify(username, password)}
+
+    username, current_password, new_password, *confirmation = _csv(
+        args.data,
+        (3, 4),
+        "password change",
+    )
+    if confirmation and confirmation[0] != new_password:
+        raise ValueError("password confirmation does not match")
+    service.change_password(username, current_password, new_password)
+    return {"changed": True}
+
+
 def _history_command(app: Application, args: argparse.Namespace):
     action, start, end = _csv(args.data, 3, "history")
     history_service = app.history()
@@ -118,6 +135,7 @@ _COMMAND_HANDLERS = {
     "schedule": _schedule_command,
     "valve": _valve_command,
     "settings": _settings_command,
+    "auth": _auth_command,
     "history": _history_command,
 }
 
@@ -150,6 +168,15 @@ def create_parser() -> argparse.ArgumentParser:
 
     settings = subcommands.add_parser("settings")
     settings.add_argument("value", help="show or default duration in minutes")
+
+    auth = subcommands.add_parser("auth")
+    auth_actions = auth.add_subparsers(dest="action", required=True)
+    auth_login = auth_actions.add_parser("login")
+    auth_login.add_argument("data", help="username,password")
+    auth_change = auth_actions.add_parser("change-password")
+    auth_change.add_argument(
+        "data", help="username,current_password,new_password[,confirm_password]"
+    )
 
     history = subcommands.add_parser("history")
     history.add_argument("data", help="day,, or range,YYYY-MM-DD,YYYY-MM-DD")

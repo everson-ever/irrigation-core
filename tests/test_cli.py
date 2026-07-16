@@ -523,6 +523,42 @@ def test_settings_show_returns_current_database_row(capsys):
     assert output == {"id": "1", "default_duration_minutes": 5}
 
 
+def test_auth_login_uses_seeded_default_credentials(capsys):
+    exit_code = execute(["auth", "login", "admin,10203040"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output == {"authenticated": True}
+
+
+def test_auth_change_password_updates_login_credential(capsys):
+    change_exit_code = execute(["auth", "change-password", "admin,10203040,87654321"])
+    change_output = json.loads(capsys.readouterr().out)
+
+    old_exit_code = execute(["auth", "login", "admin,10203040"])
+    old_output = json.loads(capsys.readouterr().out)
+
+    new_exit_code = execute(["auth", "login", "admin,87654321"])
+    new_output = json.loads(capsys.readouterr().out)
+
+    assert change_exit_code == 0
+    assert change_output == {"changed": True}
+    assert old_exit_code == 0
+    assert old_output == {"authenticated": False}
+    assert new_exit_code == 0
+    assert new_output == {"authenticated": True}
+
+
+def test_auth_change_password_rejects_mismatched_confirmation(capsys):
+    exit_code = execute(
+        ["auth", "change-password", "admin,10203040,87654321,different"]
+    )
+    err = capsys.readouterr().err
+
+    assert exit_code == 2
+    assert "password confirmation does not match" in err
+
+
 def test_history_range_reads_database_and_refreshes_json_snapshot(capsys, tmp_path):
     records = [
         {

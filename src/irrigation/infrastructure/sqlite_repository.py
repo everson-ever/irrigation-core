@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS settings (
         CHECK (default_duration_minutes > 0)
 );
 
+CREATE TABLE IF NOT EXISTS credentials (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     valve TEXT NOT NULL,
@@ -60,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);
 _TABLE_COLUMNS = {
     "valves": ("pin", "section", "status", "manually_turned_off"),
     "settings": ("default_duration_minutes",),
+    "credentials": ("username", "password_hash"),
     "history": ("valve", "date", "start", "end", "weekday", "mode"),
 }
 

@@ -11,6 +11,7 @@ file needed to install it — **without the Python source code**.
 ├── deploy/systemd/                # systemd service templates
 ├── dist/irrigation                # Compiled binary (no Python required)
 ├── node-red/flows.json            # Node-RED dashboard/flow
+├── node-red/settings.js           # Node-RED authentication settings
 └── scripts/install-raspberry.sh   # Installer
 ```
 
@@ -39,8 +40,8 @@ file needed to install it — **without the Python source code**.
    - copies the binary to `/opt/irrigation/bin/irrigation`;
    - adds the user to the `gpio` group;
    - installs and starts the `irrigation.service` systemd service;
-   - configures the Node-RED service (`PATH` and working directory), if it
-     already exists on the system.
+   - configures the Node-RED service (`PATH`, working directory, and
+     `node-red/settings.js`), if it already exists on the system.
 
 3. If `node-red-dashboard` is not installed yet, run the following with the
    user that runs Node-RED:
@@ -56,12 +57,22 @@ file needed to install it — **without the Python source code**.
    - confirm the deploy;
    - open the dashboard at `http://<pi-ip>:1880/ui`.
 
+   The dashboard and Node-RED editor require authentication. The default
+   credentials are:
+
+   - username: `admin`
+   - password: `10203040`
+
+   Change this password after the first login from **Configurações → Trocar
+   senha**.
+
 ## Default data
 
 `data/irrigation.db` ships without installation-specific valve pins or history.
 It contains the normalized schema and a default manual watering duration of 5
-minutes. After wiring the system, add valves using physical pin numbering
-(`GPIO.BOARD`), for example:
+minutes. The default `admin` account is seeded automatically on first
+application start if the credentials table is empty. After wiring the system,
+add valves using physical pin numbering (`GPIO.BOARD`), for example:
 
 ```bash
 sqlite3 data/irrigation.db <<'SQL'
@@ -104,3 +115,8 @@ Set `IRRIGATION_PUMP_PIN` to the physical pin chosen for the pump relay; it is
 configured separately and must not be added to the `valves` table.
 
 Restart the service after editing the file.
+
+Node-RED must load `node-red/settings.js` for dashboard authentication to be
+active. The installer sets `NODE_RED_OPTIONS=--settings
+<project>/node-red/settings.js` for the packaged `nodered.service`; if your
+Node-RED installation uses a custom service, apply the same setting manually.

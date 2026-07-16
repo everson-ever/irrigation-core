@@ -1,0 +1,232 @@
+<style>
+:root {
+  --ir-green: #11877d;
+  --ir-green-dark: #0d756c;
+  --ir-ink: #071a18;
+  --ir-muted: #6c7476;
+  --ir-line: #e1e5e5;
+  --ir-panel: #f8fafb;
+  --ir-danger: #ef4545;
+}
+
+body.nr-dashboard-theme {
+  background: #edf1f3 !important;
+  color: var(--ir-ink);
+  font-family: Inter, Roboto, Arial, sans-serif;
+}
+
+.nr-dashboard-theme md-card.nr-dashboard-template {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.ir-settings-card, .ir-settings-card * { box-sizing: border-box !important; }
+.ir-settings-card {
+  max-width: 640px;
+  margin: 28px auto;
+  padding: 28px;
+  border: 1px solid var(--ir-line);
+  border-radius: 14px;
+  background: #fff;
+}
+.ir-settings-eyebrow {
+  margin: 0 0 6px;
+  color: var(--ir-green);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.ir-settings-title {
+  margin: 0;
+  color: var(--ir-ink);
+  font-size: 27px;
+  font-weight: 850;
+}
+.ir-settings-help {
+  margin: 8px 0 22px;
+  color: var(--ir-muted);
+  font-size: 14px;
+}
+.ir-settings-grid {
+  display: grid;
+  gap: 14px;
+}
+.ir-settings-field {
+  display: grid;
+  gap: 7px;
+}
+.ir-settings-field span {
+  color: #273331;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ir-settings-field input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  padding: 0 12px;
+  outline: 0;
+  color: var(--ir-ink);
+  font-size: 14px;
+}
+.ir-settings-field input:focus {
+  border-color: var(--ir-green);
+  box-shadow: 0 0 0 3px rgba(17, 135, 125, .1);
+}
+.ir-settings-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 18px;
+  background: var(--ir-green);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+.ir-settings-button:hover { background: var(--ir-green-dark); }
+.ir-settings-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+.ir-settings-feedback {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 750;
+}
+.ir-settings-feedback.is-success {
+  border: 1px solid #ccece2;
+  background: #edf9f5;
+  color: var(--ir-green-dark);
+}
+.ir-settings-feedback.is-error {
+  border: 1px solid #ffd1d1;
+  background: #fff0f0;
+  color: #c92f2f;
+}
+.ir-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.ir-settings-nav a, .ir-settings-nav span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  border-radius: 9px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.ir-settings-nav a {
+  border: 1px solid #d9dede;
+  background: #fff;
+  color: #182321;
+}
+.ir-settings-nav span {
+  background: var(--ir-green);
+  color: #fff;
+}
+</style>
+
+<section class="ir-settings-card">
+  <nav class="ir-settings-nav" aria-label="Navegação principal">
+    <a href="#!/0">Agendamentos</a>
+    <a href="#!/1">Novo agendamento</a>
+    <a href="#!/2">Histórico</a>
+    <span>Configurações</span>
+  </nav>
+
+  <p class="ir-settings-eyebrow">Segurança</p>
+  <h1 class="ir-settings-title">Trocar senha</h1>
+  <p class="ir-settings-help">Use a senha atual para definir uma nova senha de acesso ao painel.</p>
+
+  <form class="ir-settings-grid" ng-submit="submitPasswordChange($event)" autocomplete="off">
+    <label class="ir-settings-field">
+      <span>Senha atual</span>
+      <input type="password" ng-model="password_form.current" required>
+    </label>
+    <label class="ir-settings-field">
+      <span>Nova senha</span>
+      <input type="password" ng-model="password_form.next" minlength="8" required>
+    </label>
+    <label class="ir-settings-field">
+      <span>Confirmar nova senha</span>
+      <input type="password" ng-model="password_form.confirm" minlength="8" required>
+    </label>
+    <button class="ir-settings-button" type="submit" ng-disabled="password_state.submitting">
+      {{ password_state.submitting ? "Alterando senha..." : "Salvar nova senha" }}
+    </button>
+  </form>
+
+  <div class="ir-settings-feedback" ng-if="password_feedback" ng-class="password_feedback_class">
+    {{ password_feedback }}
+  </div>
+</section>
+
+<script>
+(function(scope) {
+  scope.password_form = scope.password_form || { current: "", next: "", confirm: "" };
+  scope.password_state = scope.password_state || { submitting: false };
+  scope.password_feedback = scope.password_feedback || "";
+  scope.password_feedback_class = scope.password_feedback_class || "is-success";
+
+  function showFeedback(message, cssClass) {
+    scope.password_feedback = message;
+    scope.password_feedback_class = cssClass;
+    scope.password_state.submitting = false;
+  }
+
+  scope.submitPasswordChange = function(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
+    scope.password_feedback = "";
+    if (!scope.password_form.next || scope.password_form.next.length < 8) {
+      showFeedback("A nova senha deve ter pelo menos 8 caracteres.", "is-error");
+      return;
+    }
+    if (scope.password_form.next !== scope.password_form.confirm) {
+      showFeedback("A confirmação da senha não confere.", "is-error");
+      return;
+    }
+    scope.password_state.submitting = true;
+    scope.send({
+      payload: {
+        ui_action: "change_password",
+        username: "admin",
+        current_password: scope.password_form.current,
+        new_password: scope.password_form.next,
+        confirm_password: scope.password_form.confirm
+      }
+    });
+  };
+
+  scope.$watch("msg", function(msg) {
+    if (!msg || !msg.topic) {
+      return;
+    }
+    if (msg.topic === "password_changed") {
+      scope.password_form = { current: "", next: "", confirm: "" };
+      showFeedback("Senha alterada. Entrando novamente com a nova senha...", "is-success");
+      setTimeout(function() {
+        window.location.href = "/ui/logout";
+      }, 900);
+    }
+    if (msg.topic === "password_change_error") {
+      showFeedback(msg.payload || "Não foi possível alterar a senha.", "is-error");
+    }
+  });
+})(scope);
+</script>
