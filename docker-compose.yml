@@ -22,13 +22,14 @@ services:
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     working_dir: /app
     command:
-      - node-red
-      - --userDir
-      - /node-red-data
-      - --flowFile
-      - /app/node-red/flows.json
-      - --settings
-      - /app/node-red/settings.js
+      - sh
+      - -c
+      - >
+        python3 scripts/sync_flows_templates.py &&
+        exec node-red
+        --userDir /node-red-data
+        --flowFile /app/node-red/flows.json
+        --settings /app/node-red/settings.js
     depends_on:
       - scheduler
     environment:

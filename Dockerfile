@@ -21,6 +21,7 @@ RUN apt-get update \
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY scripts ./scripts
 RUN pip install --no-cache-dir -e '.[dev]'
 
 # Keep the same executable path used by the Node-RED flow on Raspberry Pi.

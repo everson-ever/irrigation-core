@@ -37,6 +37,7 @@ PACKAGE_DIR="${PROJECT_DIR}/dist/${PACKAGE_NAME}"
 
 rm -rf "${PACKAGE_DIR}" "${PROJECT_DIR}/dist/${PACKAGE_NAME}.zip"
 mkdir -p "${PACKAGE_DIR}/dist" "${PACKAGE_DIR}/scripts" "${PACKAGE_DIR}/deploy"
+"${VENV}/bin/python" "${PROJECT_DIR}/scripts/sync_flows_templates.py"
 cp "${PROJECT_DIR}/dist/irrigation" "${PACKAGE_DIR}/dist/irrigation"
 cp -r "${PROJECT_DIR}/deploy/data-defaults" "${PACKAGE_DIR}/data"
 cp -r "${PROJECT_DIR}/deploy/systemd" "${PACKAGE_DIR}/deploy/systemd"

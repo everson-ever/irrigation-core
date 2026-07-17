@@ -191,9 +191,7 @@ def create_parser() -> argparse.ArgumentParser:
     valve = subcommands.add_parser("valve")
     valve.add_argument(
         "data",
-        help=(
-            "list, add, update, delete, or pin,on|off[,minutes][,schedule_id]"
-        ),
+        help=("list, add, update, delete, or pin,on|off[,minutes][,schedule_id]"),
     )
     valve.add_argument(
         "action_data",

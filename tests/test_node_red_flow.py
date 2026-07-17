@@ -1,7 +1,12 @@
+import importlib.util
 import json
 from pathlib import Path
 
 FLOW_PATH = Path(__file__).resolve().parents[1] / "node-red" / "flows.json"
+TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "node-red" / "templates"
+SYNC_SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "sync_flows_templates.py"
+)
 SETTINGS_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[1]
     / "node-red"
@@ -10,8 +15,84 @@ SETTINGS_TEMPLATE_PATH = (
 )
 
 
+def load_sync_module():
+    spec = importlib.util.spec_from_file_location(
+        "sync_flows_templates", SYNC_SCRIPT_PATH
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_nodes():
     return {node["id"]: node for node in json.loads(FLOW_PATH.read_text())}
+
+
+def test_ui_template_formats_are_synced_from_template_files():
+    sync = load_sync_module()
+
+    assert sync.synced_flows_text(FLOW_PATH, TEMPLATES_DIR) == FLOW_PATH.read_text()
+
+
+def test_ui_template_sync_replaces_only_mapped_format_fields():
+    sync = load_sync_module()
+    flows = json.loads(FLOW_PATH.read_text())
+    original = json.loads(FLOW_PATH.read_text())
+
+    node = next(item for item in flows if item["id"] == "25072c26.808454")
+    node["format"] = "stale html"
+    sync.apply_template_sync(flows, TEMPLATES_DIR)
+
+    mapping = sync.TEMPLATE_BY_NODE_ID
+    for before, after in zip(original, flows, strict=True):
+        if before["id"] in mapping:
+            expected_template = (TEMPLATES_DIR / mapping[before["id"]]).read_text()
+            assert after["format"] == expected_template
+
+            before_without_format = dict(before)
+            after_without_format = dict(after)
+            before_without_format.pop("format")
+            after_without_format.pop("format")
+            assert after_without_format == before_without_format
+        else:
+            assert after == before
+
+
+def test_ui_template_sync_fails_when_template_file_is_missing(tmp_path):
+    sync = load_sync_module()
+    flows = json.loads(FLOW_PATH.read_text())
+
+    try:
+        sync.apply_template_sync(
+            flows,
+            tmp_path,
+            {"25072c26.808454": "missing.html"},
+        )
+    except sync.SyncError as exc:
+        assert "template file not found" in str(exc)
+    else:
+        raise AssertionError("expected SyncError")
+
+
+def test_ui_template_sync_fails_when_mapped_node_is_missing():
+    sync = load_sync_module()
+    flows = [
+        node
+        for node in json.loads(FLOW_PATH.read_text())
+        if node["id"] != "25072c26.808454"
+    ]
+
+    try:
+        sync.apply_template_sync(
+            flows,
+            TEMPLATES_DIR,
+            {"25072c26.808454": "agendamentos.html"},
+        )
+    except sync.SyncError as exc:
+        assert "ui_template node(s) not found" in str(exc)
+    else:
+        raise AssertionError("expected SyncError")
 
 
 def test_dashboard_menu_order_and_history_label():
@@ -77,8 +158,7 @@ def test_settings_dashboard_removes_default_duration_widgets():
         for node in nodes.values()
     )
     assert all(
-        node.get("label") != "Tempo padrão para desligar"
-        for node in nodes.values()
+        node.get("label") != "Tempo padrão para desligar" for node in nodes.values()
     )
     assert all(
         node.get("command") != "/opt/irrigation/bin/irrigation settings show"
@@ -122,13 +202,13 @@ def test_settings_template_preserves_password_change_contract_and_mirror():
     assert 'class="ir-config-menu"' in settings_template
     assert 'class="ir-config-menu-button"' in settings_template
     assert 'class="ir-config-panel"' in settings_template
-    assert "scope.active_config_section = scope.active_config_section || \"\"" in (
+    assert 'scope.active_config_section = scope.active_config_section || ""' in (
         settings_template
     )
     assert "scope.selectConfigSection = function(section)" in settings_template
     assert "scope.isConfigSectionActive = function(section)" in settings_template
     assert "ng-click=\"selectConfigSection('password')\"" in settings_template
-    assert "ng-if=\"!active_config_section\"" in settings_template
+    assert 'ng-if="!active_config_section"' in settings_template
     assert "ng-if=\"isConfigSectionActive('password')\"" in settings_template
     assert 'id="password-section-title">Senha</h2>' in settings_template
     assert 'class="ir-section-card"' in settings_template
@@ -534,8 +614,9 @@ def test_settings_tab_has_password_change_flow():
 
     assert settings_template["group"] == "a4c9b2e1.7d5f3a"
     assert "Trocar senha" in settings_template["format"]
-    assert 'href="#!/0" ng-click="navigateToTab(0, $event)"' in (
-        settings_template["format"]
+    assert (
+        'href="#!/0" ng-click="navigateToTab(0, $event)"'
+        in (settings_template["format"])
     )
     assert "submitPasswordChange" in settings_template["format"]
     assert 'window.location.href = "/ui/logout"' in settings_template["format"]

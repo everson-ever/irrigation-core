@@ -10,7 +10,7 @@ file needed to install it — **without the Python source code**.
 ├── data/                          # SQLite database and search snapshot
 ├── deploy/systemd/                # systemd service templates
 ├── dist/irrigation                # Compiled binary (no Python required)
-├── node-red/flows.json            # Node-RED dashboard/flow
+├── node-red/flows.json            # Node-RED dashboard/flow, synced at package build time
 ├── node-red/settings.js           # Node-RED authentication settings
 └── scripts/install-raspberry.sh   # Installer
 ```

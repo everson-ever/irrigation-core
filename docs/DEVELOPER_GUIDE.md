@@ -390,6 +390,19 @@ keep the JSON output stable.
   here (the template only formats and does the client-side countdown).
 - **`settings.js`** — Node-RED runtime configuration (HTTP auth, etc.).
 
+The HTML files in `node-red/templates/` are the source of truth for dashboard
+screens. `node-red/flows.json` still contains the embedded `ui_template.format`
+strings because Node-RED imports them from that file, but those strings are
+generated. After editing a template, run:
+
+```bash
+python3 scripts/sync_flows_templates.py
+```
+
+Docker Compose runs this sync automatically before starting Node-RED, and
+`scripts/build-binary.sh` runs it before packaging `node-red/` for the Raspberry
+Pi. CI also checks that committed `flows.json` is already in sync.
+
 Rule: **no business logic in Node-RED.** It is a thin shell that calls the CLI.
 If you need new logic, it goes into a service and is exposed by a command.
 
@@ -473,8 +486,8 @@ Tests use `MockGPIO` and a fixed `Clock` (never real hardware nor an uncontrolle
 6. **Exposure** → a new subcommand in `cli.py` (follow the `_..._command` +
    `_COMMAND_HANDLERS` + `create_parser` pattern) returning stable JSON.
 7. **Dashboard** → if it is user-facing, add `exec`/`inject` nodes in
-   `node-red/flows.json` and adjust the templates. No business logic in the
-   frontend.
+   `node-red/flows.json`, edit the HTML in `node-red/templates/`, and run
+   `python3 scripts/sync_flows_templates.py`. No business logic in the frontend.
 8. **Tests** → cover the domain (`test_models`), use case (`test_services`), CLI
    (`test_cli`) and, if you touched the dashboard, `test_node_red_flow`. Use
    `MockGPIO` and a fixed `Clock`.
