@@ -192,6 +192,36 @@ body.nr-dashboard-theme {
 .ir-empty svg { width: 38px; height: 38px; color: var(--ir-green); }
 .ir-empty h2 { margin: 12px 0 0; color: var(--ir-ink) !important; font-size: 18px; }
 .ir-empty p { margin: 7px 0 0; color: var(--ir-muted) !important; font-size: 13px; }
+.ir-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+.ir-pagination-status {
+  color: var(--ir-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+.ir-pagination-button {
+  display: inline-flex;
+  height: 34px;
+  min-width: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9dede;
+  border-radius: 9px;
+  padding: 0 11px;
+  background: #fff;
+  color: #172321;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+.ir-pagination-button:hover:not(:disabled) { border-color: var(--ir-green); color: var(--ir-green-dark); }
+.ir-pagination-button:disabled { cursor: not-allowed; opacity: .45; }
 
 @media (max-width: 1050px) {
   .ir-content { padding-right: 24px; padding-left: 24px; }
@@ -220,6 +250,7 @@ body.nr-dashboard-theme {
   .ir-filter-card { grid-template-columns: 1fr; padding: 14px; }
   .ir-actions { grid-column: auto; display: grid; grid-template-columns: 1fr 1fr; }
   .ir-actions button { width: 100%; }
+  .ir-pagination { justify-content: center; }
   .ir-table-wrap { overflow: visible; border: 0; background: transparent; }
   .ir-table { min-width: 0; }
   .ir-table thead { display: none; }
@@ -302,7 +333,7 @@ body.nr-dashboard-theme {
           <colgroup><col style="width:25%"><col style="width:15%"><col style="width:10%"><col style="width:10%"><col style="width:12%"><col style="width:13%"><col style="width:15%"></colgroup>
           <thead><tr><th>Seção / válvula</th><th>Data</th><th>Início</th><th>Fim</th><th>Duração</th><th>Dia</th><th>Modo</th></tr></thead>
           <tbody>
-            <tr ng-repeat="log in visibleHistory() track by (log.id || $index)">
+            <tr ng-repeat="log in pagedHistory() track by (log.id || $index)">
               <td data-label="Válvula"><div class="ir-valve"><span class="ir-valve-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span><strong>{{ log.valve }}</strong></div></td>
               <td data-label="Data"><span class="ir-date">{{ formatDate(log.date) }}</span><span class="ir-date-note">{{ relativeDate(log.date) }}</span></td>
               <td data-label="Início"><span class="ir-time">{{ log.start }}</span></td>
@@ -314,6 +345,12 @@ body.nr-dashboard-theme {
           </tbody>
         </table>
       </div>
+
+      <nav class="ir-pagination" ng-if="history_records.length > 0 && visibleHistory().length > 0 && totalPages() > 1" aria-label="Paginação do histórico">
+        <button type="button" class="ir-pagination-button" ng-click="previousPage()" ng-disabled="history_page <= 1">Anterior</button>
+        <span class="ir-pagination-status">Página {{ currentPage() }} de {{ totalPages() }}</span>
+        <button type="button" class="ir-pagination-button" ng-click="nextPage()" ng-disabled="history_page >= totalPages()">Próxima</button>
+      </nav>
 
       <div class="ir-empty" ng-if="history_records.length === 0 || visibleHistory().length === 0">
         <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><h2>Nenhum histórico encontrado</h2><p>Altere o período ou a busca para consultar outros acionamentos.</p></div>
@@ -328,6 +365,9 @@ body.nr-dashboard-theme {
   scope.end_date = scope.end_date || "";
   scope.history_query = scope.history_query || "";
   scope.history_records = scope.history_records || [];
+  scope.history_page = scope.history_page || 1;
+  scope.history_page_size = 10;
+  scope.history_request_pending = false;
   scope.filter_description = scope.filter_description || "período atual";
   scope.system_status = scope.system_status || { status: "reconnecting", label: "Verificando sistema" };
   scope.system_status_timeout_ms = 25000;
@@ -338,7 +378,15 @@ body.nr-dashboard-theme {
       scope.applySystemHealth(msg.payload);
       return;
     }
-    if (msg && Array.isArray(msg.payload)) scope.history_records = msg.payload;
+    if (msg && Array.isArray(msg.payload) && scope.history_request_pending) {
+      scope.history_request_pending = false;
+      scope.history_records = msg.payload;
+      scope.resetHistoryPage();
+    }
+  });
+
+  scope.$watch("history_query", function(newValue, oldValue) {
+    if (newValue !== oldValue) scope.resetHistoryPage();
   });
 
   scope.navigateToTab = function(index, event) {
@@ -380,15 +428,39 @@ body.nr-dashboard-theme {
     var input = document.getElementById(id);
     return input ? input.value : "";
   };
+  scope.localDateValue = function(date) {
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+  };
+  scope.setDateInput = function(id, value) {
+    var input = document.getElementById(id);
+    if (input) input.value = value;
+  };
+  scope.setTodayFilterState = function() {
+    var now = new Date();
+    var today = scope.localDateValue(now);
+    var todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    scope.start_date = todayDate;
+    scope.end_date = todayDate;
+    scope.setDateInput("start_date", today);
+    scope.setDateInput("end_date", today);
+    scope.filter_description = "registros de hoje";
+  };
   scope.historyRange = function() { return { action: "range", start_date: scope.inputValue("start_date"), end_date: scope.inputValue("end_date") }; };
   scope.historyDay = function() { return { action: "day" }; };
+  scope.resetHistoryPage = function() { scope.history_page = 1; };
+  scope.sendHistoryRequest = function(payload) {
+    scope.history_request_pending = true;
+    scope.send({ payload: payload });
+  };
   scope.filterRange = function() {
+    scope.resetHistoryPage();
     scope.filter_description = scope.inputValue("start_date") && scope.inputValue("end_date") ? "período selecionado" : "todos os registros";
-    scope.send({ payload: scope.historyRange() });
+    scope.sendHistoryRequest(scope.historyRange());
   };
   scope.filterToday = function() {
-    scope.filter_description = "registros de hoje";
-    scope.send({ payload: scope.historyDay() });
+    scope.resetHistoryPage();
+    scope.setTodayFilterState();
+    scope.sendHistoryRequest(scope.historyDay());
   };
   scope.isAutomatic = function(log) { return String(log && log.mode || "").toLowerCase().indexOf("automatic") !== -1; };
   scope.automaticCount = function() { return scope.history_records.filter(scope.isAutomatic).length; };
@@ -427,5 +499,32 @@ body.nr-dashboard-theme {
       return (String(log.valve || "") + " " + String(log.mode || "") + " " + scope.translateWeekday(log.weekday)).toLowerCase().indexOf(query) !== -1;
     });
   };
+  scope.totalPages = function() {
+    return Math.max(1, Math.ceil(scope.visibleHistory().length / scope.history_page_size));
+  };
+  scope.currentPage = function() {
+    var page = parseInt(scope.history_page, 10) || 1;
+    return Math.min(Math.max(page, 1), scope.totalPages());
+  };
+  scope.pagedHistory = function() {
+    var records = scope.visibleHistory();
+    var page = scope.currentPage();
+    var start = (page - 1) * scope.history_page_size;
+    return records.slice(start, start + scope.history_page_size);
+  };
+  scope.previousPage = function() {
+    scope.history_page = Math.max(1, scope.currentPage() - 1);
+  };
+  scope.nextPage = function() {
+    scope.history_page = Math.min(scope.totalPages(), scope.currentPage() + 1);
+  };
+  if (!scope.history_initial_today_loaded) {
+    scope.history_initial_today_loaded = true;
+    setTimeout(function() {
+      scope.$applyAsync(function() {
+        scope.filterToday();
+      });
+    }, 0);
+  }
 })(scope);
 </script>
