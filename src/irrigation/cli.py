@@ -70,8 +70,20 @@ def _schedule_command(app: Application, args: argparse.Namespace):
 
 
 def _valve_command(app: Application, args: argparse.Namespace):
-    if args.data == "list":
-        return [valve.to_dict() for valve in app.valves().list_all()]
+    action = args.data
+    valves = app.valves()
+    action_data = " ".join(args.action_data or [])
+    if action == "list":
+        return [valve.to_dict() for valve in valves.list_all()]
+    if action == "add":
+        pin, section = _csv(action_data, 2, "valve")
+        return valves.add(pin, section).to_dict()
+    if action == "update":
+        valve_id, pin, section = _csv(action_data, 3, "valve update")
+        return valves.update(valve_id, pin, section).to_dict()
+    if action == "delete":
+        return {"deleted": valves.remove(action_data, app.schedules())}
+
     valve_data = [part.strip() for part in args.data.split(",")]
     if len(valve_data) not in (2, 3, 4):
         raise ValueError("valve must contain 2 to 4 comma-separated fields")
@@ -177,7 +189,17 @@ def create_parser() -> argparse.ArgumentParser:
     enabled.add_argument("data", help="id,0|1")
 
     valve = subcommands.add_parser("valve")
-    valve.add_argument("data", help="list or pin,on|off[,minutes][,schedule_id]")
+    valve.add_argument(
+        "data",
+        help=(
+            "list, add, update, delete, or pin,on|off[,minutes][,schedule_id]"
+        ),
+    )
+    valve.add_argument(
+        "action_data",
+        nargs="*",
+        help="add: pin,section; update: id,pin,section; delete: id",
+    )
     valve.add_argument(
         "--no-wait",
         action="store_true",

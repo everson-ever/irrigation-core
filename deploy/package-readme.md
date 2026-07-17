@@ -72,13 +72,12 @@ file needed to install it — **without the Python source code**.
 It contains the normalized schema and a default manual watering duration of 5
 minutes. The default `admin` account is seeded automatically on first
 application start if the credentials table is empty. After wiring the system,
-add valves using physical pin numbering (`GPIO.BOARD`), for example:
+add valves from the dashboard in `Configurações > Seções`, using physical pin
+numbering (`GPIO.BOARD`). You can also use the CLI:
 
 ```bash
-sqlite3 data/irrigation.db <<'SQL'
-INSERT INTO valves (pin, section) VALUES (13, 'Front garden');
-INSERT INTO valves (pin, section) VALUES (11, 'Back garden');
-SQL
+irrigation valve add "13,Front garden"
+irrigation valve add "11,Back garden"
 ```
 
 These pin numbers are only examples. Replace them with the physical pins used

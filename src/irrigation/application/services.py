@@ -175,6 +175,9 @@ class ScheduleService:
 
 
 class ValveService:
+    DUPLICATE_PIN_MESSAGE = "This GPIO pin is already registered for another section"
+    VALVE_IN_USE_MESSAGE = "This valve/section is still used by a schedule"
+
     def __init__(self, repository: Repository, gpio: GpioController) -> None:
         self._repository = repository
         self._gpio = gpio
@@ -190,6 +193,47 @@ class ValveService:
 
     def list_all(self) -> list[Valve]:
         return [Valve.from_dict(item) for item in self._repository.list_all()]
+
+    def add(self, pin: Any, section: Any) -> Valve:
+        valve = self._build_valve("", pin, section)
+        self._reject_duplicate_pin(valve.pin)
+        created = Valve.from_dict(self._repository.add(valve.to_dict()))
+        self._configured = False
+        return created
+
+    def update(self, valve_id: str, pin: Any, section: Any) -> Valve:
+        current = self.get(valve_id)
+        edited = self._build_valve(current.id, pin, section, current)
+        self._reject_duplicate_pin(edited.pin, exclude_id=edited.id)
+        if current.status and current.pin != edited.pin:
+            self.turn_off(current.pin)
+            edited = replace(edited, status=False, manually_turned_off=False)
+        updated = Valve.from_dict(self._repository.update(edited.to_dict()))
+        self._configured = False
+        return updated
+
+    def remove(self, valve_id: str, schedules: ScheduleService) -> bool:
+        valve_id = str(valve_id).strip()
+        if not valve_id:
+            raise ValidationError("valve id is required")
+        existing = self._repository.find_by_id(valve_id)
+        if existing is None:
+            return False
+        valve = Valve.from_dict(existing)
+        if any(schedule.valve_pin == valve.pin for schedule in schedules.list_all()):
+            raise ValidationError(self.VALVE_IN_USE_MESSAGE)
+        if valve.status:
+            self.turn_off(valve.pin)
+        deleted = self._repository.delete([valve_id])
+        if deleted:
+            self._configured = False
+        return deleted
+
+    def get(self, record_id: str) -> Valve:
+        data = self._repository.find_by_id(str(record_id).strip())
+        if data is None:
+            raise RecordNotFoundError(f"valve {record_id} not found")
+        return Valve.from_dict(data)
 
     def get_by_pin(self, pin: int) -> Valve:
         for valve in self.list_all():
@@ -251,6 +295,39 @@ class ValveService:
 
     def _save(self, valve: Valve) -> dict[str, Any]:
         return self._repository.update(valve.to_dict())
+
+    def _build_valve(
+        self,
+        valve_id: str,
+        pin: Any,
+        section: Any,
+        current: Valve | None = None,
+    ) -> Valve:
+        section_name = str(section).strip()
+        if not section_name:
+            raise ValidationError("section name is required")
+        return Valve.from_dict(
+            {
+                "id": valve_id,
+                "pin": pin,
+                "section": section_name,
+                "status": int(current.status) if current is not None else 0,
+                "manually_turned_off": (
+                    int(current.manually_turned_off) if current is not None else 0
+                ),
+            }
+        )
+
+    def _reject_duplicate_pin(
+        self,
+        pin: int,
+        exclude_id: str | None = None,
+    ) -> None:
+        for valve in self.list_all():
+            if exclude_id is not None and valve.id == exclude_id:
+                continue
+            if valve.pin == pin:
+                raise ValidationError(self.DUPLICATE_PIN_MESSAGE)
 
 
 class HistoryService:

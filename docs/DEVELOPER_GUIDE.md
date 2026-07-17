@@ -359,6 +359,9 @@ consumes):
 | `schedule delete <id>` | Removes; turns off the valve if it becomes orphaned. | `{deleted: bool}` |
 | `schedule enabled` | `data = "id,0\|1"` | updated schedule |
 | `valve list` | List valves. | array of valves |
+| `valve add` | `data = "pin,section"` | created valve |
+| `valve update` | `data = "id,pin,section"` | updated valve |
+| `valve delete <id>` | Removes an unused valve. | `{deleted: bool}` |
 | `valve "pin,on[,minutes][,schedule_id]"` | Manual on (accepts `--no-wait`). | `{changed: bool}` |
 | `valve "pin,off[,schedule_id]"` | Manual off. | `{changed: bool}` |
 | `settings show` | Default duration. | `{id, default_duration_minutes}` |
@@ -419,7 +422,8 @@ IRRIGATION_GPIO_DRIVER=mock irrigation schedule list  # CLI
 - `deploy/systemd/irrigation.service.template` — daemon service.
 - `deploy/systemd/nodered-override.conf.template` — Node-RED override.
 - Installs with `RPi.GPIO` (`pip install ".[raspberry]"`), `driver=rpi`.
-- After wiring, register the valves: `INSERT INTO valves (pin, section) VALUES (...)`.
+- After wiring, register valves from `Configurações > Seções` or with
+  `irrigation valve add "pin,section"`.
 
 ---
 

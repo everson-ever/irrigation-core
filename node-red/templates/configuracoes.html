@@ -40,15 +40,20 @@ body.nr-dashboard-theme {
 .nr-dashboard-theme .nr-dashboard-template .ir-shell h1,
 .nr-dashboard-theme .nr-dashboard-template .ir-shell h2,
 .nr-dashboard-theme .nr-dashboard-template .ir-shell h3,
-.nr-dashboard-theme .nr-dashboard-template .ir-shell h4 { background-color: transparent !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-shell h4,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal p,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal h2 { background-color: transparent !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-shell svg path,
 .nr-dashboard-theme .nr-dashboard-template .ir-shell svg circle,
-.nr-dashboard-theme .nr-dashboard-template .ir-shell svg rect { fill: none !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-shell svg rect,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal svg path { fill: none !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-eyebrow { color: var(--ir-green) !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-title,
-.nr-dashboard-theme .nr-dashboard-template .ir-card-title { color: var(--ir-ink) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-card-title,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal-title { color: var(--ir-ink) !important; }
 .nr-dashboard-theme .nr-dashboard-template .ir-subtitle,
-.nr-dashboard-theme .nr-dashboard-template .ir-card-text { color: var(--ir-muted) !important; }
+.nr-dashboard-theme .nr-dashboard-template .ir-card-text,
+.nr-dashboard-theme .nr-dashboard-template .ir-modal-text { color: var(--ir-muted) !important; }
 
 .ir-shell, .ir-shell * { box-sizing: border-box !important; }
 .ir-shell {
@@ -264,6 +269,88 @@ body.nr-dashboard-theme {
 }
 .ir-feedback.is-success { border: 1px solid #ccece2; background: #edf9f5; color: var(--ir-green-dark); }
 .ir-feedback.is-error { border: 1px solid #ffd1d1; background: #fff0f0; color: #c92f2f; }
+.ir-valve-list { display: grid; gap: 10px; margin: 0 0 24px; }
+.ir-valve-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 86px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--ir-line);
+  border-radius: 11px;
+  background: #fbfcfc;
+}
+.ir-valve-row strong { display: block; color: var(--ir-ink); font-size: 14px; }
+.ir-valve-row span { display: block; margin-top: 3px; color: var(--ir-muted); font-size: 12px; }
+.ir-valve-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.ir-secondary-button,
+.ir-danger-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ir-secondary-button { background: #eef2f2; color: #16211f; }
+.ir-danger-button { background: #ffe9e9; color: #d93636; }
+.ir-secondary-button:disabled,
+.ir-danger-button:disabled { cursor: not-allowed; opacity: .48; }
+.ir-empty-inline {
+  margin: 0 0 24px;
+  padding: 16px;
+  border: 1px dashed #cfd6d5;
+  border-radius: 11px;
+  color: var(--ir-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.ir-form-split {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 14px;
+}
+.ir-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 20, 18, .48);
+  backdrop-filter: blur(3px);
+}
+.ir-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border: 1px solid var(--ir-line);
+  border-radius: 15px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(5, 25, 22, .22);
+}
+.ir-modal.is-small { width: min(430px, 100%); }
+.ir-modal-title { margin: 0; color: var(--ir-ink) !important; font-size: 23px; line-height: 1.15; }
+.ir-modal-text { margin: 8px 0 20px; color: var(--ir-muted) !important; font-size: 13px; line-height: 1.5; }
+.ir-modal-warning {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #ffc9a8;
+  border-radius: 10px;
+  background: #fff4ec;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.ir-modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.ir-modal-actions .ir-secondary-button { margin-left: 0; }
 
 @media (max-width: 1050px) {
   .ir-content { padding-right: 24px; padding-left: 24px; }
@@ -309,6 +396,12 @@ body.nr-dashboard-theme {
   .ir-config-sections { margin-top: 22px; }
   .ir-config-section-head { padding: 18px; }
   .ir-section-card { padding: 18px; }
+  .ir-valve-row { grid-template-columns: 1fr; }
+  .ir-valve-actions { justify-content: flex-start; }
+  .ir-form-split { grid-template-columns: 1fr; }
+  .ir-modal { padding: 20px 16px; }
+  .ir-modal-actions { display: grid; grid-template-columns: 1fr; }
+  .ir-modal-actions button { width: 100%; }
 }
 </style>
 
@@ -365,6 +458,10 @@ body.nr-dashboard-theme {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
               Senha
             </button>
+            <button class="ir-config-menu-button" type="button" ng-class="{'is-active': isConfigSectionActive('valves')}" ng-click="selectConfigSection('valves')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h16"/><path d="M7 20V8l5-4 5 4v12"/><path d="M9 13h6"/></svg>
+              Seções
+            </button>
           </nav>
         </aside>
 
@@ -416,11 +513,86 @@ body.nr-dashboard-theme {
               </div>
             </div>
           </div>
+
+          <div ng-if="isConfigSectionActive('valves')" aria-labelledby="valves-section-title">
+            <div class="ir-config-section-head">
+              <span class="ir-section-number">02</span>
+              <div>
+                <h2 class="ir-section-title" id="valves-section-title">Seções</h2>
+                <p class="ir-section-description">Cadastre e gerencie os nomes das seções e seus pinos GPIO.</p>
+              </div>
+            </div>
+
+            <div class="ir-section-card" aria-labelledby="valves-list-title">
+              <div class="ir-section-head">
+                <p class="ir-eyebrow">Válvulas</p>
+                <h3 class="ir-card-title" id="valves-list-title">Seções cadastradas</h3>
+                <p class="ir-card-text">As alterações aparecem automaticamente nos seletores de agendamento.</p>
+              </div>
+
+              <div class="ir-empty-inline" ng-if="valves.length === 0">Nenhuma seção cadastrada.</div>
+              <div class="ir-valve-list" ng-if="valves.length > 0">
+                <div class="ir-valve-row" ng-repeat="valve in valves track by valve.id">
+                  <div>
+                    <strong>{{ valve.section }}</strong>
+                    <span>Pino GPIO {{ valve.pin }}</span>
+                  </div>
+                  <span>ID {{ valve.id }}</span>
+                  <div class="ir-valve-actions">
+                    <button class="ir-secondary-button" type="button" ng-click="startValveEdit(valve)" ng-disabled="valve_state.submitting">Editar</button>
+                    <button class="ir-danger-button" type="button" ng-click="openValveDeleteConfirmation(valve)" ng-disabled="valve_state.deleting_id === valve.id">
+                      {{ valve_state.deleting_id === valve.id ? "Excluindo..." : "Excluir" }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <form class="ir-form-grid" ng-submit="submitValveForm($event)" autocomplete="off">
+                <div class="ir-form-split">
+                  <label class="ir-field">
+                    <span>Pino GPIO</span>
+                    <input type="number" min="1" step="1" ng-model="valve_form.pin" required>
+                  </label>
+                  <label class="ir-field">
+                    <span>Nome da seção</span>
+                    <input type="text" ng-model="valve_form.section" required>
+                  </label>
+                </div>
+                <div class="ir-valve-actions">
+                  <button class="ir-secondary-button" type="button" ng-if="valve_form.id" ng-click="resetValveForm()" ng-disabled="valve_state.submitting">Cancelar edição</button>
+                  <button class="ir-primary-button" type="submit" ng-disabled="valve_state.submitting">
+                    {{ valve_state.submitting ? "Salvando..." : (valve_form.id ? "Salvar seção" : "Cadastrar seção") }}
+                  </button>
+                </div>
+              </form>
+
+              <div class="ir-feedback" ng-if="valve_feedback" ng-class="valve_feedback_class">
+                {{ valve_feedback }}
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </main>
   </div>
 </section>
+
+<div class="ir-modal-backdrop" ng-if="valve_delete_state.open" ng-click="closeValveDeleteConfirmation()">
+  <div class="ir-modal is-small" ng-click="$event.stopPropagation()">
+    <p class="ir-eyebrow">Excluir seção</p>
+    <h2 class="ir-modal-title">Confirmar exclusão?</h2>
+    <p class="ir-modal-text">A seção {{ valve_delete_state.section }} no pino GPIO {{ valve_delete_state.pin }} será removida. Esta ação não pode ser desfeita.</p>
+    <div class="ir-modal-warning" ng-if="isValveDeleteBlocked()">
+      Esta seção está cadastrada em {{ linkedScheduleCount(valve_delete_state.valve) }} agendamento(s). Para excluir a seção, exclua primeiro os agendamentos que usam este pino; depois volte aqui e confirme a exclusão.
+    </div>
+    <div class="ir-modal-actions">
+      <button type="button" class="ir-secondary-button" ng-click="closeValveDeleteConfirmation()">Cancelar</button>
+      <button type="button" class="ir-danger-button" ng-click="deleteValve()" ng-disabled="isValveDeleteBlocked() || valve_state.deleting_id === valve_delete_state.id">
+        {{ valve_state.deleting_id === valve_delete_state.id ? "Excluindo..." : "Excluir seção" }}
+      </button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(scope) {
@@ -433,6 +605,13 @@ body.nr-dashboard-theme {
   scope.password_state = scope.password_state || { submitting: false };
   scope.password_feedback = scope.password_feedback || "";
   scope.password_feedback_class = scope.password_feedback_class || "is-success";
+  scope.valves = scope.valves || [];
+  scope.schedules = scope.schedules || [];
+  scope.valve_form = scope.valve_form || { id: "", pin: "", section: "" };
+  scope.valve_state = scope.valve_state || { submitting: false, deleting_id: "" };
+  scope.valve_delete_state = scope.valve_delete_state || { open: false, valve: null, id: "", pin: "", section: "" };
+  scope.valve_feedback = scope.valve_feedback || "";
+  scope.valve_feedback_class = scope.valve_feedback_class || "is-success";
 
   scope.navigateToTab = function(index, event) {
     if (event) event.preventDefault();
@@ -491,6 +670,13 @@ body.nr-dashboard-theme {
     scope.password_state.submitting = false;
   }
 
+  function showValveFeedback(message, cssClass) {
+    scope.valve_feedback = message;
+    scope.valve_feedback_class = cssClass;
+    scope.valve_state.submitting = false;
+    scope.valve_state.deleting_id = "";
+  }
+
   scope.submitPasswordChange = function(event) {
     if (event && event.preventDefault) {
       event.preventDefault();
@@ -516,12 +702,93 @@ body.nr-dashboard-theme {
     });
   };
 
+  scope.resetValveForm = function() {
+    scope.valve_form = { id: "", pin: "", section: "" };
+  };
+  scope.startValveEdit = function(valve) {
+    scope.valve_feedback = "";
+    scope.valve_form = {
+      id: valve.id,
+      pin: parseInt(valve.pin, 10),
+      section: valve.section
+    };
+  };
+  scope.linkedScheduleCount = function(valve) {
+    if (!valve) return 0;
+    var pin = String(valve.pin);
+    return scope.schedules.filter(function(schedule) {
+      return String(schedule.valve_pin) === pin;
+    }).length;
+  };
+  scope.openValveDeleteConfirmation = function(valve) {
+    scope.valve_feedback = "";
+    scope.valve_delete_state = {
+      open: true,
+      valve: valve,
+      id: valve.id,
+      pin: valve.pin,
+      section: valve.section
+    };
+  };
+  scope.closeValveDeleteConfirmation = function() {
+    if (scope.valve_state.deleting_id) return;
+    scope.valve_delete_state = { open: false, valve: null, id: "", pin: "", section: "" };
+  };
+  scope.isValveDeleteBlocked = function() {
+    return scope.linkedScheduleCount(scope.valve_delete_state.valve) > 0;
+  };
+  scope.submitValveForm = function(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
+    scope.valve_feedback = "";
+    if (!scope.valve_form.pin || parseInt(scope.valve_form.pin, 10) < 1) {
+      showValveFeedback("Informe um pino GPIO válido.", "is-error");
+      return;
+    }
+    if (!scope.valve_form.section || !String(scope.valve_form.section).trim()) {
+      showValveFeedback("Informe o nome da seção.", "is-error");
+      return;
+    }
+    scope.valve_state.submitting = true;
+    scope.send({
+      payload: {
+        ui_action: scope.valve_form.id ? "update_valve" : "add_valve",
+        id: scope.valve_form.id,
+        pin: parseInt(scope.valve_form.pin, 10),
+        section: String(scope.valve_form.section).trim()
+      }
+    });
+  };
+  scope.deleteValve = function() {
+    var valve = scope.valve_delete_state.valve;
+    if (!valve || scope.isValveDeleteBlocked()) {
+      return;
+    }
+    scope.valve_feedback = "";
+    scope.valve_state.deleting_id = valve.id;
+    scope.send({
+      payload: {
+        ui_action: "delete_valve",
+        id: valve.id
+      }
+    });
+  };
+
   scope.$watch("msg", function(msg) {
     if (!msg || !msg.topic) {
       return;
     }
     if (msg.topic === "system_health") {
       scope.applySystemHealth(msg.payload);
+      return;
+    }
+    if (msg.topic === "valves") {
+      scope.valves = Array.isArray(msg.payload) ? msg.payload : [];
+      return;
+    }
+    if (msg.topic === "schedules") {
+      scope.schedules = Array.isArray(msg.payload) ? msg.payload : [];
       return;
     }
     if (msg.topic === "password_changed") {
@@ -533,6 +800,18 @@ body.nr-dashboard-theme {
     }
     if (msg.topic === "password_change_error") {
       showFeedback(msg.payload || "Não foi possível alterar a senha.", "is-error");
+    }
+    if (msg.topic === "valve_saved") {
+      scope.resetValveForm();
+      showValveFeedback("Seção salva com sucesso.", "is-success");
+    }
+    if (msg.topic === "valve_deleted") {
+      scope.resetValveForm();
+      showValveFeedback("Seção excluída com sucesso.", "is-success");
+      scope.closeValveDeleteConfirmation();
+    }
+    if (msg.topic === "valve_error") {
+      showValveFeedback(msg.payload || "Não foi possível salvar a seção.", "is-error");
     }
   });
 })(scope);

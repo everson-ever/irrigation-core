@@ -62,16 +62,18 @@ the original files are left in place for verification.
 
 The project uses physical pin numbering (`GPIO.BOARD`). Deployment packages
 ship with an empty `valves` table because the valve pins are only known after
-the system is wired. Configure it with SQLite after installation, for example:
+the system is wired. After installation, register valves from the dashboard in
+`Configurações > Seções`, or through the CLI:
 
 ```bash
-sqlite3 data/irrigation.db <<'SQL'
-INSERT INTO valves (pin, section) VALUES (13, 'Front garden');
-INSERT INTO valves (pin, section) VALUES (11, 'Back garden');
-SQL
+irrigation valve add "13,Front garden"
+irrigation valve add "11,Back garden"
 ```
 
-The values above are examples, not recommended defaults. Configure the pump pin
+The values above are examples, not recommended defaults. Existing valve records
+can be listed with `irrigation valve list`, edited with
+`irrigation valve update "id,pin,section"`, and removed with
+`irrigation valve delete <id>`. Configure the pump pin
 separately with `IRRIGATION_PUMP_PIN`, using the physical pin selected during
 installation.
 Use proper relay/transistor modules: GPIO pins must not power the pump or

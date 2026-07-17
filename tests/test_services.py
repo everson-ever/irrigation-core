@@ -695,6 +695,106 @@ def test_runtime_status_is_false_when_active_schedule_valve_was_manually_stopped
     assert rows[0]["valve_status"] is False
 
 
+def test_valve_add_creates_record_and_rejects_duplicate_pin(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+
+    valve = service.add(13, "Horta")
+
+    assert valve.id == "1"
+    assert valve.pin == 13
+    assert valve.section == "Horta"
+    with pytest.raises(ValidationError, match="GPIO pin is already registered"):
+        service.add(13, "Jardim")
+
+
+@pytest.mark.parametrize(
+    ("pin", "section", "message"),
+    [
+        (0, "Horta", "pin must be greater than or equal to 1"),
+        (13, "   ", "section name is required"),
+    ],
+)
+def test_valve_add_validates_pin_and_section(tmp_path, pin, section, message):
+    service = ValveService(JsonLinesRepository(tmp_path / "valves.json"), MockGPIO(15))
+
+    with pytest.raises(ValidationError, match=message):
+        service.add(pin, section)
+
+
+def test_valve_update_renames_section_and_repoints_pin(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+    valve = service.add(13, "Horta")
+
+    updated = service.update(valve.id, 14, "Jardim")
+
+    assert updated.id == valve.id
+    assert updated.pin == 14
+    assert updated.section == "Jardim"
+    assert valves_repo.find_by_id(valve.id)["pin"] == "14"
+
+
+def test_valve_update_rejects_pin_collision(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+    service.add(13, "Horta")
+    second = service.add(14, "Jardim")
+
+    with pytest.raises(ValidationError, match="GPIO pin is already registered"):
+        service.update(second.id, 13, "Jardim")
+
+    assert valves_repo.find_by_id(second.id)["pin"] == "14"
+
+
+def test_valve_remove_deletes_unused_record_and_reports_missing_id(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+    valve = service.add(13, "Horta")
+
+    assert service.remove(valve.id, ScheduleService(schedules_repo)) is True
+    assert valves_repo.find_by_id(valve.id) is None
+    assert service.remove("999", ScheduleService(schedules_repo)) is False
+
+
+def test_valve_remove_rejects_schedule_reference(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+    valve = service.add(13, "Horta")
+    schedules_repo.add(
+        {
+            "time": "06:30",
+            "duration_minutes": "15",
+            "valve_pin": "13",
+            "status": 0,
+            "enabled": 1,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="still used by a schedule"):
+        service.remove(valve.id, ScheduleService(schedules_repo))
+
+    assert valves_repo.find_by_id(valve.id) is not None
+
+
+def test_valve_update_and_remove_turn_off_active_valve_before_pin_change(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    schedules_repo = JsonLinesRepository(tmp_path / "schedules.json")
+    gpio = RecordingMockGPIO(15)
+    service = ValveService(valves_repo, gpio)
+    valve = service.add(13, "Horta")
+    service.turn_on(13)
+
+    updated = service.update(valve.id, 14, "Horta")
+    service.turn_on(14)
+    deleted = service.remove(updated.id, ScheduleService(schedules_repo))
+
+    assert deleted is True
+    assert gpio.operations == [("on", 13), ("off", 13), ("on", 14), ("off", 14)]
+
+
 def test_history_active_end_returns_manual_record_end(tmp_path):
     history_repo = JsonLinesRepository(tmp_path / "history.json")
     result_repo = JsonLinesRepository(tmp_path / "results.json")

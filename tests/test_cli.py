@@ -531,6 +531,72 @@ def test_valve_list_returns_database_records(capsys, tmp_path):
     ]
 
 
+def test_valve_add_update_and_delete_manage_database_records(capsys, tmp_path):
+    add_exit_code = execute(["valve", "add", "13,Horta"])
+    added = json.loads(capsys.readouterr().out)
+
+    update_exit_code = execute(["valve", "update", f"{added['id']},14,Jardim"])
+    updated = json.loads(capsys.readouterr().out)
+
+    delete_exit_code = execute(["valve", "delete", added["id"]])
+    deleted = json.loads(capsys.readouterr().out)
+    records = _repository(tmp_path, "valves").list_all()
+
+    assert add_exit_code == 0
+    assert added["pin"] == "13"
+    assert added["section"] == "Horta"
+    assert update_exit_code == 0
+    assert updated["pin"] == "14"
+    assert updated["section"] == "Jardim"
+    assert delete_exit_code == 0
+    assert deleted == {"deleted": True}
+    assert records == []
+
+
+def test_valve_add_and_update_accept_section_names_with_spaces(capsys):
+    add_exit_code = execute(["valve", "add", "13,Jardim principal"])
+    added = json.loads(capsys.readouterr().out)
+
+    update_exit_code = execute(
+        ["valve", "update", added["id"] + ",14,Jardim", "principal"]
+    )
+    updated = json.loads(capsys.readouterr().out)
+
+    assert add_exit_code == 0
+    assert added["section"] == "Jardim principal"
+    assert update_exit_code == 0
+    assert updated["pin"] == "14"
+    assert updated["section"] == "Jardim principal"
+
+
+def test_valve_add_rejects_duplicate_pin(capsys, tmp_path):
+    execute(["valve", "add", "13,Horta"])
+    capsys.readouterr()
+
+    exit_code = execute(["valve", "add", "13,Jardim"])
+    captured = capsys.readouterr()
+    records = _repository(tmp_path, "valves").list_all()
+
+    assert exit_code == 2
+    assert "GPIO pin is already registered" in captured.err
+    assert len(records) == 1
+
+
+def test_valve_delete_rejects_schedule_reference(capsys, tmp_path):
+    execute(["valve", "add", "13,Horta"])
+    capsys.readouterr()
+    execute(["schedule", "create", "06:30,15,13"])
+    capsys.readouterr()
+
+    exit_code = execute(["valve", "delete", "1"])
+    captured = capsys.readouterr()
+    valve = _repository(tmp_path, "valves").find_by_id("1")
+
+    assert exit_code == 2
+    assert "still used by a schedule" in captured.err
+    assert valve is not None
+
+
 def test_settings_show_returns_current_database_row(capsys):
     assert execute(["settings", "5"]) == 0
     capsys.readouterr()

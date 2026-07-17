@@ -412,6 +412,7 @@ def test_valves_are_loaded_through_cli_command():
     assert valves["command"] == "/opt/irrigation/bin/irrigation valve list"
     assert valves["addpay"] is False
     assert valves["wires"][0] == ["a51e1954.c69208"]
+    assert "d6f0b5a1.42c8e3" in nodes["a51e1954.c69208"]["wires"][0]
     assert "filename" not in valves
 
 
@@ -542,13 +543,16 @@ def test_settings_tab_has_password_change_flow():
     assert "confirm_password" in settings_template["format"]
     assert settings_template["wires"] == [["bd0f9d62.31aa54"]]
 
-    assert 'payload.ui_action !== "change_password"' in formatter["func"]
+    assert 'payload.ui_action === "change_password"' in formatter["func"]
     assert "next !== confirm" in formatter["func"]
-    assert 'includes(",")' in formatter["func"]
-    assert formatter["outputs"] == 2
+    assert 'String(value).includes(",")' in formatter["func"]
+    assert formatter["outputs"] == 5
     assert formatter["wires"] == [
         ["71b3e8a9.0df426"],
         ["d6f0b5a1.42c8e3"],
+        ["019valve.add.exec"],
+        ["019valve.update.exec"],
+        ["019valve.delete.exec"],
     ]
 
     assert exec_node["command"] == "/opt/irrigation/bin/irrigation auth change-password"
@@ -558,5 +562,76 @@ def test_settings_tab_has_password_change_flow():
     assert 'msg.topic = "password_changed"' in success["func"]
     assert success["wires"] == [["d6f0b5a1.42c8e3"]]
     assert 'msg.topic = "password_change_error"' in error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in error["func"]
+    assert error["wires"] == [["d6f0b5a1.42c8e3"]]
+
+
+def test_settings_tab_has_valve_section_crud_flow():
+    nodes = load_nodes()
+
+    settings_template = nodes["d6f0b5a1.42c8e3"]["format"]
+    formatter = nodes["bd0f9d62.31aa54"]
+    add_exec = nodes["019valve.add.exec"]
+    update_exec = nodes["019valve.update.exec"]
+    delete_exec = nodes["019valve.delete.exec"]
+    add_success = nodes["019valve.add.ok"]
+    update_success = nodes["019valve.save.ok"]
+    delete_success = nodes["019valve.delete.ok"]
+    error = nodes["019valve.error"]
+
+    assert "Seções" in settings_template
+    assert "isConfigSectionActive('valves')" in settings_template
+    assert "scope.valves = scope.valves || []" in settings_template
+    assert "scope.schedules = scope.schedules || []" in settings_template
+    assert "scope.submitValveForm = function(event)" in settings_template
+    assert "scope.openValveDeleteConfirmation = function(valve)" in settings_template
+    assert 'class="ir-modal-backdrop" ng-if="valve_delete_state.open"' in (
+        settings_template
+    )
+    assert "scope.isValveDeleteBlocked = function()" in settings_template
+    assert "linkedScheduleCount(scope.valve_delete_state.valve) > 0" in (
+        settings_template
+    )
+    assert "Para excluir a seção, exclua primeiro os agendamentos" in (
+        settings_template
+    )
+    assert "isValveDeleteBlocked() || valve_state.deleting_id" in settings_template
+    assert 'ui_action: scope.valve_form.id ? "update_valve" : "add_valve"' in (
+        settings_template
+    )
+    assert 'ui_action: "delete_valve"' in settings_template
+    assert 'msg.topic === "valves"' in settings_template
+    assert 'msg.topic === "schedules"' in settings_template
+    assert 'msg.topic === "valve_saved"' in settings_template
+    assert 'msg.topic === "valve_deleted"' in settings_template
+    assert 'msg.topic === "valve_error"' in settings_template
+    assert "window.confirm" not in settings_template
+    assert "d6f0b5a1.42c8e3" in nodes["afe05d94.376be"]["wires"][0]
+
+    assert 'payload.ui_action === "add_valve"' in formatter["func"]
+    assert 'payload.ui_action === "update_valve"' in formatter["func"]
+    assert 'payload.ui_action === "delete_valve"' in formatter["func"]
+    assert "O nome da seção não pode conter vírgula." in formatter["func"]
+
+    assert add_exec["command"] == "/opt/irrigation/bin/irrigation valve add"
+    assert update_exec["command"] == "/opt/irrigation/bin/irrigation valve update"
+    assert delete_exec["command"] == "/opt/irrigation/bin/irrigation valve delete"
+    assert add_exec["addpay"] is True
+    assert update_exec["addpay"] is True
+    assert delete_exec["addpay"] is True
+    assert add_exec["wires"][0] == ["019valve.add.ok"]
+    assert update_exec["wires"][0] == ["019valve.save.ok"]
+    assert delete_exec["wires"][0] == ["019valve.delete.ok"]
+    assert add_exec["wires"][1] == ["019valve.error"]
+    assert update_exec["wires"][1] == ["019valve.error"]
+    assert delete_exec["wires"][1] == ["019valve.error"]
+
+    assert 'msg.topic = "valve_saved"' in add_success["func"]
+    assert 'msg.topic = "valve_saved"' in update_success["func"]
+    assert 'msg.topic = "valve_deleted"' in delete_success["func"]
+    assert add_success["wires"] == [["d6f0b5a1.42c8e3", "8d0b3804.e60cf8"]]
+    assert update_success["wires"] == [["d6f0b5a1.42c8e3", "8d0b3804.e60cf8"]]
+    assert delete_success["wires"] == [["d6f0b5a1.42c8e3", "8d0b3804.e60cf8"]]
+    assert 'msg.topic = "valve_error"' in error["func"]
     assert 'replace(/^Error:\\s*/, "")' in error["func"]
     assert error["wires"] == [["d6f0b5a1.42c8e3"]]
