@@ -270,6 +270,25 @@ def test_schedule_create_has_loading_error_and_success_navigation():
     assert "ir-time-stack" in create_template
     assert "ir-add-time-button" in create_template
     assert "ir-time-toolbar" in create_template
+    assert '<div class="ir-field">' in create_template
+    assert "<label>Seção / válvula</label>" in create_template
+    assert (
+        '<select name="section" ng-model="create_form.section" '
+        'ng-disabled="valves.length === 0">' in create_template
+    )
+    assert (
+        '<option value="" disabled ng-if="valves.length > 0">'
+        "Selecione uma seção / válvula</option>" in create_template
+    )
+    assert (
+        '<option ng-repeat="valve in valves track by valve.pin" '
+        'ng-value="+valve.pin">{{ valve.section }} · Válvula {{ valve.pin }}</option>'
+        in create_template
+    )
+    assert "Nenhuma seção disponível." in create_template
+    assert "ir-valve-card" not in create_template
+    assert "scope.selectValve" not in create_template
+    assert "scope.isValveSelected" not in create_template
     assert "Todos os dias" in create_template
     assert "hasSelectedWeekday(create_form.weekdays)" in create_template
     assert "weekdays: scope.normalizeWeekdays(scope.create_form.weekdays)" in (

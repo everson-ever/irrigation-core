@@ -340,52 +340,19 @@ body.nr-dashboard-theme {
 .ir-add-time-button:hover { border-color: var(--ir-green); background: var(--ir-green); color: #fff; }
 .ir-add-time-button:disabled { cursor: not-allowed; opacity: .45; }
 .ir-section-block { min-width: 0; }
-.ir-valves { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-.ir-valve-card {
-  position: relative;
-  min-width: 0;
-  height: 74px;
-  border: 1px solid var(--ir-line);
-  border-radius: 10px;
-  padding: 12px 13px;
+.ir-field label { display: block; margin-bottom: 7px; color: #26312f; font-size: 12px; font-weight: 800; }
+.ir-field input, .ir-field select {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #d4dada;
+  border-radius: 9px;
+  padding: 0 12px;
+  outline: 0;
   background: #fff;
   color: var(--ir-ink);
-  cursor: pointer;
-  text-align: left;
+  font-size: 14px;
 }
-.ir-valve-card:hover { border-color: #9bcac5; }
-.ir-valve-card.is-selected { border-color: var(--ir-green); background: #e7f4f1; }
-.ir-valve-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ir-valve-icon {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: 8px;
-  background: #e9efff;
-  color: #607ff3;
-}
-.ir-valve-card:nth-child(4n + 2) .ir-valve-icon { background: #dff3ef; color: var(--ir-green); }
-.ir-valve-card:nth-child(4n + 3) .ir-valve-icon { background: #eee8ff; color: #795eea; }
-.ir-valve-card:nth-child(4n + 4) .ir-valve-icon { background: #fff0dc; color: #f09a2a; }
-.ir-valve-icon svg { width: 15px; height: 15px; }
-.ir-valve-pin { color: #92999a; font-size: 9px; }
-.ir-valve-check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--ir-green);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 900;
-}
-.ir-valve-name { display: block; overflow: hidden; margin-top: 7px; font-size: 11px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
-.ir-empty-valves { padding: 18px; border: 1px dashed #cfd6d5; border-radius: 10px; color: var(--ir-muted); font-size: 12px; text-align: center; }
+.ir-field input:focus, .ir-field select:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
 .ir-weekdays-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; }
 .ir-weekday-presets { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .ir-weekday-presets .ir-chip { min-height: 25px; padding: 0 10px; }
@@ -498,7 +465,6 @@ body.nr-dashboard-theme {
   }
   .ir-sidebar.is-mobile-open { transform: translateX(0); }
   .ir-content { padding: 30px 24px; }
-  .ir-valves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .ir-topbar { height: 56px; padding: 0 14px; }
@@ -636,21 +602,14 @@ body.nr-dashboard-theme {
       </div>
 
       <div class="ir-section-block">
-        <p class="ir-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
-          Seção / válvula
-        </p>
-        <div class="ir-valves" ng-if="valves.length > 0">
-          <button type="button" class="ir-valve-card" ng-repeat="valve in valves track by valve.pin" ng-class="{'is-selected': isValveSelected(valve)}" ng-click="selectValve(valve)">
-            <span class="ir-valve-check" ng-if="isValveSelected(valve)">✓</span>
-            <span class="ir-valve-top">
-              <span class="ir-valve-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3s5 6.1 5 11a5 5 0 0 1-10 0c0-4.9 5-11 5-11Z"/></svg></span>
-              <span class="ir-valve-pin">V.{{ valve.pin }}</span>
-            </span>
-            <span class="ir-valve-name">{{ valve.section }}</span>
-          </button>
+        <div class="ir-field">
+          <label>Seção / válvula</label>
+          <select name="section" ng-model="create_form.section" ng-disabled="valves.length === 0">
+            <option value="" disabled ng-if="valves.length > 0">Selecione uma seção / válvula</option>
+            <option value="" disabled ng-if="valves.length === 0">Nenhuma seção disponível.</option>
+            <option ng-repeat="valve in valves track by valve.pin" ng-value="+valve.pin">{{ valve.section }} · Válvula {{ valve.pin }}</option>
+          </select>
         </div>
-        <div class="ir-empty-valves" ng-if="valves.length === 0">Nenhuma seção disponível.</div>
       </div>
 
       <div>
@@ -794,8 +753,6 @@ body.nr-dashboard-theme {
   };
   scope.setDuration = function(value) { scope.create_form.duration_minutes = value; };
   scope.adjustDuration = function(delta) { scope.create_form.duration_minutes = Math.max(1, (parseInt(scope.create_form.duration_minutes, 10) || 1) + delta); };
-  scope.selectValve = function(valve) { scope.create_form.section = valve.pin; };
-  scope.isValveSelected = function(valve) { return String(scope.create_form.section) === String(valve.pin); };
   scope.formatTime = function(value) {
     if (!value) return "--:--";
     if (typeof value === "string" && /^\d{2}:\d{2}/.test(value)) return value.slice(0, 5);
