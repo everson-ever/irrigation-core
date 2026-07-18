@@ -170,9 +170,11 @@ This restores `admin` / `10203040`. The recovery command is intentionally
 available only from the device shell and is not exposed through the dashboard
 or a Node-RED flow.
 
-The flow uses the binary installed at `/opt/irrigation/bin/irrigation`. Valves
-and settings are read through CLI commands; only the transient history-search
-snapshot is read directly from `data/`.
+The flow uses the binary installed at `/opt/irrigation/bin/irrigation`. Node-RED
+always starts it as `irrigation --stdin` without a shell and sends one structured
+JSON request through standard input. Dashboard values and credentials are never
+appended to a command line; CLI JSON responses on stdout remain unchanged. Only
+the transient history-search snapshot is read directly from `data/`.
 The scheduler is not started by the flow: it is managed by `systemd` so it can
 restart automatically after failures or reboots.
 

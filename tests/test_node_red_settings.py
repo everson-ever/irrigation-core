@@ -34,6 +34,19 @@ def test_dashboard_login_does_not_hang_when_express_already_parsed_the_body():
 def test_dashboard_auth_still_verifies_against_cli_credentials():
     settings = SETTINGS_PATH.read_text()
 
-    assert '["auth", "login", `${username},${password}`]' in settings
+    assert '{ command: "auth", action: "login", username, password }' in settings
     assert "output.authenticated === true" in settings
     assert "middleware: dashboardAuthMiddleware" in settings
+
+
+def test_cli_invocations_send_json_through_stdin_without_credentials_in_argv():
+    settings = SETTINGS_PATH.read_text()
+
+    assert 'execFile(\n    IRRIGATION_BINARY,\n    ["--stdin"]' in settings
+    assert "child.stdin.end(input)" in settings
+    assert "JSON.stringify(request)" in settings
+    assert "function invokeIrrigationNode" in settings
+    assert "functionGlobalContext" in settings
+    assert "invokeIrrigationNode," in settings
+    assert '["auth", "login"' not in settings
+    assert "`${username},${password}`" not in settings

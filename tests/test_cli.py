@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime
+from io import StringIO
 
 import pytest
 
@@ -19,6 +21,10 @@ def _repository(tmp_path, table):
     if table == "schedules":
         return ScheduleSqliteRepository(connection)
     return SqliteRepository(connection, table)
+
+
+def _execute_stdin(payload) -> int:
+    return execute(["--stdin"], stdin=StringIO(json.dumps(payload)))
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +60,55 @@ def test_health_command_reports_controller_heartbeat(capsys):
     assert online_exit_code == 0
     assert online_output["status"] == "online"
     assert online_output["component"] == "irrigation-core"
+
+
+def test_stdin_schedule_command_preserves_argv_json_contract(capsys):
+    exit_code = _execute_stdin(
+        {
+            "command": "schedule",
+            "action": "create",
+            "times": ["18:00", "06:00"],
+            "duration_minutes": 15,
+            "valve_pin": 13,
+            "weekdays": ["mon", "wed", "fri"],
+        }
+    )
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["time"] == "06:00|18:00"
+    assert output["duration_minutes"] == "15"
+    assert output["valve_pin"] == "13"
+    assert output["weekdays"] == ["mon", "wed", "fri"]
+
+
+@pytest.mark.parametrize(
+    "malicious_fields",
+    [
+        {"times": ["06:30; touch {sentinel}"], "weekdays": ["mon"]},
+        {"times": ["06:30"], "weekdays": ["mon; touch {sentinel}"]},
+    ],
+)
+def test_stdin_schedule_metacharacters_are_rejected_without_side_effect(
+    capsys, tmp_path, malicious_fields
+):
+    sentinel = tmp_path / "schedule-pwned"
+    request = {
+        "command": "schedule",
+        "action": "create",
+        "duration_minutes": 15,
+        "valve_pin": 13,
+        **{
+            key: [value.format(sentinel=sentinel) for value in values]
+            for key, values in malicious_fields.items()
+        },
+    }
+
+    exit_code = _execute_stdin(request)
+
+    assert exit_code == 2
+    assert capsys.readouterr().err.startswith("Error:")
+    assert not sentinel.exists()
 
 
 def test_schedule_create_persists_weekdays(capsys, tmp_path):
@@ -569,6 +624,30 @@ def test_valve_add_and_update_accept_section_names_with_spaces(capsys):
     assert updated["section"] == "Jardim principal"
 
 
+def test_stdin_valve_name_treats_shell_metacharacters_as_literal_data(capsys, tmp_path):
+    sentinel = tmp_path / "pwned"
+    section = (
+        f"frente; touch {sentinel} $(touch x) `touch y` | & * > <\nHorta ü, --no-wait"
+    )
+
+    exit_code = _execute_stdin(
+        {"command": "valve", "action": "add", "pin": 13, "section": section}
+    )
+    output = json.loads(capsys.readouterr().out)
+    stored = _repository(tmp_path, "valves").find_by_id("1")
+    flag_exit_code = _execute_stdin(
+        {"command": "valve", "action": "add", "pin": 14, "section": "--no-wait"}
+    )
+    flag_output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["section"] == section
+    assert stored["section"] == section
+    assert flag_exit_code == 0
+    assert flag_output["section"] == "--no-wait"
+    assert not sentinel.exists()
+
+
 def test_valve_add_rejects_duplicate_pin(capsys, tmp_path):
     execute(["valve", "add", "13,Horta"])
     capsys.readouterr()
@@ -609,21 +688,82 @@ def test_settings_show_returns_current_database_row(capsys):
 
 
 def test_auth_login_uses_seeded_default_credentials(capsys):
-    exit_code = execute(["auth", "login", "admin,10203040"])
+    exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": "10203040",
+        }
+    )
     output = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
     assert output == {"authenticated": True}
 
 
+def test_stdin_auth_keeps_password_out_of_process_arguments(capsys, monkeypatch):
+    password = "nova, senha; $(segredo) | ü"
+    monkeypatch.setattr("sys.argv", ["irrigation", "--stdin"])
+
+    change_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "change-password",
+            "username": "admin",
+            "current_password": "10203040",
+            "new_password": password,
+            "confirm_password": password,
+        }
+    )
+    change_output = json.loads(capsys.readouterr().out)
+    login_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": password,
+        }
+    )
+    login_output = json.loads(capsys.readouterr().out)
+
+    assert change_exit_code == 0
+    assert change_output == {"changed": True}
+    assert login_exit_code == 0
+    assert login_output == {"authenticated": True}
+    assert password not in " ".join(sys.argv)
+
+
 def test_auth_change_password_updates_login_credential(capsys):
-    change_exit_code = execute(["auth", "change-password", "admin,10203040,87654321"])
+    change_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "change-password",
+            "username": "admin",
+            "current_password": "10203040",
+            "new_password": "87654321",
+        }
+    )
     change_output = json.loads(capsys.readouterr().out)
 
-    old_exit_code = execute(["auth", "login", "admin,10203040"])
+    old_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": "10203040",
+        }
+    )
     old_output = json.loads(capsys.readouterr().out)
 
-    new_exit_code = execute(["auth", "login", "admin,87654321"])
+    new_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": "87654321",
+        }
+    )
     new_output = json.loads(capsys.readouterr().out)
 
     assert change_exit_code == 0
@@ -635,8 +775,15 @@ def test_auth_change_password_updates_login_credential(capsys):
 
 
 def test_auth_change_password_rejects_mismatched_confirmation(capsys):
-    exit_code = execute(
-        ["auth", "change-password", "admin,10203040,87654321,different"]
+    exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "change-password",
+            "username": "admin",
+            "current_password": "10203040",
+            "new_password": "87654321",
+            "confirm_password": "different",
+        }
     )
     err = capsys.readouterr().err
 
@@ -645,14 +792,36 @@ def test_auth_change_password_rejects_mismatched_confirmation(capsys):
 
 
 def test_auth_reset_to_default_restores_default_login(capsys):
-    execute(["auth", "change-password", "admin,10203040,87654321"])
+    _execute_stdin(
+        {
+            "command": "auth",
+            "action": "change-password",
+            "username": "admin",
+            "current_password": "10203040",
+            "new_password": "87654321",
+        }
+    )
     capsys.readouterr()
 
     reset_exit_code = execute(["auth", "reset-to-default"])
     reset_output = json.loads(capsys.readouterr().out)
-    default_exit_code = execute(["auth", "login", "admin,10203040"])
+    default_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": "10203040",
+        }
+    )
     default_output = json.loads(capsys.readouterr().out)
-    stale_exit_code = execute(["auth", "login", "admin,87654321"])
+    stale_exit_code = _execute_stdin(
+        {
+            "command": "auth",
+            "action": "login",
+            "username": "admin",
+            "password": "87654321",
+        }
+    )
     stale_output = json.loads(capsys.readouterr().out)
 
     assert reset_exit_code == 0
@@ -661,6 +830,14 @@ def test_auth_reset_to_default_restores_default_login(capsys):
     assert default_output == {"authenticated": True}
     assert stale_exit_code == 0
     assert stale_output == {"authenticated": False}
+
+
+@pytest.mark.parametrize("action", ["login", "change-password"])
+def test_auth_commands_reject_credentialless_argv_invocation(capsys, action):
+    exit_code = execute(["auth", action])
+
+    assert exit_code == 2
+    assert "credentials must be provided through --stdin" in capsys.readouterr().err
 
 
 def test_history_range_reads_database_and_refreshes_json_snapshot(capsys, tmp_path):
@@ -690,3 +867,80 @@ def test_history_range_reads_database_and_refreshes_json_snapshot(capsys, tmp_pa
     assert exit_code == 0
     assert [record["id"] for record in output] == ["2"]
     assert snapshot == output
+
+
+def test_stdin_history_range_preserves_json_output(capsys, tmp_path):
+    (tmp_path / "history.json").write_text(
+        json.dumps(
+            {
+                "id": "1",
+                "valve": "Horta",
+                "date": "2026-07-16",
+                "start": "10:00",
+                "end": "10:05",
+                "weekday": "Thursday",
+                "mode": "Manual",
+            }
+        )
+        + "\n"
+    )
+
+    exit_code = _execute_stdin(
+        {
+            "command": "history",
+            "action": "range",
+            "start_date": "2026-07-16",
+            "end_date": "2026-07-16",
+        }
+    )
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert [record["id"] for record in output] == ["1"]
+
+
+def test_stdin_history_injection_is_rejected_without_side_effect(capsys, tmp_path):
+    sentinel = tmp_path / "history-pwned"
+
+    exit_code = _execute_stdin(
+        {
+            "command": "history",
+            "action": "range",
+            "start_date": "2026-07-16",
+            "end_date": f"2026-07-16; touch {sentinel}",
+        }
+    )
+    error = capsys.readouterr().err
+
+    assert exit_code == 2
+    assert error.startswith("Error:")
+    assert not sentinel.exists()
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("", "stdin payload is empty"),
+        ("not-json", "stdin payload must be valid JSON"),
+        ("[]", "stdin payload must be a JSON object"),
+        (json.dumps({"command": "run"}), "command is not available through stdin"),
+        (
+            json.dumps({"command": "auth", "action": "login"}),
+            "stdin payload is missing 'username'",
+        ),
+    ],
+)
+def test_stdin_rejects_invalid_payloads(capsys, content, message):
+    exit_code = execute(["--stdin"], stdin=StringIO(content))
+
+    assert exit_code == 2
+    assert message in capsys.readouterr().err
+
+
+def test_stdin_rejects_payloads_larger_than_four_kibibytes(capsys):
+    content = json.dumps({"command": "auth", "action": "login", "username": "a" * 4096})
+
+    exit_code = execute(["--stdin"], stdin=StringIO(content))
+
+    assert exit_code == 2
+    assert "stdin payload exceeds 4096 bytes" in capsys.readouterr().err

@@ -7,12 +7,36 @@ const SESSION_COOKIE = "irrigation_session";
 const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 const sessions = new Set();
 
+function invokeIrrigation(request, callback) {
+  const input = JSON.stringify(request);
+  const child = execFile(
+    IRRIGATION_BINARY,
+    ["--stdin"],
+    { timeout: 10000 },
+    callback,
+  );
+  child.stdin.on("error", () => {});
+  child.stdin.end(input);
+}
+
+function invokeIrrigationNode(node, msg, request) {
+  invokeIrrigation(request, (error, stdout, stderr) => {
+    if (error) {
+      msg.payload = String(stderr || error.message || "");
+      node.send([null, msg, { payload: error.code || 1 }]);
+      node.done();
+      return;
+    }
+    msg.payload = String(stdout || "");
+    node.send([msg, null, { payload: 0 }]);
+    node.done();
+  });
+}
+
 function verifyCredentials(username, password) {
   return new Promise((resolve) => {
-    execFile(
-      IRRIGATION_BINARY,
-      ["auth", "login", `${username},${password}`],
-      { timeout: 10000 },
+    invokeIrrigation(
+      { command: "auth", action: "login", username, password },
       (error, stdout) => {
         if (error) {
           resolve(false);
@@ -325,6 +349,9 @@ function escapeHtml(value) {
 }
 
 module.exports = {
+  functionGlobalContext: {
+    invokeIrrigationNode,
+  },
   adminAuth: {
     type: "credentials",
     users(username) {

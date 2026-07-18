@@ -276,12 +276,12 @@ def test_schedule_create_has_loading_error_and_success_navigation():
         create_template
     )
     assert "times: scope.normalizeTimes(scope.create_form.times)" in create_template
-    assert "selectedTimes" in nodes["38e56a9f.2ca156"]["func"]
-    assert "selectedWeekdays" in nodes["38e56a9f.2ca156"]["func"]
-    assert (
-        "`${selectedTimes},${duration_minutes},${section},${selectedWeekdays}`"
-        in nodes["38e56a9f.2ca156"]["func"]
-    )
+    create_request = nodes["38e56a9f.2ca156"]["func"]
+    assert 'command: "schedule"' in create_request
+    assert 'action: "create"' in create_request
+    assert "times: Array.isArray(times)" in create_request
+    assert "valve_pin: section" in create_request
+    assert "weekdays" in create_request
     assert 'replace(/^Error:\\s*/, "")' in create_error["func"]
     assert "msg.payload = String(msg.payload)" in create_error["func"]
     assert create_exec["wires"][0] == ["a9c1b3d4.e5f607"]
@@ -339,12 +339,11 @@ def test_schedule_edit_has_prefill_exclusive_mode_loading_and_error_handling():
     assert "hasSelectedWeekday(schedule_form.weekdays)" in schedule_template
     assert "weekdays: scope.normalizeWeekdays(schedule.weekdays)" in schedule_template
     assert "times: scope.normalizeTimes(schedule.times)" in schedule_template
-    assert "selectedTimes" in update_formatter["func"]
-    assert "selectedWeekdays" in update_formatter["func"]
-    assert (
-        "`${id},${selectedTimes},${duration_minutes},${valve_pin},${selectedWeekdays}`"
-        in update_formatter["func"]
-    )
+    assert 'command: "schedule"' in update_formatter["func"]
+    assert 'action: "update"' in update_formatter["func"]
+    assert "times: Array.isArray(times)" in update_formatter["func"]
+    assert "valve_pin" in update_formatter["func"]
+    assert "weekdays" in update_formatter["func"]
     assert (
         "!editing_state.editing && schedules_loaded && schedules.length > 0"
         in schedule_template
@@ -396,10 +395,12 @@ def test_schedule_enabled_toggle_has_flow_wiring_and_error_feedback():
     assert action_router["wires"][3] == ["e7a2d5c1.4b8f9a"]
 
     assert "const { id, enabled } = msg.payload || {}" in enabled_formatter["func"]
-    assert "`${id},${value}`" in enabled_formatter["func"]
+    assert 'command: "schedule"' in enabled_formatter["func"]
+    assert 'action: "enabled"' in enabled_formatter["func"]
+    assert "enabled: value" in enabled_formatter["func"]
     assert enabled_formatter["wires"] == [["f3c91a2b.6d4e8f"]]
-    assert enabled_exec["command"] == "/opt/irrigation/bin/irrigation schedule enabled"
-    assert enabled_exec["addpay"] is True
+    assert enabled_exec["type"] == "function"
+    assert 'global.get("invokeIrrigationNode")' in enabled_exec["func"]
     assert enabled_exec["wires"][0] == ["a4d7e9c2.18b6f3"]
     assert enabled_exec["wires"][1] == ["d2b6f7a8.9e1c4d"]
     assert 'msg.topic = "schedule_enabled"' in enabled_success["func"]
@@ -434,8 +435,8 @@ def test_schedule_list_uses_cli_runtime_status_output():
     schedule_loader = nodes["7c602e02.7e8c7"]
     formatter = nodes["afe05d94.376be"]
 
-    assert schedule_loader["type"] == "exec"
-    assert schedule_loader["command"] == "/opt/irrigation/bin/irrigation schedule list"
+    assert schedule_loader["type"] == "function"
+    assert 'command: "schedule", action: "list"' in schedule_loader["func"]
     assert schedule_loader["wires"][0] == ["afe05d94.376be"]
     assert "JSON.parse(text)" in formatter["func"]
     assert 'msg.topic = "schedules"' in formatter["func"]
@@ -459,9 +460,8 @@ def test_system_online_badge_uses_controller_health_heartbeat():
     assert injector["once"] is True
     assert injector["wires"] == [["4cf2d6a8.7b9012"]]
 
-    assert health_exec["type"] == "exec"
-    assert health_exec["command"] == "/opt/irrigation/bin/irrigation health"
-    assert health_exec["addpay"] is False
+    assert health_exec["type"] == "function"
+    assert 'command: "health"' in health_exec["func"]
     assert health_exec["wires"][0] == ["8f6d41c2.a2e913"]
     assert health_exec["wires"][1] == ["8f6d41c2.a2e913"]
 
@@ -492,9 +492,8 @@ def test_valves_are_loaded_through_cli_command():
 
     valves = nodes["8d0b3804.e60cf8"]
 
-    assert valves["type"] == "exec"
-    assert valves["command"] == "/opt/irrigation/bin/irrigation valve list"
-    assert valves["addpay"] is False
+    assert valves["type"] == "function"
+    assert 'command: "valve", action: "list"' in valves["func"]
     assert valves["wires"][0] == ["a51e1954.c69208"]
     assert "d6f0b5a1.42c8e3" in nodes["a51e1954.c69208"]["wires"][0]
     assert "filename" not in valves
@@ -630,7 +629,9 @@ def test_settings_tab_has_password_change_flow():
 
     assert 'payload.ui_action === "change_password"' in formatter["func"]
     assert "next !== confirm" in formatter["func"]
-    assert 'String(value).includes(",")' in formatter["func"]
+    assert 'command: "auth"' in formatter["func"]
+    assert 'action: "change-password"' in formatter["func"]
+    assert "current_password: current" in formatter["func"]
     assert formatter["outputs"] == 5
     assert formatter["wires"] == [
         ["71b3e8a9.0df426"],
@@ -640,8 +641,8 @@ def test_settings_tab_has_password_change_flow():
         ["019valve.delete.exec"],
     ]
 
-    assert exec_node["command"] == "/opt/irrigation/bin/irrigation auth change-password"
-    assert exec_node["addpay"] is True
+    assert exec_node["type"] == "function"
+    assert 'global.get("invokeIrrigationNode")' in exec_node["func"]
     assert exec_node["wires"][0] == ["f23e94b0.5ca741"]
     assert exec_node["wires"][1] == ["bb947d16.2eaf34"]
     assert 'msg.topic = "password_changed"' in success["func"]
@@ -696,14 +697,14 @@ def test_settings_tab_has_valve_section_crud_flow():
     assert 'payload.ui_action === "add_valve"' in formatter["func"]
     assert 'payload.ui_action === "update_valve"' in formatter["func"]
     assert 'payload.ui_action === "delete_valve"' in formatter["func"]
-    assert "O nome da seção não pode conter vírgula." in formatter["func"]
+    assert 'command: "valve"' in formatter["func"]
+    assert 'action: "add"' in formatter["func"]
+    assert 'action: "update"' in formatter["func"]
+    assert 'action: "delete"' in formatter["func"]
 
-    assert add_exec["command"] == "/opt/irrigation/bin/irrigation valve add"
-    assert update_exec["command"] == "/opt/irrigation/bin/irrigation valve update"
-    assert delete_exec["command"] == "/opt/irrigation/bin/irrigation valve delete"
-    assert add_exec["addpay"] is True
-    assert update_exec["addpay"] is True
-    assert delete_exec["addpay"] is True
+    for invocation in (add_exec, update_exec, delete_exec):
+        assert invocation["type"] == "function"
+        assert 'global.get("invokeIrrigationNode")' in invocation["func"]
     assert add_exec["wires"][0] == ["019valve.add.ok"]
     assert update_exec["wires"][0] == ["019valve.save.ok"]
     assert delete_exec["wires"][0] == ["019valve.delete.ok"]
@@ -720,3 +721,31 @@ def test_settings_tab_has_valve_section_crud_flow():
     assert 'msg.topic = "valve_error"' in error["func"]
     assert 'replace(/^Error:\\s*/, "")' in error["func"]
     assert error["wires"] == [["d6f0b5a1.42c8e3"]]
+
+
+def test_all_cli_invocations_use_the_structured_stdin_adapter():
+    nodes = load_nodes()
+    invocation_ids = {
+        "7c602e02.7e8c7",
+        "1a73e6be.d28d09",
+        "7b2701e3.b525",
+        "46dd0feb.e4f05",
+        "2a2ceafd.1bf566",
+        "8d0b3804.e60cf8",
+        "9ee06733.0ccea8",
+        "f3c91a2b.6d4e8f",
+        "71b3e8a9.0df426",
+        "4cf2d6a8.7b9012",
+        "019valve.add.exec",
+        "019valve.update.exec",
+        "019valve.delete.exec",
+    }
+
+    assert not [node for node in nodes.values() if node.get("type") == "exec"]
+    for node_id in invocation_ids:
+        invocation = nodes[node_id]
+        assert invocation["type"] == "function"
+        assert 'global.get("invokeIrrigationNode")' in invocation["func"]
+        assert "command" not in invocation
+        assert "addpay" not in invocation
+        assert "useSpawn" not in invocation

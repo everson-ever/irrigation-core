@@ -366,29 +366,46 @@ consumes):
 | `valve "pin,off[,schedule_id]"` | Manual off. | `{changed: bool}` |
 | `settings show` | Default duration. | `{id, default_duration_minutes}` |
 | `settings <minutes>` | Updates the default duration. | record |
-| `auth login` | `data = "username,password"` | `{authenticated: bool}` |
-| `auth change-password` | `data = "user,current,new[,confirm]"` | `{changed: bool}` |
+| `auth login` | stdin JSON only; credentials are rejected in argv | `{authenticated: bool}` |
+| `auth change-password` | stdin JSON only; credentials are rejected in argv | `{changed: bool}` |
 | `history "day,,"` | Today's watering runs. | array |
 | `history "range,YYYY-MM-DD,YYYY-MM-DD"` | Runs in the range. | array |
 
-Parsing uses `_csv(value, expected_fields, description)` — comma-separated fields
-with a validated count. **When adding a command**, replicate this pattern and
-keep the JSON output stable.
+The non-auth argv forms above remain available for trusted interactive/device-shell
+use. Authentication secrets are stdin-only. Node-RED must use the shell-free stdin
+contract: invoke only
+`irrigation --stdin` and send one JSON object (maximum 4096 UTF-8 bytes) through
+stdin. The object contains `command`, `action` when applicable, and named fields;
+for example:
+
+```json
+{"command":"valve","action":"add","pin":13,"section":"Jardim da frente"}
+```
+
+Schedule requests use named fields such as `times`, `duration_minutes`,
+`valve_pin`, and `weekdays`; auth requests use `username`, `password`,
+`current_password`, and `new_password`. Empty, oversized, malformed, or incomplete
+objects return the usual `Error: ...` on stderr with exit code 2. Secrets and
+untrusted dashboard values must never be added to argv. Keep the single-line JSON
+stdout contract stable when adding commands.
 
 ---
 
 ## 12. Node-RED dashboard (`node-red/`)
 
-- **`flows.json`** — the dashboard flows. `exec` nodes call the CLI
-  (`irrigation schedule list`, `irrigation valve ...`, etc.) and `inject` nodes
-  poll periodically (e.g. `schedule list` every ~3 s, `health` every ~10 s). The
-  frontend consumes the CLI's JSON directly — **that is why the JSON output is a
+- **`flows.json`** — the dashboard flows. Function nodes build structured request
+  objects and call the `invokeIrrigationNode` adapter; `inject` nodes poll
+  periodically (e.g. schedule list every ~3 s, health every ~10 s). The frontend
+  consumes the CLI's JSON directly — **that is why the JSON output is a
   contract**.
 - **`templates/*.html`** — Angular screens (Node-RED classic dashboard):
   `agendamentos.html`, `novo-agendamento.html`, `configuracoes.html`,
   `historico.html`. The UI is in Portuguese; business logic does **not** live
   here (the template only formats and does the client-side countdown).
-- **`settings.js`** — Node-RED runtime configuration (HTTP auth, etc.).
+- **`settings.js`** — Node-RED runtime configuration and the sole process adapter.
+  It uses `execFile` with the fixed argv `['--stdin']` and writes JSON to the
+  child's stdin. Do not replace this with `exec`, shell pipelines, or payloads in
+  argv.
 
 The HTML files in `node-red/templates/` are the source of truth for dashboard
 screens. `node-red/flows.json` still contains the embedded `ui_template.format`
