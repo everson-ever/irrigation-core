@@ -341,6 +341,6 @@ systems; create schedules and valve configuration for the new installation.
 |---|---|
 | ![Schedules](screenshot%20application/schedules.png) | ![Create schedule](screenshot%20application/create-schedule.png) |
 
-| Valves | Default time | Logs |
-|---|---|---|
-| ![Valves](screenshot%20application/valves.png) | ![Default time](screenshot%20application/default-time.png) | ![Logs](screenshot%20application/logs.png) |
+| History | Settings |
+|---|---|
+| ![History](screenshot%20application/history.png) | ![Settings](screenshot%20application/settings.png) |
