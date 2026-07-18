@@ -459,6 +459,18 @@ class AuthService:
             }
         )
 
+    def reset_to_default(self) -> dict[str, Any]:
+        credentials = self._repository.list_all()
+        default_credential = {
+            "username": DEFAULT_AUTH_USERNAME,
+            "password_hash": self._hash_password(DEFAULT_AUTH_PASSWORD),
+        }
+        if not credentials:
+            return self._repository.add(default_credential)
+        return self._repository.update(
+            {"id": str(credentials[0]["id"]), **default_credential}
+        )
+
     def verify(self, username: Any, password: Any) -> bool:
         credential = self._credential_for(username)
         if credential is None:

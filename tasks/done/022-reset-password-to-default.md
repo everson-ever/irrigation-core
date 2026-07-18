@@ -3,7 +3,7 @@
 ## Metadata
 
 ```yaml
-status: backlog
+status: done
 priority: medium
 type: feature
 ```
@@ -168,25 +168,25 @@ reset it.
 
 ### Unit tests
 
-- [ ] `AuthService.reset_to_default()` overwrites an existing changed
+- [x] `AuthService.reset_to_default()` overwrites an existing changed
       password back to `DEFAULT_AUTH_PASSWORD`, and `verify("admin",
       "10203040")` succeeds afterward.
-- [ ] `AuthService.reset_to_default()` on an empty repository inserts the
+- [x] `AuthService.reset_to_default()` on an empty repository inserts the
       default credential (same effect as `ensure_default_credentials()`).
-- [ ] The password hash produced by `reset_to_default()` is generated via
+- [x] The password hash produced by `reset_to_default()` is generated via
       `_hash_password` (freshly salted), not a stored/static hash.
 
 ### Integration tests
 
-- [ ] `irrigation auth reset-to-default` CLI invocation resets the
+- [x] `irrigation auth reset-to-default` CLI invocation resets the
       password, and a subsequent `irrigation auth login admin,10203040`
       returns `{"authenticated": true}`.
-- [ ] After reset, logging in with the previously-set (now stale) password
+- [x] After reset, logging in with the previously-set (now stale) password
       returns `{"authenticated": false}`.
 
 ### Regression tests
 
-- [ ] Existing `test_auth_change_password_*` CLI tests
+- [x] Existing `test_auth_change_password_*` CLI tests
       (`tests/test_cli.py:619-650`) and `AuthService` tests
       (`tests/test_services.py:1405-1452`) continue to pass unchanged.
 
@@ -199,31 +199,31 @@ reset it.
 
 The task is complete when:
 
-- [ ] The requested behavior is implemented.
-- [ ] Existing behavior remains unchanged outside the defined scope.
-- [ ] New and changed behavior is covered by specs.
-- [ ] Error cases and relevant edge cases are covered.
-- [ ] The implementation follows the project's architecture and SOLID
+- [x] The requested behavior is implemented.
+- [x] Existing behavior remains unchanged outside the defined scope.
+- [x] New and changed behavior is covered by specs.
+- [x] Error cases and relevant edge cases are covered.
+- [x] The implementation follows the project's architecture and SOLID
       principles.
-- [ ] The implementation is simple, readable, maintainable, and
+- [x] The implementation is simple, readable, maintainable, and
       performant for the expected workload.
-- [ ] Formatting, linting, type checks, and the full test suite pass.
-- [ ] Documentation or user-facing examples are updated when needed.
-- [ ] No Node-RED flow, dashboard tab, or `exec` node exposes
+- [x] Formatting, linting, type checks, and the full test suite pass.
+- [x] Documentation or user-facing examples are updated when needed.
+- [x] No Node-RED flow, dashboard tab, or `exec` node exposes
       `reset-to-default` over the network.
 
 ## Implementation checklist
 
-- [ ] Confirm the task number and filename.
-- [ ] Inspect all files listed in the impact analysis.
-- [ ] Reassess the affected files before coding and update this task if
+- [x] Confirm the task number and filename.
+- [x] Inspect all files listed in the impact analysis.
+- [x] Reassess the affected files before coding and update this task if
       needed.
-- [ ] Implement the smallest coherent change.
-- [ ] Add or update specs.
-- [ ] Run focused checks.
-- [ ] Run the full validation suite.
-- [ ] Validate the implementation against every acceptance criterion.
-- [ ] Move the issue to `done` only after implementation and validation
+- [x] Implement the smallest coherent change.
+- [x] Add or update specs.
+- [x] Run focused checks.
+- [x] Run the full validation suite.
+- [x] Validate the implementation against every acceptance criterion.
+- [x] Move the issue to `done` only after implementation and validation
       pass.
 
 ## Notes
@@ -233,3 +233,4 @@ The task is complete when:
   "forgot password" flow, since `016`'s out-of-scope note explicitly
   excludes remote password reset channels and this is a home device with
   no assumed connectivity for email/SMS-based recovery.
+- Completed with 167 tests passing; Ruff lint and format checks also pass.

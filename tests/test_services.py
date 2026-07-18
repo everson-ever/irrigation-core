@@ -3,6 +3,8 @@ from datetime import datetime
 import pytest
 
 from irrigation.application.services import (
+    DEFAULT_AUTH_PASSWORD,
+    DEFAULT_AUTH_USERNAME,
     AuthService,
     HistoryService,
     IrrigationController,
@@ -1457,3 +1459,57 @@ def test_auth_service_hashes_same_password_with_different_salts(tmp_path):
     second_hash = repository.list_all()[0]["password_hash"]
 
     assert first_hash != second_hash
+
+
+def test_auth_service_resets_existing_credential_with_fresh_salt(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+    service.ensure_default_credentials()
+    service.change_password(DEFAULT_AUTH_USERNAME, DEFAULT_AUTH_PASSWORD, "87654321")
+
+    service.reset_to_default()
+    first_reset_hash = repository.list_all()[0]["password_hash"]
+    service.reset_to_default()
+    second_reset_hash = repository.list_all()[0]["password_hash"]
+
+    assert service.verify(DEFAULT_AUTH_USERNAME, DEFAULT_AUTH_PASSWORD) is True
+    assert service.verify(DEFAULT_AUTH_USERNAME, "87654321") is False
+    assert first_reset_hash != second_reset_hash
+    assert len(repository.list_all()) == 1
+
+
+def test_auth_service_reset_inserts_default_credential_when_repository_is_empty(
+    tmp_path,
+):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+
+    service.reset_to_default()
+
+    assert service.verify(DEFAULT_AUTH_USERNAME, DEFAULT_AUTH_PASSWORD) is True
+    assert repository.list_all()[0]["password_hash"] != DEFAULT_AUTH_PASSWORD
+
+
+def test_auth_service_reset_replaces_non_default_username(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "credentials"
+    )
+    service = AuthService(repository)
+    service.ensure_default_credentials()
+    credential = repository.list_all()[0]
+    repository.update(
+        {
+            "id": credential["id"],
+            "username": "operator",
+            "password_hash": credential["password_hash"],
+        }
+    )
+
+    service.reset_to_default()
+
+    assert service.verify(DEFAULT_AUTH_USERNAME, DEFAULT_AUTH_PASSWORD) is True
+    assert service.verify("operator", DEFAULT_AUTH_PASSWORD) is False

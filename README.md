@@ -159,6 +159,17 @@ The dashboard and Node-RED editor require authentication through
 `admin` / `10203040`; change the password after the first login from
 **Configurações → Trocar senha**.
 
+If the changed password is lost, access the Raspberry Pi through SSH or its
+local console and run:
+
+```bash
+irrigation auth reset-to-default
+```
+
+This restores `admin` / `10203040`. The recovery command is intentionally
+available only from the device shell and is not exposed through the dashboard
+or a Node-RED flow.
+
 The flow uses the binary installed at `/opt/irrigation/bin/irrigation`. Valves
 and settings are read through CLI commands; only the transient history-search
 snapshot is read directly from `data/`.

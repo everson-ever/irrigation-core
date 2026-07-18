@@ -644,6 +644,25 @@ def test_auth_change_password_rejects_mismatched_confirmation(capsys):
     assert "password confirmation does not match" in err
 
 
+def test_auth_reset_to_default_restores_default_login(capsys):
+    execute(["auth", "change-password", "admin,10203040,87654321"])
+    capsys.readouterr()
+
+    reset_exit_code = execute(["auth", "reset-to-default"])
+    reset_output = json.loads(capsys.readouterr().out)
+    default_exit_code = execute(["auth", "login", "admin,10203040"])
+    default_output = json.loads(capsys.readouterr().out)
+    stale_exit_code = execute(["auth", "login", "admin,87654321"])
+    stale_output = json.loads(capsys.readouterr().out)
+
+    assert reset_exit_code == 0
+    assert reset_output == {"reset": True}
+    assert default_exit_code == 0
+    assert default_output == {"authenticated": True}
+    assert stale_exit_code == 0
+    assert stale_output == {"authenticated": False}
+
+
 def test_history_range_reads_database_and_refreshes_json_snapshot(capsys, tmp_path):
     records = [
         {

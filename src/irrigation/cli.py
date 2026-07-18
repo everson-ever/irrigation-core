@@ -127,6 +127,9 @@ def _auth_command(app: Application, args: argparse.Namespace):
     if args.action == "login":
         username, password = _csv(args.data, 2, "credentials")
         return {"authenticated": service.verify(username, password)}
+    if args.action == "reset-to-default":
+        service.reset_to_default()
+        return {"reset": True}
 
     username, current_password, new_password, *confirmation = _csv(
         args.data,
@@ -215,6 +218,7 @@ def create_parser() -> argparse.ArgumentParser:
     auth_change.add_argument(
         "data", help="username,current_password,new_password[,confirm_password]"
     )
+    auth_actions.add_parser("reset-to-default")
 
     history = subcommands.add_parser("history")
     history.add_argument("data", help="day,, or range,YYYY-MM-DD,YYYY-MM-DD")

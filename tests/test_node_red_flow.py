@@ -29,6 +29,10 @@ def load_nodes():
     return {node["id"]: node for node in json.loads(FLOW_PATH.read_text())}
 
 
+def test_password_reset_is_not_exposed_by_node_red():
+    assert "reset-to-default" not in FLOW_PATH.read_text()
+
+
 def test_ui_template_formats_are_synced_from_template_files():
     sync = load_sync_module()
 
