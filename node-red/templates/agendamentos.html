@@ -1095,9 +1095,55 @@ body.nr-dashboard-theme {
   });
 
   scope.navigateToTab = function(index, event) {
-    if (event) event.preventDefault();
-    scope.closeMobileMenu();
-    window.location.hash = "#!/" + index;
+    var targetPath = "/" + index;
+    var targetHash = "#!" + targetPath;
+
+    if (event && event.preventDefault) event.preventDefault();
+    if (typeof scope.closeMobileMenu === "function") {
+      scope.closeMobileMenu();
+    }
+
+    function fallbackNavigate() {
+      if (window.location.hash === targetHash) {
+        if (typeof HashChangeEvent === "function") {
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        } else {
+          window.dispatchEvent(new Event("hashchange"));
+        }
+        return;
+      }
+      window.location.hash = targetHash;
+    }
+
+    try {
+      if (window.angular) {
+        var injector = window.angular.element(document.body).injector();
+        if (injector) {
+          var $location = injector.get("$location");
+          var $rootScope = injector.get("$rootScope");
+          var $route = null;
+          try { $route = injector.get("$route"); } catch (ignore) {}
+
+          $rootScope.$applyAsync(function() {
+            if ($location.path() === targetPath) {
+              if ($route && typeof $route.reload === "function") {
+                $route.reload();
+              } else {
+                fallbackNavigate();
+              }
+              return;
+            }
+            $location.path(targetPath);
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      fallbackNavigate();
+      return;
+    }
+
+    fallbackNavigate();
   };
   scope.toggleMobileMenu = function(event) {
     if (event) event.preventDefault();
