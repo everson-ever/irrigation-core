@@ -121,6 +121,41 @@ def test_history_range_query_is_inclusive(tmp_path):
     ] == ["2026-07-10", "2026-07-31"]
 
 
+def test_delete_before_prunes_only_older_records(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "history"
+    )
+    for record_id, day in enumerate(
+        ("2026-07-01", "2026-07-09", "2026-07-10", "2026-07-16"), start=1
+    ):
+        repository.add(
+            {
+                "valve": f"Válvula {record_id}",
+                "date": day,
+                "start": "10:00",
+                "end": "10:05",
+                "weekday": "Wednesday",
+                "mode": "Manual",
+            }
+        )
+
+    assert repository.delete_before("2026-07-10") == 2
+    assert [item["date"] for item in repository.list_all()] == [
+        "2026-07-10",
+        "2026-07-16",
+    ]
+    assert repository.delete_before("2026-07-10") == 0
+
+
+def test_delete_before_rejects_non_history_tables(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "valves"
+    )
+
+    with pytest.raises(ValueError):
+        repository.delete_before("2026-07-10")
+
+
 def test_two_connections_observe_each_others_writes(tmp_path):
     database_path = tmp_path / "irrigation.db"
     first = SqliteRepository(connect_database(database_path), "history")

@@ -1513,3 +1513,37 @@ def test_auth_service_reset_replaces_non_default_username(tmp_path):
 
     assert service.verify(DEFAULT_AUTH_USERNAME, DEFAULT_AUTH_PASSWORD) is True
     assert service.verify("operator", DEFAULT_AUTH_PASSWORD) is False
+
+
+def _history_service(tmp_path):
+    connection = connect_database(tmp_path / "irrigation.db")
+    history_repo = SqliteRepository(connection, "history")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    return HistoryService(history_repo, result_repo), history_repo
+
+
+def test_record_prunes_history_older_than_retention_window(tmp_path):
+    service, history_repo = _history_service(tmp_path)
+    for day in ("2026-07-01", "2026-07-08", "2026-07-09"):
+        history_repo.add(
+            {
+                "valve": "Horta",
+                "date": day,
+                "start": "10:00",
+                "end": "10:05",
+                "weekday": "Wednesday",
+                "mode": "Manual",
+            }
+        )
+
+    service.record(
+        "Horta",
+        datetime(2026, 7, 16, 10, 0),
+        datetime(2026, 7, 16, 10, 5),
+        "Manual",
+    )
+
+    assert [item["date"] for item in history_repo.list_all()] == [
+        "2026-07-09",
+        "2026-07-16",
+    ]

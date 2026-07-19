@@ -198,6 +198,15 @@ class SqliteRepository:
         ).fetchall()
         return [self._record(row) for row in rows]
 
+    def delete_before(self, cutoff_date: str) -> int:
+        if self.table != "history":
+            raise ValueError("retention deletes are only supported for history")
+        with _write_transaction(self.connection):
+            cursor = self.connection.execute(
+                "DELETE FROM history WHERE date < ?", (cutoff_date,)
+            )
+        return cursor.rowcount
+
     def _values(self, data: Mapping[str, Any]) -> dict[str, Any]:
         return {column: data[column] for column in self.columns if column in data}
 

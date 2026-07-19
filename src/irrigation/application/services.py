@@ -30,6 +30,10 @@ HISTORY_MODE_AUTOMATIC = "Automatic"
 HISTORY_MODE_AUTOMATIC_LATE_START = "Automatic: started after scheduled time"
 HISTORY_MODE_RESTARTED = "Restarted"
 
+# Keep only the last week of execution history; older records are pruned when a
+# new one is recorded, bounding storage on the target hardware.
+HISTORY_RETENTION_DAYS = 7
+
 DEFAULT_AUTH_USERNAME = "admin"
 DEFAULT_AUTH_PASSWORD = "10203040"
 MIN_PASSWORD_LENGTH = 8
@@ -351,7 +355,16 @@ class HistoryService:
             weekday=WEEKDAY_NAMES[start.weekday()],
             mode=mode,
         )
-        return self._history.add(record.to_dict())
+        added = self._history.add(record.to_dict())
+        self._prune_expired(start.date())
+        return added
+
+    def _prune_expired(self, reference: date) -> None:
+        prune = getattr(self._history, "delete_before", None)
+        if not callable(prune):
+            return
+        cutoff = reference - timedelta(days=HISTORY_RETENTION_DAYS)
+        prune(cutoff.isoformat())
 
     def has_active_manual(self, valve: str, now: datetime) -> bool:
         return (
