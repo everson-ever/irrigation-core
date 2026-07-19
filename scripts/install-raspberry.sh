@@ -24,6 +24,55 @@ ensure_node_runtime() {
   echo "Installed Node.js $(node --version) and npm $(npm --version)."
 }
 
+ensure_node_red() {
+  local run_user=$1
+
+  if systemctl list-unit-files nodered.service >/dev/null 2>&1; then
+    echo "Node-RED service already present."
+    return 0
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    if ! command -v apt-get >/dev/null 2>&1; then
+      echo "curl is required to install Node-RED, but apt-get is not available." >&2
+      return 1
+    fi
+    echo "Installing curl..."
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl
+  fi
+
+  echo "Node-RED service not found. Installing Node-RED..."
+  bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered) \
+    --confirm-root --confirm-install --skip-pi --no-init --nodered-user="${run_user}"
+
+  if ! systemctl list-unit-files nodered.service >/dev/null 2>&1; then
+    echo "Node-RED installation finished, but nodered.service was not found." >&2
+    return 1
+  fi
+
+  echo "Node-RED installed."
+}
+
+deploy_node_red_flow() {
+  local run_user=$1
+  local project_dir=$2
+  local node_red_home
+  local user_dir
+
+  node_red_home=$(getent passwd "${run_user}" | cut -d: -f6) || true
+  if [[ -z "${node_red_home}" ]]; then
+    echo "Could not resolve a home directory for user ${run_user}; skipped flow deploy." >&2
+    return 1
+  fi
+
+  user_dir="${node_red_home}/.node-red"
+  mkdir -p "${user_dir}"
+  cp "${project_dir}/node-red/flows.json" "${user_dir}/flows.json"
+  chown "${run_user}:${run_user}" "${user_dir}/flows.json"
+  echo "Deployed node-red/flows.json to ${user_dir}/flows.json, overwriting any previous flow."
+}
+
 initialize_data_directory() {
   local data_dir=$1
   local default_data_dir=$2
@@ -76,6 +125,7 @@ main() {
 
   initialize_data_directory "${data_dir}" "${default_data_dir}"
   ensure_node_runtime
+  ensure_node_red "${run_user}"
 
   usermod -aG gpio "${run_user}"
 
@@ -96,15 +146,21 @@ main() {
       -e "s|__BINARY_DIR__|${binary_dir}|g" \
       "${project_dir}/deploy/systemd/nodered-override.conf.template" \
       > /etc/systemd/system/nodered.service.d/irrigation.conf
+
+    deploy_node_red_flow "${run_user}" "${project_dir}"
   fi
 
   chown -R "${run_user}:${run_user}" "${data_dir}"
   systemctl daemon-reload
   systemctl enable --now irrigation.service
 
+  if [[ -f /etc/systemd/system/nodered.service.d/irrigation.conf ]]; then
+    systemctl enable nodered.service
+    systemctl restart nodered.service
+  fi
+
   echo "Installation complete. Operational data is stored in data/irrigation.db."
   echo "Legacy JSON data is imported automatically when the database does not exist."
-  echo "Import node-red/flows.json using the Node-RED editor."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

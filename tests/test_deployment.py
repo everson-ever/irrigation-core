@@ -89,6 +89,103 @@ def test_installer_uses_apt_when_node_runtime_is_missing(tmp_path):
     assert "Installing Node.js and npm" in result.stdout
 
 
+def test_installer_skips_node_red_install_when_service_present(tmp_path):
+    apt_log = tmp_path / "apt.log"
+
+    result = run_node_runtime_installer(
+        """
+        source "$1"
+        apt_log=$2
+        systemctl() { [[ "$1" == list-unit-files ]]; }
+        curl() { printf 'unexpected curl call' >> "${apt_log}"; return 1; }
+        bash() { printf 'unexpected bash call' >> "${apt_log}"; return 1; }
+        apt-get() { printf 'unexpected apt call' >> "${apt_log}"; return 1; }
+        ensure_node_red "pi"
+        """,
+        apt_log,
+    )
+
+    assert result.returncode == 0
+    assert "already present" in result.stdout
+    assert not apt_log.exists()
+
+
+def test_installer_installs_node_red_when_service_is_missing(tmp_path):
+    marker = tmp_path / "node-red-installed"
+    install_log = tmp_path / "install.log"
+
+    result = run_node_runtime_installer(
+        """
+        source "$1"
+        marker=$2
+        install_log=$3
+        systemctl() { [[ "$1" == list-unit-files && -f "${marker}" ]]; }
+        curl() { :; }
+        bash() { printf '%s\n' "$*" >> "${install_log}"; touch "${marker}"; }
+        ensure_node_red "pi"
+        """,
+        marker,
+        install_log,
+    )
+
+    assert result.returncode == 0
+    assert "Installing Node-RED" in result.stdout
+    assert "Node-RED installed." in result.stdout
+    assert "--nodered-user=pi" in install_log.read_text()
+
+
+def test_installer_deploys_node_red_flow_overwriting_existing_one(tmp_path):
+    home_dir = tmp_path / "home" / "pi"
+    user_dir = home_dir / ".node-red"
+    user_dir.mkdir(parents=True)
+    (user_dir / "flows.json").write_text('{"old": true}')
+
+    project_dir = tmp_path / "project"
+    (project_dir / "node-red").mkdir(parents=True)
+    (project_dir / "node-red" / "flows.json").write_text('{"new": true}')
+
+    chown_log = tmp_path / "chown.log"
+
+    result = run_node_runtime_installer(
+        """
+        source "$1"
+        home_dir=$2
+        project_dir=$3
+        chown_log=$4
+        getent() { printf 'pi:x:1000:1000::%s:/bin/bash' "${home_dir}"; }
+        chown() { printf '%s\n' "$*" >> "${chown_log}"; }
+        deploy_node_red_flow "pi" "${project_dir}"
+        """,
+        home_dir,
+        project_dir,
+        chown_log,
+    )
+
+    assert result.returncode == 0
+    assert (user_dir / "flows.json").read_text() == '{"new": true}'
+    assert "pi:pi" in chown_log.read_text()
+    assert "overwriting any previous flow" in result.stdout
+
+
+def test_installer_reports_when_flow_deploy_user_home_is_unresolved(tmp_path):
+    project_dir = tmp_path / "project"
+    (project_dir / "node-red").mkdir(parents=True)
+    (project_dir / "node-red" / "flows.json").write_text('{"new": true}')
+
+    result = run_node_runtime_installer(
+        """
+        source "$1"
+        project_dir=$2
+        getent() { return 2; }
+        deploy_node_red_flow "ghost" "${project_dir}"
+        """,
+        project_dir,
+    )
+
+    assert result.returncode != 0
+    assert "Could not resolve a home directory" in result.stderr
+
+
 def test_installer_initializes_missing_data_directory(tmp_path):
     default_data_dir = tmp_path / "deploy" / "data-defaults"
     default_data_dir.mkdir(parents=True)

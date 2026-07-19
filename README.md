@@ -106,11 +106,11 @@ changes. Webhook URLs and password data are never included in messages.
   [Installation](#installation-on-raspberry-pi)); not required on the target
   device if you install a binary built elsewhere.
 - Access to GPIO pins.
-- Internet access during installation when Node.js or npm is not already
-  installed; the installer obtains both from the Raspberry Pi OS package
-  repositories.
-- Node-RED to use the web dashboard; the installer preserves and configures an
-  existing `nodered.service`, but does not install Node-RED itself.
+- Internet access during installation when Node.js, npm, or Node-RED are not
+  already installed; the installer obtains Node.js and npm from the Raspberry
+  Pi OS package repositories and Node-RED from its official installer script.
+- Node-RED to use the web dashboard; the installer configures an existing
+  `nodered.service`, or installs Node-RED itself when the service is missing.
 - The `node-red-dashboard` module to import the existing dashboard.
 
 ## Installation on Raspberry Pi
@@ -172,10 +172,16 @@ The script:
 
 1. initializes `data/` from the deployment defaults when it is absent;
 2. installs Node.js and npm through `apt` when either command is missing;
-3. installs the compiled binary at `/opt/irrigation/bin/irrigation`;
-4. adds the user to the `gpio` group;
-5. installs and starts the `irrigation.service` service;
-6. configures the Node-RED service directory and `PATH` when it exists.
+3. installs Node-RED itself, as a `nodered.service`, when that service is not
+   already present, using Node-RED's official installer script in
+   unattended mode;
+4. installs the compiled binary at `/opt/irrigation/bin/irrigation`;
+5. adds the user to the `gpio` group;
+6. installs and starts the `irrigation.service` service;
+7. configures the Node-RED service directory, `PATH`, and settings file;
+8. deploys [`node-red/flows.json`](node-red/flows.json) into the Node-RED
+   user directory (`~/.node-red/flows.json`), overwriting any existing flow,
+   then restarts `nodered.service` so the change takes effect.
 
 The service uses the installation directory as its working directory and keeps
 operational state in its `data/` folder. Do not move or remove that directory
@@ -190,21 +196,24 @@ sudo reboot
 
 ### Configure Node-RED
 
-Node.js and npm are installed automatically by the irrigation installer. If the
-dashboard module is not installed yet, run the following command with the user
-that runs Node-RED:
+Node.js, npm, and Node-RED itself are installed automatically by the
+irrigation installer when missing, using the user that will run
+`nodered.service` (`SUDO_USER`, i.e. the account you used with `sudo`). If the
+dashboard module is not installed yet, run the following command with that
+same user:
 
 ```bash
 cd ~/.node-red
 npm install node-red-dashboard
 ```
 
-In the Node-RED editor:
-
-1. open the **Import** menu;
-2. select [`node-red/flows.json`](node-red/flows.json);
-3. confirm the deploy;
-4. open `http://RASPBERRY_IP:1880/ui`.
+The installer already deploys [`node-red/flows.json`](node-red/flows.json) to
+`~/.node-red/flows.json` and restarts `nodered.service`, overwriting any
+previously imported flow, so no manual import is needed. Open
+`http://RASPBERRY_IP:1880/ui` to use the dashboard, or
+`http://RASPBERRY_IP:1880` for the editor if you need to inspect or customize
+the flow. Re-running `sudo ./scripts/install-raspberry.sh` after updating the
+repository redeploys the flow and discards local edits made in the editor.
 
 The dashboard and Node-RED editor require authentication through
 [`node-red/settings.js`](node-red/settings.js). The default credentials are
