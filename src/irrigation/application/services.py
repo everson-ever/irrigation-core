@@ -944,8 +944,8 @@ class IrrigationController:
         self._valves.configure()
         try:
             while True:
-                self._touch_health()
                 self.run_once()
+                self._touch_health()
                 time.sleep(self._poll_interval)
         finally:
             self._valves.close()

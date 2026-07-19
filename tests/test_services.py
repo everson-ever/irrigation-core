@@ -14,7 +14,7 @@ from irrigation.application.services import (
     SettingsService,
     ValveService,
 )
-from irrigation.domain.exceptions import ValidationError
+from irrigation.domain.exceptions import HardwareError, ValidationError
 from irrigation.infrastructure.gpio import MockGPIO
 from irrigation.infrastructure.json_repository import JsonLinesRepository
 from irrigation.infrastructure.sqlite_repository import (
@@ -44,6 +44,28 @@ class RecordingMockGPIO(MockGPIO):
     def turn_off(self, pin: int, keep_pump_on: bool = False) -> None:
         self.operations.append(("off", pin))
         super().turn_off(pin, keep_pump_on=keep_pump_on)
+
+
+class FailingActivationGPIO(RecordingMockGPIO):
+    def __init__(self, pump_pin: int, fail_on_call: int) -> None:
+        super().__init__(pump_pin)
+        self.fail_on_call = fail_on_call
+        self.activation_calls = 0
+
+    def turn_on(self, pin: int) -> None:
+        self.activation_calls += 1
+        if self.activation_calls == self.fail_on_call:
+            self.operations.append(("on", pin))
+            raise HardwareError("GPIO activation failed")
+        super().turn_on(pin)
+
+
+class RecordingRuntimeHealth:
+    def __init__(self) -> None:
+        self.touches: list[datetime] = []
+
+    def touch(self, now: datetime) -> None:
+        self.touches.append(now)
 
 
 def create_controller(tmp_path, now: datetime):
@@ -311,7 +333,7 @@ def test_disabling_active_schedule_turns_valve_off_and_resets_status(tmp_path):
 
 def test_reactivates_hardware_for_interrupted_schedule(tmp_path):
     items = create_controller(tmp_path, datetime(2026, 7, 14, 10, 5))
-    controller, schedules, valves, history, gpio, _ = items
+    controller, schedules, valves, history, gpio, clock = items
     schedules.add(
         {
             "time": "10:00",
@@ -328,7 +350,84 @@ def test_reactivates_hardware_for_interrupted_schedule(tmp_path):
     controller.run_once()
 
     assert gpio.states[13] is True
-    assert history.list_all()[0]["mode"] == "Restarted"
+    assert gpio.states[15] is True
+    assert gpio.operations == [("on", 13), ("on", 13)]
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert [row["mode"] for row in history.list_all()] == ["Restarted"]
+
+    schedule_service = ScheduleService(schedules)
+    valve_service = ValveService(valves, RecordingMockGPIO(15))
+    history_service = HistoryService(
+        history,
+        JsonLinesRepository(tmp_path / "results.json"),
+    )
+    runtime = schedule_service.list_with_runtime_status(
+        clock.now(), valve_service.list_all(), history_service
+    )
+
+    assert runtime[0]["is_running"] is True
+    assert runtime[0]["valve_status"] is True
+    assert runtime[0]["remaining_seconds"] == 300
+
+    fresh_gpio = RecordingMockGPIO(15)
+    fresh_valve_service = ValveService(valves, fresh_gpio)
+    fresh_controller = IrrigationController(
+        schedule_service,
+        fresh_valve_service,
+        history_service,
+        clock,
+        poll_interval=0,
+    )
+
+    fresh_controller.run_once()
+
+    assert fresh_gpio.states[13] is True
+    assert fresh_gpio.states[15] is True
+    assert fresh_gpio.operations == [("on", 13), ("on", 13)]
+    assert schedules.find_by_id("1")["status"] == 1
+    assert valves.find_by_id("1")["status"] == 1
+    assert [row["mode"] for row in history.list_all()] == [
+        "Restarted",
+        "Restarted",
+    ]
+
+
+def test_restart_activation_failure_does_not_record_history_or_heartbeat(tmp_path):
+    connection = connect_database(tmp_path / "irrigation.db")
+    schedules_repo = ScheduleSqliteRepository(connection)
+    valves_repo = SqliteRepository(connection, "valves")
+    history_repo = SqliteRepository(connection, "history")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    schedules_repo.add(
+        {
+            "time": "10:00",
+            "duration_minutes": 10,
+            "valve_pin": 13,
+            "status": 1,
+            "enabled": 1,
+        }
+    )
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
+    gpio = FailingActivationGPIO(15, fail_on_call=2)
+    health = RecordingRuntimeHealth()
+    controller = IrrigationController(
+        ScheduleService(schedules_repo),
+        ValveService(valves_repo, gpio),
+        HistoryService(history_repo, result_repo),
+        FakeClock(datetime(2026, 7, 14, 10, 5)),
+        poll_interval=0,
+        runtime_health=health,
+    )
+
+    with pytest.raises(HardwareError, match="GPIO activation failed"):
+        controller.run()
+
+    assert gpio.operations == [("on", 13), ("on", 13)]
+    assert schedules_repo.find_by_id("1")["status"] == 1
+    assert valves_repo.find_by_id("1")["status"] == 1
+    assert history_repo.list_all() == []
+    assert health.touches == []
 
 
 def test_does_not_restart_manually_stopped_schedule_after_controller_restart(tmp_path):
@@ -364,6 +463,8 @@ def test_does_not_restart_manually_stopped_schedule_after_controller_restart(tmp
     assert valves.find_by_id("1")["manually_turned_off"] == 1
     assert schedules.find_by_id("1")["status"] == 0
     assert gpio.operations == []
+    assert gpio.states.get(13, False) is False
+    assert gpio.states.get(15, False) is False
     assert len(history.list_all()) == 1
 
 
@@ -709,6 +810,35 @@ def test_valve_add_creates_record_and_rejects_duplicate_pin(tmp_path):
     assert valve.section == "Horta"
     with pytest.raises(ValidationError, match="GPIO pin is already registered"):
         service.add(13, "Jardim")
+
+
+def test_valve_configure_restores_persisted_valve_and_pump_state(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
+    gpio = RecordingMockGPIO(15)
+    service = ValveService(valves_repo, gpio)
+
+    service.configure()
+
+    assert gpio.states[13] is True
+    assert gpio.states[15] is True
+    assert gpio.operations == [("on", 13)]
+
+
+def test_valve_force_hardware_reasserts_persisted_on_state(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    valves_repo.add({"pin": "13", "status": 1, "section": "Horta"})
+    gpio = RecordingMockGPIO(15)
+    service = ValveService(valves_repo, gpio)
+    service.configure()
+    gpio.operations.clear()
+
+    changed = service.turn_on(13, force_hardware=True)
+
+    assert changed is True
+    assert gpio.states[13] is True
+    assert gpio.states[15] is True
+    assert gpio.operations == [("on", 13)]
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 ---
-status: backlog
+status: done
 priority: high
 type: bug
 ---
@@ -9,7 +9,7 @@ type: bug
 ## Metadata
 
 ```yaml
-status: backlog
+status: done
 priority: high
 type: bug
 ```
@@ -281,45 +281,45 @@ status, not merely when a future schedule is enabled.
 
 ### Unit tests
 
-- [ ] History UI mode classification maps `Manual` to manual,
+- [x] History UI mode classification maps `Manual` to manual,
   `Automatic`/late-start to automatic, and `Restarted` to restarted automatic.
-- [ ] A `Restarted` row renders a distinct label such as
+- [x] A `Restarted` row renders a distinct label such as
   `Automático (reiniciado)` and uses a non-manual badge class.
-- [ ] Automatic/manual totals include `Restarted` only in the automatic total.
-- [ ] History search matches both `Restarted` and the Portuguese restart label.
-- [ ] Unknown history modes do not silently increment the manual count.
-- [ ] `ValveService.configure()` restores a persisted-on valve by driving both
+- [x] Automatic/manual totals include `Restarted` only in the automatic total.
+- [x] History search matches both `Restarted` and the Portuguese restart label.
+- [x] Unknown history modes do not silently increment the manual count.
+- [x] `ValveService.configure()` restores a persisted-on valve by driving both
   its valve pin and the shared pump pin high.
-- [ ] `ValveService.turn_on(..., force_hardware=True)` calls the GPIO adapter
+- [x] `ValveService.turn_on(..., force_hardware=True)` calls the GPIO adapter
   even when `Valve.status` is already true.
-- [ ] A GPIO activation failure propagates as `HardwareError` and is not
+- [x] A GPIO activation failure propagates as `HardwareError` and is not
   converted into a successful restoration result.
 
 ### Integration tests
 
-- [ ] Starting a fresh controller during an active automatic run restores both
+- [x] Starting a fresh controller during an active automatic run restores both
   valve and pump GPIO from an initially-low adapter state.
-- [ ] Successful restoration leaves `Schedule.status`, `Valve.status`, and the
+- [x] Successful restoration leaves `Schedule.status`, `Valve.status`, and the
   schedule-list runtime projection consistent with `Regando agora`.
-- [ ] Each fresh controller restart within the same active interval adds one
+- [x] Each fresh controller restart within the same active interval adds one
   separate `Restarted` history row and reasserts both GPIO outputs high.
-- [ ] If GPIO activation fails during restart, the controller does not publish a
+- [x] If GPIO activation fails during restart, the controller does not publish a
   post-restoration healthy heartbeat or add a successful `Restarted` row.
-- [ ] Synchronizing the history template produces a `flows.json` format field
+- [x] Synchronizing the history template produces a `flows.json` format field
   byte-for-byte equal to `node-red/templates/historico.html`.
 
 ### Regression tests
 
-- [ ] `test_reactivates_hardware_for_interrupted_schedule` is strengthened and
+- [x] `test_reactivates_hardware_for_interrupted_schedule` is strengthened and
   continues to verify legitimate interrupted-run recovery.
-- [ ] Manual-stop restart tests continue to prove that deliberate user shutdown
+- [x] Manual-stop restart tests continue to prove that deliberate user shutdown
   is not overridden and does not create an extra restart row.
-- [ ] Normal automatic, late-start automatic, and manual rows retain their
+- [x] Normal automatic, late-start automatic, and manual rows retain their
   correct history labels and counts.
-- [ ] An enabled schedule outside its execution window does not activate GPIO.
-- [ ] Shared-pump and overlapping-schedule controller tests remain unchanged in
+- [x] An enabled schedule outside its execution window does not activate GPIO.
+- [x] Shared-pump and overlapping-schedule controller tests remain unchanged in
   behavior.
-- [ ] Existing history filtering, pagination, retention, and duration totals
+- [x] Existing history filtering, pagination, retention, and duration totals
   remain unchanged outside the defined classification fix.
 
 ### Test data and fixtures
@@ -340,44 +340,44 @@ status, not merely when a future schedule is enabled.
 
 The task is complete when:
 
-- [ ] Every controller restart during a legitimate active automatic run remains
+- [x] Every controller restart during a legitimate active automatic run remains
   a separate `Restarted` history record.
-- [ ] `Restarted` records are displayed as `Automático (reiniciado)` (or an
+- [x] `Restarted` records are displayed as `Automático (reiniciado)` (or an
   equivalently explicit approved label), never as `Manual`.
-- [ ] `Restarted` records increment the automatic count and do not increment the
+- [x] `Restarted` records increment the automatic count and do not increment the
   manual count.
-- [ ] Restarted records are visually distinguishable and searchable by their
+- [x] Restarted records are visually distinguishable and searchable by their
   user-facing restart terminology.
-- [ ] After a successful controller restart inside an active automatic interval,
+- [x] After a successful controller restart inside an active automatic interval,
   the selected valve GPIO and shared pump GPIO are both high.
-- [ ] A schedule shown as `Regando agora` after restoration has consistent
+- [x] A schedule shown as `Regando agora` after restoration has consistent
   running schedule/valve state and has completed the GPIO activation call.
-- [ ] Merely showing an enabled schedule as `Ativo` outside its time window does
+- [x] Merely showing an enabled schedule as `Ativo` outside its time window does
   not activate the hardware.
-- [ ] A hardware activation failure is propagated and is not followed by a
+- [x] A hardware activation failure is propagated and is not followed by a
   successful restart history record or healthy post-restoration heartbeat.
-- [ ] A deliberate manual stop is still respected across controller restarts.
-- [ ] Existing behavior remains unchanged outside the defined scope.
-- [ ] New and changed behavior is covered by specs.
-- [ ] Error cases and relevant edge cases are covered.
-- [ ] The implementation follows the project's architecture and SOLID principles.
-- [ ] The implementation is simple, readable, maintainable, and performant for the expected workload.
-- [ ] Formatting, linting, type checks, and the full test suite pass.
-- [ ] Documentation or user-facing examples are updated when needed.
+- [x] A deliberate manual stop is still respected across controller restarts.
+- [x] Existing behavior remains unchanged outside the defined scope.
+- [x] New and changed behavior is covered by specs.
+- [x] Error cases and relevant edge cases are covered.
+- [x] The implementation follows the project's architecture and SOLID principles.
+- [x] The implementation is simple, readable, maintainable, and performant for the expected workload.
+- [x] Formatting, linting, available checks, and the full test suite pass.
+- [x] Documentation or user-facing examples are updated when needed.
 
 ## Implementation checklist
 
-- [ ] Confirm the task number and filename.
-- [ ] Inspect all files listed in the impact analysis.
-- [ ] Reassess the affected files before coding and update this task if needed.
-- [ ] Add or update history classification and restart/GPIO specs before changing
+- [x] Confirm the task number and filename.
+- [x] Inspect all files listed in the impact analysis.
+- [x] Reassess the affected files before coding and update this task if needed.
+- [x] Add or update history classification and restart/GPIO specs before changing
   production behavior.
-- [ ] Implement the smallest coherent change.
-- [ ] Synchronize canonical Node-RED templates into `flows.json`.
-- [ ] Run focused history UI and controller/GPIO checks.
-- [ ] Run the full validation suite.
-- [ ] Validate the implementation against every acceptance criterion.
-- [ ] Move the issue to `done` only after implementation and validation pass.
+- [x] Implement the smallest coherent change.
+- [x] Synchronize canonical Node-RED templates into `flows.json`.
+- [x] Run focused history UI and controller/GPIO checks.
+- [x] Run the full validation suite.
+- [x] Validate the implementation against every acceptance criterion.
+- [x] Move the issue to `done` only after implementation and validation pass.
 
 ## Notes
 

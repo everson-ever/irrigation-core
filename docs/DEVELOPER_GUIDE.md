@@ -135,7 +135,9 @@ in `services.py`):
 - `Automatic`
 - `Automatic: started after scheduled time` (late start — system came back online
   within the window)
-- `Restarted` (watering resumed after a process restart within the valid window)
+- `Restarted` (automatic watering resumed after a process restart within the
+  valid window). Each process restart creates a separate audit row; the
+  dashboard labels and counts these rows as automatic restarts.
 
 ---
 
@@ -205,8 +207,8 @@ Called by `irrigation schedule list`. For each schedule it returns the
 
 ```
 configure() → loop:
-    touch(health)      # heartbeat
     run_once()         # one sweep
+    touch(health)      # heartbeat after successful reconciliation
     sleep(poll_interval)   # default 5s
 ```
 
@@ -237,6 +239,12 @@ Built-in safety rules:
   `ValveService.turn_off`).
 - **Valve shared by multiple schedules**: `_should_keep_valve_on` keeps the valve
   on if another active schedule uses the same pin.
+- **Restart recovery**: startup first configures outputs low and restores every
+  persisted-on valve. A resumed schedule then reasserts the valve and shared
+  pump outputs with `force_hardware=True` before recording its separate
+  `Restarted` row or publishing a healthy heartbeat. GPIO activation errors
+  propagate and therefore produce neither a successful restart row nor a new
+  heartbeat.
 
 `ManualControlService.turn_on(wait=True)` blocks until the end time, polling; if
 the valve is turned off earlier, it clears the schedule's `status`. That is why
@@ -295,6 +303,11 @@ in `data_dir`, they are imported into SQLite **once**, protected by a file lock
   `HardwareError` if `RPi.GPIO` is unavailable.
 - **`MockGPIO`** (`driver="mock"`) — in-memory simulator for dev/tests, no
   hardware. Keeps states in a dict.
+
+On controller startup, `ValveService.configure()` translates persisted-on valve
+state back into hardware commands. Since `turn_on` drives both the selected
+valve and the shared pump high, a successfully restored running schedule has
+both outputs asserted; enabled future schedules remain configured low.
 
 > ⚠️ High level = on. Always use relay/transistor modules; GPIO pins must not
 > power the pump/valves directly.

@@ -189,6 +189,7 @@ body.nr-dashboard-theme {
 .ir-mode { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 9px; font-size: 10px; font-weight: 850; white-space: nowrap; }
 .ir-mode::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .ir-mode-automatic { background: #e2f7ef; color: #099b6c; }
+.ir-mode-restarted { background: #fff3d9; color: #a86408; }
 .ir-mode-manual { background: #eef1f7; color: #65728a; }
 .ir-empty { display: grid; min-height: 280px; margin-top: 12px; place-items: center; border: 1px dashed #cfd6d5; border-radius: 13px; background: #fff; text-align: center; }
 .ir-empty svg { width: 38px; height: 38px; color: var(--ir-green); }
@@ -347,7 +348,7 @@ body.nr-dashboard-theme {
               <td data-label="Fim"><span class="ir-time">{{ log.end }}</span></td>
               <td data-label="Duração"><span class="ir-duration">{{ durationMinutes(log) }} min</span></td>
               <td data-label="Dia">{{ translateWeekday(log.weekday) }}</td>
-              <td data-label="Modo"><span class="ir-mode" ng-class="isAutomatic(log) ? 'ir-mode-automatic' : 'ir-mode-manual'">{{ modeLabel(log) }}</span></td>
+              <td data-label="Modo"><span class="ir-mode" ng-class="modeClass(log)">{{ modeLabel(log) }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -540,9 +541,19 @@ body.nr-dashboard-theme {
     scope.setTodayFilterState();
     scope.sendHistoryRequest(scope.historyDay());
   };
-  scope.isAutomatic = function(log) { return String(log && log.mode || "").toLowerCase().indexOf("automatic") !== -1; };
+  scope.modeCategory = function(log) {
+    var mode = String(log && log.mode || "").trim().toLowerCase();
+    var categories = {
+      manual: "manual",
+      automatic: "automatic",
+      "automatic: started after scheduled time": "automatic",
+      restarted: "restarted"
+    };
+    return categories[mode] || "automatic";
+  };
+  scope.isAutomatic = function(log) { return scope.modeCategory(log) !== "manual"; };
   scope.automaticCount = function() { return scope.history_records.filter(scope.isAutomatic).length; };
-  scope.manualCount = function() { return scope.history_records.length - scope.automaticCount(); };
+  scope.manualCount = function() { return scope.history_records.filter(function(log) { return scope.modeCategory(log) === "manual"; }).length; };
   scope.durationMinutes = function(log) {
     var start = String(log && log.start || "").split(":");
     var end = String(log && log.end || "").split(":");
@@ -569,12 +580,24 @@ body.nr-dashboard-theme {
     var labels = { monday: "Segunda", tuesday: "Terça", wednesday: "Quarta", thursday: "Quinta", friday: "Sexta", saturday: "Sábado", sunday: "Domingo" };
     return labels[String(value || "").toLowerCase()] || value;
   };
-  scope.modeLabel = function(log) { return scope.isAutomatic(log) ? "Automático" : "Manual"; };
+  scope.modeLabel = function(log) {
+    var category = scope.modeCategory(log);
+    if (category === "restarted") return "Automático (reiniciado)";
+    if (category === "manual") return "Manual";
+    var rawMode = String(log && log.mode || "").trim();
+    var normalizedMode = rawMode.toLowerCase();
+    if (!rawMode || normalizedMode === "automatic" || normalizedMode === "automatic: started after scheduled time") return "Automático";
+    return "Automático (" + rawMode + ")";
+  };
+  scope.modeClass = function(log) {
+    if (scope.modeCategory(log) === "restarted") return "ir-mode-restarted";
+    return scope.isAutomatic(log) ? "ir-mode-automatic" : "ir-mode-manual";
+  };
   scope.visibleHistory = function() {
     var query = String(scope.history_query || "").toLowerCase().trim();
     if (!query) return scope.history_records;
     return scope.history_records.filter(function(log) {
-      return (String(log.valve || "") + " " + String(log.mode || "") + " " + scope.translateWeekday(log.weekday)).toLowerCase().indexOf(query) !== -1;
+      return (String(log.valve || "") + " " + String(log.mode || "") + " " + scope.modeLabel(log) + " " + scope.translateWeekday(log.weekday)).toLowerCase().indexOf(query) !== -1;
     });
   };
   scope.totalPages = function() {

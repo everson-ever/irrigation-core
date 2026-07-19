@@ -39,6 +39,31 @@ def test_ui_template_formats_are_synced_from_template_files():
     assert sync.synced_flows_text(FLOW_PATH, TEMPLATES_DIR) == FLOW_PATH.read_text()
 
 
+def test_history_modes_use_explicit_automatic_restart_classification():
+    template = load_nodes()["dad8cd89.f8f81"]["format"]
+
+    assert "scope.modeCategory = function(log)" in template
+    assert 'manual: "manual"' in template
+    assert 'automatic: "automatic"' in template
+    assert '"automatic: started after scheduled time": "automatic"' in template
+    assert 'restarted: "restarted"' in template
+    assert 'return categories[mode] || "automatic"' in template
+    assert 'scope.modeCategory(log) !== "manual"' in template
+    assert 'scope.modeCategory(log) === "manual"' in template
+    assert 'scope.modeCategory(log) === "restarted"' in template
+    assert 'return "Automático (reiniciado)"' in template
+    assert "ir-mode-restarted" in template
+    assert 'indexOf("automatic")' not in template
+
+
+def test_history_search_includes_restart_label_and_raw_mode():
+    template = load_nodes()["dad8cd89.f8f81"]["format"]
+
+    assert "scope.modeLabel(log)" in template
+    assert 'String(log.mode || "")' in template
+    assert 'ng-class="modeClass(log)"' in template
+
+
 def test_ui_template_sync_replaces_only_mapped_format_fields():
     sync = load_sync_module()
     flows = json.loads(FLOW_PATH.read_text())
