@@ -590,7 +590,7 @@ def test_valve_add_update_and_delete_manage_database_records(capsys, tmp_path):
     add_exit_code = execute(["valve", "add", "13,Horta"])
     added = json.loads(capsys.readouterr().out)
 
-    update_exit_code = execute(["valve", "update", f"{added['id']},14,Jardim"])
+    update_exit_code = execute(["valve", "update", f"{added['id']},16,Jardim"])
     updated = json.loads(capsys.readouterr().out)
 
     delete_exit_code = execute(["valve", "delete", added["id"]])
@@ -601,7 +601,7 @@ def test_valve_add_update_and_delete_manage_database_records(capsys, tmp_path):
     assert added["pin"] == "13"
     assert added["section"] == "Horta"
     assert update_exit_code == 0
-    assert updated["pin"] == "14"
+    assert updated["pin"] == "16"
     assert updated["section"] == "Jardim"
     assert delete_exit_code == 0
     assert deleted == {"deleted": True}
@@ -613,14 +613,14 @@ def test_valve_add_and_update_accept_section_names_with_spaces(capsys):
     added = json.loads(capsys.readouterr().out)
 
     update_exit_code = execute(
-        ["valve", "update", added["id"] + ",14,Jardim", "principal"]
+        ["valve", "update", added["id"] + ",16,Jardim", "principal"]
     )
     updated = json.loads(capsys.readouterr().out)
 
     assert add_exit_code == 0
     assert added["section"] == "Jardim principal"
     assert update_exit_code == 0
-    assert updated["pin"] == "14"
+    assert updated["pin"] == "16"
     assert updated["section"] == "Jardim principal"
 
 
@@ -636,7 +636,7 @@ def test_stdin_valve_name_treats_shell_metacharacters_as_literal_data(capsys, tm
     output = json.loads(capsys.readouterr().out)
     stored = _repository(tmp_path, "valves").find_by_id("1")
     flag_exit_code = _execute_stdin(
-        {"command": "valve", "action": "add", "pin": 14, "section": "--no-wait"}
+        {"command": "valve", "action": "add", "pin": 16, "section": "--no-wait"}
     )
     flag_output = json.loads(capsys.readouterr().out)
 
@@ -659,6 +659,44 @@ def test_valve_add_rejects_duplicate_pin(capsys, tmp_path):
     assert exit_code == 2
     assert "GPIO pin is already registered" in captured.err
     assert len(records) == 1
+
+
+def test_valve_add_rejects_unsupported_board_pin_without_persisting(capsys, tmp_path):
+    exit_code = execute(["valve", "add", "15,Bomba"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "physical BOARD pin 15 is not supported" in captured.err
+    assert (
+        "allowed physical BOARD pins: "
+        "7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40" in captured.err
+    )
+    assert _repository(tmp_path, "valves").list_all() == []
+
+
+def test_stdin_valve_update_rejects_unsupported_pin_without_modifying_record(
+    capsys, tmp_path
+):
+    assert execute(["valve", "add", "13,Horta"]) == 0
+    added = json.loads(capsys.readouterr().out)
+
+    exit_code = _execute_stdin(
+        {
+            "command": "valve",
+            "action": "update",
+            "id": added["id"],
+            "pin": 17,
+            "section": "Jardim",
+        }
+    )
+    captured = capsys.readouterr()
+    stored = _repository(tmp_path, "valves").find_by_id(added["id"])
+
+    assert exit_code == 2
+    assert "physical BOARD pin 17 is not supported" in captured.err
+    assert "allowed physical BOARD pins:" in captured.err
+    assert stored["pin"] == "13"
+    assert stored["section"] == "Horta"
 
 
 def test_valve_delete_rejects_schedule_reference(capsys, tmp_path):

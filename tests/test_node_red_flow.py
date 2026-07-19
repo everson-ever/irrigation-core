@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 FLOW_PATH = Path(__file__).resolve().parents[1] / "node-red" / "flows.json"
@@ -772,6 +773,46 @@ def test_settings_tab_has_valve_section_crud_flow():
     assert 'msg.topic = "valve_error"' in error["func"]
     assert 'replace(/^Error:\\s*/, "")' in error["func"]
     assert error["wires"] == [["d6f0b5a1.42c8e3"]]
+
+
+def test_settings_valve_form_uses_exact_physical_board_pin_selector():
+    settings_template = load_nodes()["d6f0b5a1.42c8e3"]["format"]
+    selector = re.search(
+        r'<select ng-model="valve_form\.pin" required>(.*?)</select>',
+        settings_template,
+        re.DOTALL,
+    )
+
+    assert selector is not None
+    option_pairs = re.findall(
+        r'<option ng-value="(\d+)">Pino físico \(BOARD\) (\d+)</option>',
+        selector.group(1),
+    )
+    assert option_pairs == [
+        (str(pin), str(pin))
+        for pin in (7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40)
+    ]
+    assert 'type="number"' not in selector.group(0)
+    assert 'ng-model="valve_form.pin" required' in selector.group(0)
+    assert (
+        "scope.valve_pin_options = "
+        "[7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40]"
+        in settings_template
+    )
+    assert "var selectedPin = parseInt(scope.valve_form.pin, 10)" in (settings_template)
+    assert "pin: selectedPin" in settings_template
+
+
+def test_settings_valve_form_requires_repair_for_existing_unsupported_pin():
+    settings_template = load_nodes()["d6f0b5a1.42c8e3"]["format"]
+
+    assert "var supportedPin = scope.valve_pin_options.indexOf(currentPin) !== -1" in (
+        settings_template
+    )
+    assert 'pin: supportedPin ? currentPin : ""' in settings_template
+    assert "não é permitido. Selecione um pino aprovado" in settings_template
+    assert "{{ valve.section }}" in settings_template
+    assert "{{ valve.pin }}" in settings_template
 
 
 def test_settings_tab_has_history_retention_flow():

@@ -87,6 +87,8 @@ class NotificationConfig:
 
 
 def _int_value(value: Any, field: str, minimum: int | None = None) -> int:
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+        raise ValidationError(f"{field} must be an integer")
     try:
         number = int(value)
     except (TypeError, ValueError) as exc:

@@ -189,9 +189,11 @@ Como o Raspberry Pi não possui entradas analógicas:
 > número do **pino físico (BOARD)** do conector de 40 pinos. Nomes como `GPIO23`
 > são identificadores BCM e são ambíguos sem conversão. Nos exemplos abaixo a
 > equivalência aparece apenas para ajudar a ler diagramas antigos; cadastre o
-> número físico e confira o pinout do modelo exato do Raspberry Pi. Os pinos são
-> exemplos, não uma recomendação de instalação, e podem conflitar com bomba ou
-> válvulas já cadastradas.
+> número físico e confira o pinout do modelo exato do Raspberry Pi. Para saídas
+> de válvulas, a lista permitida é exatamente `7, 11, 12, 13, 16, 18, 22, 29,
+> 31, 32, 33, 35, 36, 37, 38, 40`. O pino físico 15 fica reservado para a bomba
+> da instalação e não pode ser cadastrado como válvula. Os pinos abaixo são
+> apenas exemplos de ligação dentro dessa política.
 
 ## Alimentação
 
@@ -234,7 +236,7 @@ Pino físico 38 (BCM20) ─────► MOSFET 4
 
 Pino físico 40 (BCM21) ─────► MOSFET 5
 
-Pino físico 15 (BCM22) ─────► MOSFET 6
+Pino físico 15 (BCM22) ─────► Acionamento da bomba (reservado)
 ```
 
 ---

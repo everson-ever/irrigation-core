@@ -55,6 +55,12 @@ HISTORY_MODE_RESTARTED = "Restarted"
 HISTORY_RETENTION_DEFAULT_DAYS = 7
 HISTORY_RETENTION_ALLOWED_DAYS = (7, 15, 30, 90)
 
+# Physical Raspberry Pi header pins approved for solenoid-valve outputs. These
+# values use GPIO.BOARD numbering; physical pin 15 is reserved for the pump.
+VALVE_OUTPUT_BOARD_PINS = frozenset(
+    {7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40}
+)
+
 DEFAULT_AUTH_USERNAME = "admin"
 DEFAULT_AUTH_PASSWORD = "10203040"
 MIN_PASSWORD_LENGTH = 8
@@ -429,6 +435,7 @@ class ValveService:
 
     def add(self, pin: Any, section: Any) -> Valve:
         valve = self._build_valve("", pin, section)
+        self._reject_unsupported_pin(valve.pin)
         self._reject_duplicate_pin(valve.pin)
         created = Valve.from_dict(self._repository.add(valve.to_dict()))
         self._configured = False
@@ -438,6 +445,7 @@ class ValveService:
     def update(self, valve_id: str, pin: Any, section: Any) -> Valve:
         current = self.get(valve_id)
         edited = self._build_valve(current.id, pin, section, current)
+        self._reject_unsupported_pin(edited.pin)
         self._reject_duplicate_pin(edited.pin, exclude_id=edited.id)
         if current.status and current.pin != edited.pin:
             self.turn_off(current.pin)
@@ -582,6 +590,16 @@ class ValveService:
                 continue
             if valve.pin == pin:
                 raise ValidationError(self.DUPLICATE_PIN_MESSAGE)
+
+    @staticmethod
+    def _reject_unsupported_pin(pin: int) -> None:
+        if pin in VALVE_OUTPUT_BOARD_PINS:
+            return
+        allowed = ", ".join(str(item) for item in sorted(VALVE_OUTPUT_BOARD_PINS))
+        raise ValidationError(
+            f"physical BOARD pin {pin} is not supported for valve outputs; "
+            f"allowed physical BOARD pins: {allowed}"
+        )
 
 
 class SensorService:

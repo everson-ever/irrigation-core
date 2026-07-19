@@ -5,6 +5,7 @@ import pytest
 from irrigation.application.services import (
     DEFAULT_AUTH_PASSWORD,
     DEFAULT_AUTH_USERNAME,
+    VALVE_OUTPUT_BOARD_PINS,
     AuthService,
     HistoryService,
     HistorySettingsService,
@@ -799,7 +800,59 @@ def test_runtime_status_is_false_when_active_schedule_valve_was_manually_stopped
     assert rows[0]["valve_status"] is False
 
 
-def test_valve_add_creates_record_and_rejects_duplicate_pin(tmp_path):
+APPROVED_VALVE_BOARD_PINS = (
+    7,
+    11,
+    12,
+    13,
+    16,
+    18,
+    22,
+    29,
+    31,
+    32,
+    33,
+    35,
+    36,
+    37,
+    38,
+    40,
+)
+
+
+def test_valve_output_board_pin_allowlist_is_exact():
+    assert frozenset(APPROVED_VALVE_BOARD_PINS) == VALVE_OUTPUT_BOARD_PINS
+
+
+@pytest.mark.parametrize("pin", APPROVED_VALVE_BOARD_PINS)
+def test_valve_add_accepts_each_approved_physical_board_pin(tmp_path, pin):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+
+    valve = service.add(pin, f"Seção {pin}")
+
+    assert valve.pin == pin
+    assert valves_repo.find_by_id(valve.id)["pin"] == str(pin)
+
+
+@pytest.mark.parametrize("pin", [1, 6, 8, 14, 15, 17, 19, 27, 28, 41])
+def test_valve_add_rejects_unsupported_physical_board_pin_without_write(tmp_path, pin):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+
+    with pytest.raises(ValidationError) as captured:
+        service.add(pin, "Horta")
+
+    message = str(captured.value)
+    assert f"physical BOARD pin {pin} is not supported" in message
+    assert (
+        "allowed physical BOARD pins: "
+        "7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40" in message
+    )
+    assert valves_repo.list_all() == []
+
+
+def test_valve_add_creates_record_and_rejects_duplicate_approved_pin(tmp_path):
     valves_repo = JsonLinesRepository(tmp_path / "valves.json")
     service = ValveService(valves_repo, MockGPIO(15))
 
@@ -845,6 +898,11 @@ def test_valve_force_hardware_reasserts_persisted_on_state(tmp_path):
     ("pin", "section", "message"),
     [
         (0, "Horta", "pin must be greater than or equal to 1"),
+        (None, "Horta", "pin must be an integer"),
+        ("", "Horta", "pin must be an integer"),
+        ("abc", "Horta", "pin must be an integer"),
+        (True, "Horta", "pin must be an integer"),
+        (13.5, "Horta", "pin must be an integer"),
         (13, "   ", "section name is required"),
     ],
 )
@@ -860,24 +918,55 @@ def test_valve_update_renames_section_and_repoints_pin(tmp_path):
     service = ValveService(valves_repo, MockGPIO(15))
     valve = service.add(13, "Horta")
 
-    updated = service.update(valve.id, 14, "Jardim")
+    updated = service.update(valve.id, 16, "Jardim")
 
     assert updated.id == valve.id
-    assert updated.pin == 14
+    assert updated.pin == 16
     assert updated.section == "Jardim"
-    assert valves_repo.find_by_id(valve.id)["pin"] == "14"
+    assert valves_repo.find_by_id(valve.id)["pin"] == "16"
+
+
+def test_valve_update_rejects_unsupported_pin_and_preserves_original(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    service = ValveService(valves_repo, MockGPIO(15))
+    valve = service.add(13, "Horta")
+
+    with pytest.raises(ValidationError, match="physical BOARD pin 15 is not supported"):
+        service.update(valve.id, 15, "Jardim")
+
+    assert valves_repo.find_by_id(valve.id) == {
+        "id": valve.id,
+        "pin": "13",
+        "status": 0,
+        "section": "Horta",
+        "manually_turned_off": 0,
+    }
+
+
+def test_existing_unsupported_valve_remains_visible_and_can_be_repaired(tmp_path):
+    valves_repo = JsonLinesRepository(tmp_path / "valves.json")
+    stored = valves_repo.add({"pin": "15", "status": 0, "section": "Legada"})
+    service = ValveService(valves_repo, MockGPIO(15))
+
+    assert service.list_all()[0].pin == 15
+
+    repaired = service.update(stored["id"], 16, "Corrigida")
+
+    assert repaired.pin == 16
+    assert repaired.section == "Corrigida"
+    assert valves_repo.find_by_id(stored["id"])["pin"] == "16"
 
 
 def test_valve_update_rejects_pin_collision(tmp_path):
     valves_repo = JsonLinesRepository(tmp_path / "valves.json")
     service = ValveService(valves_repo, MockGPIO(15))
     service.add(13, "Horta")
-    second = service.add(14, "Jardim")
+    second = service.add(16, "Jardim")
 
     with pytest.raises(ValidationError, match="GPIO pin is already registered"):
         service.update(second.id, 13, "Jardim")
 
-    assert valves_repo.find_by_id(second.id)["pin"] == "14"
+    assert valves_repo.find_by_id(second.id)["pin"] == "16"
 
 
 def test_valve_remove_deletes_unused_record_and_reports_missing_id(tmp_path):
@@ -920,12 +1009,12 @@ def test_valve_update_and_remove_turn_off_active_valve_before_pin_change(tmp_pat
     valve = service.add(13, "Horta")
     service.turn_on(13)
 
-    updated = service.update(valve.id, 14, "Horta")
-    service.turn_on(14)
+    updated = service.update(valve.id, 16, "Horta")
+    service.turn_on(16)
     deleted = service.remove(updated.id, ScheduleService(schedules_repo))
 
     assert deleted is True
-    assert gpio.operations == [("on", 13), ("off", 13), ("on", 14), ("off", 14)]
+    assert gpio.operations == [("on", 13), ("off", 13), ("on", 16), ("off", 16)]
 
 
 def test_history_active_end_returns_manual_record_end(tmp_path):

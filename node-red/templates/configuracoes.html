@@ -614,7 +614,25 @@ body.nr-dashboard-theme {
                 <div class="ir-form-split">
                   <label class="ir-field">
                     <span>Pino físico (BOARD)</span>
-                    <input type="number" min="1" step="1" ng-model="valve_form.pin" required>
+                    <select ng-model="valve_form.pin" required>
+                      <option value="" disabled>Selecione um pino físico (BOARD)</option>
+                      <option ng-value="7">Pino físico (BOARD) 7</option>
+                      <option ng-value="11">Pino físico (BOARD) 11</option>
+                      <option ng-value="12">Pino físico (BOARD) 12</option>
+                      <option ng-value="13">Pino físico (BOARD) 13</option>
+                      <option ng-value="16">Pino físico (BOARD) 16</option>
+                      <option ng-value="18">Pino físico (BOARD) 18</option>
+                      <option ng-value="22">Pino físico (BOARD) 22</option>
+                      <option ng-value="29">Pino físico (BOARD) 29</option>
+                      <option ng-value="31">Pino físico (BOARD) 31</option>
+                      <option ng-value="32">Pino físico (BOARD) 32</option>
+                      <option ng-value="33">Pino físico (BOARD) 33</option>
+                      <option ng-value="35">Pino físico (BOARD) 35</option>
+                      <option ng-value="36">Pino físico (BOARD) 36</option>
+                      <option ng-value="37">Pino físico (BOARD) 37</option>
+                      <option ng-value="38">Pino físico (BOARD) 38</option>
+                      <option ng-value="40">Pino físico (BOARD) 40</option>
+                    </select>
                   </label>
                   <label class="ir-field">
                     <span>Nome da seção</span>
@@ -874,6 +892,7 @@ body.nr-dashboard-theme {
   scope.password_feedback_class = scope.password_feedback_class || "is-success";
   scope.valves = scope.valves || [];
   scope.schedules = scope.schedules || [];
+  scope.valve_pin_options = [7, 11, 12, 13, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40];
   scope.valve_form = scope.valve_form || { id: "", pin: "", section: "" };
   scope.valve_state = scope.valve_state || { submitting: false, deleting_id: "" };
   scope.valve_delete_state = scope.valve_delete_state || { open: false, valve: null, id: "", pin: "", section: "" };
@@ -1077,11 +1096,19 @@ body.nr-dashboard-theme {
   };
   scope.startValveEdit = function(valve) {
     scope.valve_feedback = "";
+    var currentPin = parseInt(valve.pin, 10);
+    var supportedPin = scope.valve_pin_options.indexOf(currentPin) !== -1;
     scope.valve_form = {
       id: valve.id,
-      pin: parseInt(valve.pin, 10),
+      pin: supportedPin ? currentPin : "",
       section: valve.section
     };
+    if (!supportedPin) {
+      showValveFeedback(
+        "O pino físico (BOARD) " + valve.pin + " não é permitido. Selecione um pino aprovado para corrigir a seção.",
+        "is-error"
+      );
+    }
   };
   scope.linkedScheduleCount = function(valve) {
     if (!valve) return 0;
@@ -1112,8 +1139,9 @@ body.nr-dashboard-theme {
       event.preventDefault();
     }
     scope.valve_feedback = "";
-    if (!scope.valve_form.pin || parseInt(scope.valve_form.pin, 10) < 1) {
-      showValveFeedback("Informe um pino físico (BOARD) válido.", "is-error");
+    var selectedPin = parseInt(scope.valve_form.pin, 10);
+    if (scope.valve_pin_options.indexOf(selectedPin) === -1) {
+      showValveFeedback("Selecione um pino físico (BOARD) aprovado para válvulas.", "is-error");
       return;
     }
     if (!scope.valve_form.section || !String(scope.valve_form.section).trim()) {
@@ -1125,7 +1153,7 @@ body.nr-dashboard-theme {
       payload: {
         ui_action: scope.valve_form.id ? "update_valve" : "add_valve",
         id: scope.valve_form.id,
-        pin: parseInt(scope.valve_form.pin, 10),
+        pin: selectedPin,
         section: String(scope.valve_form.section).trim()
       }
     });

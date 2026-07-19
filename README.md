@@ -73,8 +73,13 @@ irrigation valve add "13,Front garden"
 irrigation valve add "11,Back garden"
 ```
 
-The values above are examples, not recommended defaults. Existing valve records
-can be listed with `irrigation valve list`, edited with
+Valve outputs are restricted to physical `BOARD` pins `7, 11, 12, 13, 16, 18,
+22, 29, 31, 32, 33, 35, 36, 37, 38, 40`. The values above are examples, not
+recommended defaults. Physical pin 15 is intentionally excluded because it is
+reserved for the production pump output. Changing `IRRIGATION_PUMP_PIN` also
+requires explicitly revisiting this valve-output policy; it does not expand the
+allowlist automatically. Existing valve records can be listed with
+`irrigation valve list`, edited with
 `irrigation valve update "id,pin,section"`, and removed with
 `irrigation valve delete <id>`. Configure the pump pin
 separately with `IRRIGATION_PUMP_PIN`, using the physical pin selected during
