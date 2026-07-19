@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
-from irrigation.domain.models import WEEKDAY_IDS, Schedule
+from irrigation.domain.models import WEEKDAY_IDS, NotificationEvent, Schedule
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schedules (
@@ -99,6 +99,29 @@ CREATE TABLE IF NOT EXISTS history_settings (
     retention_days INTEGER NOT NULL CHECK (retention_days IN (7, 15, 30, 90))
 );
 
+CREATE TABLE IF NOT EXISTS discord_notifications (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    webhook_url TEXT,
+    section_on INTEGER NOT NULL DEFAULT 0 CHECK (section_on IN (0, 1)),
+    section_off INTEGER NOT NULL DEFAULT 0 CHECK (section_off IN (0, 1)),
+    schedule_restarted INTEGER NOT NULL DEFAULT 0
+        CHECK (schedule_restarted IN (0, 1)),
+    schedule_created INTEGER NOT NULL DEFAULT 0
+        CHECK (schedule_created IN (0, 1)),
+    schedule_updated INTEGER NOT NULL DEFAULT 0
+        CHECK (schedule_updated IN (0, 1)),
+    schedule_deleted INTEGER NOT NULL DEFAULT 0
+        CHECK (schedule_deleted IN (0, 1)),
+    section_created INTEGER NOT NULL DEFAULT 0
+        CHECK (section_created IN (0, 1)),
+    section_updated INTEGER NOT NULL DEFAULT 0
+        CHECK (section_updated IN (0, 1)),
+    section_deleted INTEGER NOT NULL DEFAULT 0
+        CHECK (section_deleted IN (0, 1)),
+    password_changed INTEGER NOT NULL DEFAULT 0
+        CHECK (password_changed IN (0, 1))
+);
+
 CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);
 CREATE INDEX IF NOT EXISTS idx_sensors_valve_id ON sensors(valve_id);
 """
@@ -112,6 +135,53 @@ _TABLE_COLUMNS = {
 }
 
 
+def _ensure_discord_notification_columns(
+    connection: sqlite3.Connection,
+) -> None:
+    existing = {
+        str(row["name"])
+        for row in connection.execute(
+            "PRAGMA table_info(discord_notifications)"
+        ).fetchall()
+    }
+    for event in NotificationEvent:
+        if event.value in existing:
+            continue
+        try:
+            connection.execute(
+                f"ALTER TABLE discord_notifications ADD COLUMN {event.value} "
+                f"INTEGER NOT NULL DEFAULT 0 CHECK ({event.value} IN (0, 1))"
+            )
+        except sqlite3.OperationalError:
+            refreshed = {
+                str(row["name"])
+                for row in connection.execute(
+                    "PRAGMA table_info(discord_notifications)"
+                ).fetchall()
+            }
+            if event.value not in refreshed:
+                raise
+    legacy_sources = {
+        NotificationEvent.SECTION_ON.value: ("manual_on", "schedule_on"),
+        NotificationEvent.SECTION_OFF.value: ("manual_off", "schedule_off"),
+    }
+    for target, candidates in legacy_sources.items():
+        sources = [column for column in candidates if column in existing]
+        if not sources:
+            continue
+        enabled_expression = " OR ".join(
+            f"COALESCE({column}, 0) = 1" for column in sources
+        )
+        connection.execute(
+            f"UPDATE discord_notifications SET {target} = 1 "
+            f"WHERE {target} = 0 AND ({enabled_expression})"
+        )
+        connection.execute(
+            "UPDATE discord_notifications SET "
+            + ", ".join(f"{column} = 0" for column in sources)
+        )
+
+
 def connect_database(database_path: str | Path) -> sqlite3.Connection:
     """Open and initialize an irrigation database connection."""
     path = Path(database_path)
@@ -122,6 +192,7 @@ def connect_database(database_path: str | Path) -> sqlite3.Connection:
     connection.execute("PRAGMA busy_timeout = 5000")
     connection.execute("PRAGMA journal_mode = WAL")
     connection.executescript(SCHEMA)
+    _ensure_discord_notification_columns(connection)
     return connection
 
 
@@ -276,6 +347,75 @@ class RuntimeHealthSqliteRepository:
             "SELECT last_seen_at FROM runtime_health WHERE id = 1"
         ).fetchone()
         return None if row is None else str(row["last_seen_at"])
+
+
+class DiscordNotificationSqliteRepository:
+    """Stores the single Discord webhook and its fixed event flags."""
+
+    event_columns = tuple(event.value for event in NotificationEvent)
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def get(self) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT webhook_url, "
+            + ", ".join(self.event_columns)
+            + " FROM discord_notifications WHERE id = 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "webhook_url": row["webhook_url"],
+            "enabled_events": [
+                event for event in self.event_columns if bool(row[event])
+            ],
+        }
+
+    def save_webhook(self, webhook_url: str) -> dict[str, Any]:
+        with _write_transaction(self.connection):
+            self.connection.execute(
+                """
+                INSERT INTO discord_notifications (id, webhook_url)
+                VALUES (1, ?)
+                ON CONFLICT(id) DO UPDATE SET webhook_url = excluded.webhook_url
+                """,
+                (webhook_url,),
+            )
+        record = self.get()
+        assert record is not None
+        return record
+
+    def delete_webhook(self) -> dict[str, Any]:
+        assignments = ", ".join(f"{column} = 0" for column in self.event_columns)
+        with _write_transaction(self.connection):
+            self.connection.execute(
+                "INSERT INTO discord_notifications (id, webhook_url) "
+                "VALUES (1, NULL) ON CONFLICT(id) DO NOTHING"
+            )
+            self.connection.execute(
+                f"UPDATE discord_notifications SET webhook_url = NULL, {assignments} "
+                "WHERE id = 1"
+            )
+        record = self.get()
+        assert record is not None
+        return record
+
+    def set_event_enabled(self, event: str, enabled: bool) -> dict[str, Any]:
+        if event not in self.event_columns:
+            raise ValidationError(f"unknown notification event: {event}")
+        with _write_transaction(self.connection):
+            self.connection.execute(
+                "INSERT INTO discord_notifications (id, webhook_url) "
+                "VALUES (1, NULL) ON CONFLICT(id) DO NOTHING"
+            )
+            self.connection.execute(
+                f"UPDATE discord_notifications SET {event} = ? WHERE id = 1",
+                (int(enabled),),
+            )
+        record = self.get()
+        assert record is not None
+        return record
 
 
 class SensorSqliteRepository:

@@ -22,6 +22,7 @@ The CLI JSON output is part of the current dashboard contract.
 - Valve state visualization in the Node-RED dashboard.
 - Common configuration and latest-status dashboard for reservoir-level, flow,
   soil-moisture, line-pressure, and rain sensors.
+- Optional Discord webhook notifications for irrigation and account events.
 - Support for schedules that cross midnight.
 - Simulated GPIO driver for development without a Raspberry Pi.
 
@@ -37,7 +38,7 @@ The CLI JSON output is part of the current dashboard contract.
 ├── src/irrigation/
 │   ├── application/              # Use cases and orchestration
 │   ├── domain/                   # Entities, rules, and contracts
-│   ├── infrastructure/           # SQLite, legacy import, GPIO, and clock
+│   ├── infrastructure/           # SQLite, Discord HTTP, legacy import, GPIO, clock
 │   ├── bootstrap.py              # Dependency injection
 │   └── cli.py                    # Interface used by systemd and Node-RED
 ├── tests/                        # Unit tests
@@ -89,6 +90,14 @@ label such as `GPIO23`. The current sensor foundation does not read hardware or
 change irrigation decisions; wiring validation and live tests become available
 only when each type-specific driver is implemented. Dashboard configuration is
 not a substitute for safe physical wiring or voltage-level protection.
+
+Discord notifications are configured in `Configurações > Discord`. Add one
+`https://discord.com/api/webhooks/...` URL and enable only the desired events,
+including section on/off notifications shared by manual and automatic control.
+Deleting the webhook also disables every event. Delivery uses the Python
+standard library in a detached best-effort worker with a five-second timeout and
+no retries, so Discord failures never delay irrigation, CRUD, or password
+changes. Webhook URLs and password data are never included in messages.
 
 ## Requirements
 
@@ -289,6 +298,12 @@ irrigation sensor add 'Reservoir level,reservoir_level'
 irrigation sensor list
 irrigation sensor status 1
 irrigation sensor enabled '1,0'
+
+# Discord webhook configuration
+irrigation notifications save-webhook 'https://discord.com/api/webhooks/123/token'
+irrigation notifications set-event 'section_on,1'
+irrigation notifications get
+irrigation notifications delete-webhook
 
 # Change the default manual time
 irrigation settings 5

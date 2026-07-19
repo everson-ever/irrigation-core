@@ -11,6 +11,7 @@ from irrigation.application.services import (
     HistorySettingsService,
     IrrigationController,
     ManualControlService,
+    NotificationService,
     RuntimeHealthService,
     ScheduleService,
     SensorService,
@@ -19,10 +20,12 @@ from irrigation.application.services import (
 )
 from irrigation.config import Settings
 from irrigation.infrastructure.clock import SystemClock
+from irrigation.infrastructure.discord_notifier import DiscordNotifier
 from irrigation.infrastructure.gpio import create_gpio
 from irrigation.infrastructure.json_migration import migrate_legacy_json
 from irrigation.infrastructure.json_repository import JsonLinesRepository
 from irrigation.infrastructure.sqlite_repository import (
+    DiscordNotificationSqliteRepository,
     RuntimeHealthSqliteRepository,
     ScheduleSqliteRepository,
     SensorSqliteRepository,
@@ -47,7 +50,11 @@ class Application:
         return cls(Settings.from_env())
 
     def schedules(self) -> ScheduleService:
-        return ScheduleService(ScheduleSqliteRepository(self._connection))
+        return ScheduleService(
+            ScheduleSqliteRepository(self._connection),
+            self.notifications(),
+            SqliteRepository(self._connection, "valves"),
+        )
 
     def runtime_settings(self) -> SettingsService:
         return SettingsService(SqliteRepository(self._connection, "settings"))
@@ -58,7 +65,15 @@ class Application:
         )
 
     def auth(self) -> AuthService:
-        return AuthService(SqliteRepository(self._connection, "credentials"))
+        return AuthService(
+            SqliteRepository(self._connection, "credentials"), self.notifications()
+        )
+
+    def notifications(self) -> NotificationService:
+        return NotificationService(
+            DiscordNotificationSqliteRepository(self._connection),
+            DiscordNotifier(),
+        )
 
     def history(self) -> HistoryService:
         return HistoryService(
@@ -72,7 +87,9 @@ class Application:
 
     def valves(self) -> ValveService:
         gpio = create_gpio(self.settings.gpio_driver, self.settings.pump_pin)
-        return ValveService(SqliteRepository(self._connection, "valves"), gpio)
+        return ValveService(
+            SqliteRepository(self._connection, "valves"), gpio, self.notifications()
+        )
 
     def sensors(self) -> SensorService:
         return SensorService(
@@ -89,6 +106,7 @@ class Application:
             SystemClock(),
             self.settings.poll_interval,
             self.schedules(),
+            self.notifications(),
         )
 
     def automatic_controller(self) -> IrrigationController:
@@ -99,4 +117,5 @@ class Application:
             SystemClock(),
             self.settings.poll_interval,
             self.runtime_health(),
+            self.notifications(),
         )

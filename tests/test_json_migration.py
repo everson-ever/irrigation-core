@@ -130,3 +130,14 @@ def test_deployment_database_contains_the_default_settings_row():
             "WHERE type = 'table' AND name IN ('sensors', 'sensor_state')"
         ).fetchall()
     } == {"sensors", "sensor_state"}
+    assert (
+        connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'discord_notifications'"
+        ).fetchone()
+        is not None
+    )
+    assert (
+        connection.execute("SELECT count(*) FROM discord_notifications").fetchone()[0]
+        == 0
+    )

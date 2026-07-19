@@ -41,6 +41,51 @@ class SensorHealth(str, Enum):
     STALE = "stale"
 
 
+class NotificationEvent(str, Enum):
+    SECTION_ON = "section_on"
+    SECTION_OFF = "section_off"
+    SCHEDULE_RESTARTED = "schedule_restarted"
+    SCHEDULE_CREATED = "schedule_created"
+    SCHEDULE_UPDATED = "schedule_updated"
+    SCHEDULE_DELETED = "schedule_deleted"
+    SECTION_CREATED = "section_created"
+    SECTION_UPDATED = "section_updated"
+    SECTION_DELETED = "section_deleted"
+    PASSWORD_CHANGED = "password_changed"
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationConfig:
+    webhook_url: str | None
+    enabled_events: frozenset[NotificationEvent]
+
+    @classmethod
+    def empty(cls) -> NotificationConfig:
+        return cls(webhook_url=None, enabled_events=frozenset())
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> NotificationConfig:
+        webhook = data.get("webhook_url")
+        webhook_url = None if webhook is None else str(webhook).strip() or None
+        enabled = data.get("enabled_events", ())
+        try:
+            enabled_events = frozenset(NotificationEvent(item) for item in enabled)
+        except (TypeError, ValueError) as exc:
+            supported = ", ".join(item.value for item in NotificationEvent)
+            raise ValidationError(
+                f"notification event must be one of: {supported}"
+            ) from exc
+        return cls(webhook_url=webhook_url, enabled_events=enabled_events)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "webhook_url": self.webhook_url,
+            "events": {
+                event.value: event in self.enabled_events for event in NotificationEvent
+            },
+        }
+
+
 def _int_value(value: Any, field: str, minimum: int | None = None) -> int:
     try:
         number = int(value)

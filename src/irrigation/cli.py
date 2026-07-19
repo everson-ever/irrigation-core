@@ -302,6 +302,33 @@ def _auth_command(app: Application, args: argparse.Namespace):
     raise ValueError("credentials must be provided through --stdin")
 
 
+def _notifications_command(app: Application, args: argparse.Namespace):
+    service = app.notifications()
+    stdin = _stdin_request(args)
+    if stdin is not None:
+        action = _required(stdin, "action")
+        if action == "get":
+            return service.get_config().to_dict()
+        if action == "save-webhook":
+            return service.save_webhook(_required(stdin, "webhook_url"))
+        if action == "delete-webhook":
+            return service.delete_webhook()
+        if action == "set-event":
+            return service.set_event_enabled(
+                _required(stdin, "event"), _required(stdin, "enabled")
+            )
+        raise ValueError("unknown notifications action")
+
+    if args.action == "get":
+        return service.get_config().to_dict()
+    if args.action == "save-webhook":
+        return service.save_webhook(args.value)
+    if args.action == "delete-webhook":
+        return service.delete_webhook()
+    event, enabled = _csv(args.value, 2, "notification event flag")
+    return service.set_event_enabled(event, enabled)
+
+
 def _history_command(app: Application, args: argparse.Namespace):
     stdin = _stdin_request(args)
     if stdin is not None:
@@ -329,6 +356,7 @@ _COMMAND_HANDLERS = {
     "settings": _settings_command,
     "history-retention": _history_retention_command,
     "auth": _auth_command,
+    "notifications": _notifications_command,
     "history": _history_command,
 }
 
@@ -411,6 +439,15 @@ def create_parser() -> argparse.ArgumentParser:
         "change-password", help="reads credentials from the --stdin JSON request"
     )
     auth_actions.add_parser("reset-to-default")
+
+    notifications = subcommands.add_parser("notifications")
+    notification_actions = notifications.add_subparsers(dest="action", required=True)
+    notification_actions.add_parser("get")
+    save_webhook = notification_actions.add_parser("save-webhook")
+    save_webhook.add_argument("value")
+    notification_actions.add_parser("delete-webhook")
+    set_event = notification_actions.add_parser("set-event")
+    set_event.add_argument("value", help="event,0|1")
 
     history = subcommands.add_parser("history")
     history.add_argument("data", help="day,, or range,YYYY-MM-DD,YYYY-MM-DD")

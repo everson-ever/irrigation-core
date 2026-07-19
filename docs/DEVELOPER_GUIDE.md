@@ -49,8 +49,8 @@ and is injected in `bootstrap.py`.
 ```
 src/irrigation/
 ├── domain/            # Rules and contracts — does NOT import infrastructure
-│   ├── models.py      # Entities: Schedule, Valve, Sensor/State, HistoryRecord
-│   ├── ports.py       # Protocols: Repository, SensorStateRepository, GPIO, Clock
+│   ├── models.py      # Schedule, Valve, Sensor/State, notifications, history
+│   ├── ports.py       # Repository, notification, GPIO, and clock protocols
 │   └── exceptions.py  # IrrigationError, ValidationError, RecordNotFoundError, HardwareError
 ├── application/       # Use cases — orchestrates domain + ports
 │   └── services.py    # ScheduleService, ValveService, HistoryService,
@@ -61,7 +61,8 @@ src/irrigation/
 │   ├── gpio.py                # GPIORaspberryPi + MockGPIO (GpioController)
 │   ├── clock.py               # SystemClock (Clock)
 │   ├── json_repository.py     # JSON Lines (history search snapshot)
-│   └── json_migration.py      # One-time import of legacy JSON → SQLite
+│   ├── json_migration.py      # One-time import of legacy JSON → SQLite
+│   └── discord_notifier.py    # Detached stdlib webhook delivery
 ├── config.py          # Settings.from_env() (environment variables)
 ├── bootstrap.py       # Application: dependency injection / composition root
 └── cli.py             # Interface (argparse) used by systemd and Node-RED
@@ -152,6 +153,15 @@ in `services.py`):
   valid window). Each process restart creates a separate audit row; the
   dashboard labels and counts these rows as automatic restarts.
 
+### `NotificationEvent` and `NotificationConfig`
+
+`NotificationEvent` is the backend-authoritative set of ten Discord events:
+section on/off regardless of manual or automatic origin, automatic schedule
+restarted, schedule created/updated/deleted, section created/updated/deleted,
+and password changed. `NotificationConfig` contains the optional webhook URL
+and enabled-event set. New configurations and webhook deletion leave every
+event disabled.
+
 ---
 
 ## 4. Ports (`domain/ports.py`)
@@ -200,6 +210,16 @@ constructor.
 | `SettingsService` | Default manual-mode duration (`settings` table, fixed id = 1). |
 | `AuthService` | Login and password change (PBKDF2-SHA256, 200k iterations). Creates `admin/10203040` by default. |
 | `RuntimeHealthService` | Daemon heartbeat (`touch`) and online/offline status based on the last heartbeat's age. |
+| `NotificationService` | Validates Discord configuration, formats Portuguese messages, filters disabled events, and swallows delivery failures. |
+
+CRUD and password services notify only after their write succeeds.
+`ManualControlService` and `IrrigationController` emit the same section on/off
+events, so one pair of toggles covers both manual and automatic control. A
+controller restart remains separately identifiable. `DiscordNotifier` posts in
+a detached worker with a five-second timeout and no retries, so the daemon and
+CLI never wait for Discord.
+Schedule messages resolve the registered section through the valve pin and use
+its human-readable name instead of exposing the schedule's numeric id.
 
 ### `list_with_runtime_status` (dashboard contract)
 
@@ -286,6 +306,7 @@ Database: `data/irrigation.db`. Opened by `connect_database()` with
 | `runtime_health` | `id=1, last_seen_at` | Daemon heartbeat. |
 | `sensors` | `name, kind, enabled, valve_id, created_at, updated_at` | Unique name; optional registered section. |
 | `sensor_state` | one row per `sensor_id` | Latest snapshot only; cascades when the sensor is deleted. |
+| `discord_notifications` | fixed `id = 1` | One webhook URL plus one flag per supported event. |
 
 ### Two repository classes
 
@@ -407,6 +428,10 @@ consumes):
 | `settings <minutes>` | Updates the default duration. | record |
 | `auth login` | stdin JSON only; credentials are rejected in argv | `{authenticated: bool}` |
 | `auth change-password` | stdin JSON only; credentials are rejected in argv | `{changed: bool}` |
+| `notifications get` | Read webhook and all event flags. | `{webhook_url, events}` |
+| `notifications save-webhook` | Save or replace the validated Discord URL. | configuration object |
+| `notifications delete-webhook` | Clear URL and disable all events. | configuration object |
+| `notifications set-event` | `event,0\|1`; enabling requires a webhook. | configuration object |
 | `history "day,,"` | Today's watering runs. | array |
 | `history "range,YYYY-MM-DD,YYYY-MM-DD"` | Runs in the range. | array |
 
@@ -425,6 +450,10 @@ Sensor requests use the same structured form, for example
 `{"command":"sensor","action":"add","name":"Chuva","kind":"rain","enabled":1}`.
 The dashboard polls `sensor list` once for all sensors; it must never spawn one
 CLI process per sensor.
+
+`Configurações > Discord` uses the same structured stdin adapter. Node-RED only
+formats `notifications` requests and renders results; URL and event validation
+remain in `NotificationService`, and Node-RED never reads SQLite directly.
 
 Schedule requests use named fields such as `times`, `duration_minutes`,
 `valve_pin`, and `weekdays`; auth requests use `username`, `password`,

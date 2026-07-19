@@ -12,6 +12,7 @@ O sistema permitirá:
 - Histórico de irrigações
 - Monitoramento de consumo de água
 - Monitoramento de sensores
+- Notificações opcionais por webhook do Discord
 - Expansão futura
 
 ---
@@ -455,6 +456,16 @@ específico correspondente.
    - Fecha a válvula.
 3. Registra a irrigação.
 4. Atualiza o painel web.
+
+## Notificações no Discord
+
+Em `Configurações > Discord`, o usuário pode cadastrar um único webhook e
+ativar os avisos de seção ligada ou desligada, usados tanto no controle manual
+quanto no automático; reiniciar agendamentos; cadastrar, editar ou excluir
+agendamentos e seções; e alterar a senha. A remoção do webhook exige confirmação
+e desativa todos os eventos. O envio é opcional e feito em segundo plano:
+indisponibilidade do Discord não interrompe válvulas, bomba, cadastros ou acesso
+ao painel.
 
 ---
 

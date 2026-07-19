@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 from collections.abc import Iterable
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
 from irrigation.domain.models import (
     HistoryRecord,
+    NotificationConfig,
+    NotificationEvent,
     Schedule,
     Sensor,
     SensorHealth,
@@ -24,6 +28,8 @@ from irrigation.domain.models import (
 from irrigation.domain.ports import (
     Clock,
     GpioController,
+    NotificationConfigRepository,
+    Notifier,
     Repository,
     SensorStateRepository,
 )
@@ -56,12 +62,177 @@ PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256"
 PASSWORD_HASH_ITERATIONS = 200_000
 PASSWORD_SALT_BYTES = 16
 
+LOGGER = logging.getLogger(__name__)
+
+
+class NotificationService:
+    def __init__(
+        self,
+        repository: NotificationConfigRepository,
+        notifier: Notifier,
+    ) -> None:
+        self._repository = repository
+        self._notifier = notifier
+
+    def get_config(self) -> NotificationConfig:
+        record = self._repository.get()
+        if record is None:
+            return NotificationConfig.empty()
+        return NotificationConfig.from_dict(record)
+
+    def save_webhook(self, webhook_url: Any) -> dict[str, Any]:
+        normalized = self._validate_webhook_url(webhook_url)
+        return NotificationConfig.from_dict(
+            self._repository.save_webhook(normalized)
+        ).to_dict()
+
+    def delete_webhook(self) -> dict[str, Any]:
+        return NotificationConfig.from_dict(self._repository.delete_webhook()).to_dict()
+
+    def set_event_enabled(self, event: Any, enabled: Any) -> dict[str, Any]:
+        try:
+            notification_event = NotificationEvent(str(event).strip())
+        except ValueError as exc:
+            supported = ", ".join(item.value for item in NotificationEvent)
+            raise ValidationError(
+                f"notification event must be one of: {supported}"
+            ) from exc
+        value = self._enabled_value(enabled)
+        if value and self.get_config().webhook_url is None:
+            raise ValidationError(
+                "configure a Discord webhook before enabling notifications"
+            )
+        return NotificationConfig.from_dict(
+            self._repository.set_event_enabled(notification_event.value, value)
+        ).to_dict()
+
+    def notify(self, event: NotificationEvent | str, **context: Any) -> None:
+        try:
+            notification_event = NotificationEvent(event)
+            config = self.get_config()
+            if (
+                config.webhook_url is None
+                or notification_event not in config.enabled_events
+            ):
+                return
+            self._notifier.send(
+                config.webhook_url,
+                self._message(notification_event, context),
+            )
+        except Exception:
+            LOGGER.warning(
+                "Discord notification could not be dispatched for event %s",
+                event,
+                exc_info=True,
+            )
+
+    @staticmethod
+    def _validate_webhook_url(value: Any) -> str:
+        error_message = (
+            "webhook URL must use https://discord.com/api/webhooks/<id>/<token>"
+        )
+        webhook_url = str(value).strip()
+        try:
+            parsed = urlparse(webhook_url)
+            hostname = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise ValidationError(error_message) from exc
+        path_parts = [part for part in parsed.path.split("/") if part]
+        valid_path = (
+            len(path_parts) == 4
+            and path_parts[0] == "api"
+            and path_parts[1] == "webhooks"
+            and path_parts[2].isdigit()
+            and bool(path_parts[3])
+        )
+        if (
+            parsed.scheme != "https"
+            or hostname != "discord.com"
+            or port not in (None, 443)
+            or len(webhook_url) > 500
+            or parsed.username is not None
+            or parsed.password is not None
+            or not valid_path
+        ):
+            raise ValidationError(error_message)
+        return webhook_url
+
+    @staticmethod
+    def _enabled_value(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int) and value in (0, 1):
+            return bool(value)
+        if isinstance(value, str) and value.strip() in ("0", "1"):
+            return value.strip() == "1"
+        raise ValidationError("enabled must be 0 or 1")
+
+    @staticmethod
+    def _message(event: NotificationEvent, context: dict[str, Any]) -> str:
+        times = context.get("times", context.get("time", "horário não informado"))
+        if isinstance(times, (list, tuple)):
+            times = ", ".join(str(item) for item in times)
+        duration = context.get("duration_minutes", "?")
+        pin = context.get("valve_pin", context.get("pin", "?"))
+        section = context.get("section", "")
+        schedule_name = section or f"no pino {pin}"
+        schedule_valve = f"pino {pin}"
+        messages = {
+            NotificationEvent.SECTION_ON: (
+                f"Seção {section or '?'} ligada: pino {pin}."
+            ),
+            NotificationEvent.SECTION_OFF: (
+                f"Seção {section or '?'} desligada: pino {pin}."
+            ),
+            NotificationEvent.SCHEDULE_RESTARTED: (
+                f"Agendamento {schedule_name} reiniciado após o controlador voltar: "
+                f"{times}, {schedule_valve}."
+            ),
+            NotificationEvent.SCHEDULE_CREATED: (
+                f"Agendamento {schedule_name} cadastrado: {times}, duração de "
+                f"{duration} min, {schedule_valve}."
+            ),
+            NotificationEvent.SCHEDULE_UPDATED: (
+                f"Agendamento {schedule_name} editado: {times}, duração de "
+                f"{duration} min, {schedule_valve}."
+            ),
+            NotificationEvent.SCHEDULE_DELETED: (
+                f"Agendamento {schedule_name} excluído: {times}, {schedule_valve}."
+            ),
+            NotificationEvent.SECTION_CREATED: (
+                f"Seção {section or '?'} cadastrada: "
+                f"ID {context.get('section_id', '?')}, "
+                f"pino {pin}."
+            ),
+            NotificationEvent.SECTION_UPDATED: (
+                f"Seção {section or '?'} editada: ID {context.get('section_id', '?')}, "
+                f"pino {pin}."
+            ),
+            NotificationEvent.SECTION_DELETED: (
+                f"Seção {section or '?'} excluída: "
+                f"ID {context.get('section_id', '?')}, "
+                f"pino {pin}."
+            ),
+            NotificationEvent.PASSWORD_CHANGED: (
+                f"Senha da conta {context.get('username', 'admin')} alterada."
+            ),
+        }
+        return messages[event]
+
 
 class ScheduleService:
     DUPLICATE_VALVE_MESSAGE = "This valve/section already has a schedule"
 
-    def __init__(self, repository: Repository) -> None:
+    def __init__(
+        self,
+        repository: Repository,
+        notifications: NotificationService | None = None,
+        valve_repository: Repository | None = None,
+    ) -> None:
         self._repository = repository
+        self._notifications = notifications
+        self._valve_repository = valve_repository
 
     def list_all(self) -> list[Schedule]:
         return [Schedule.from_dict(item) for item in self._repository.list_all()]
@@ -118,7 +289,9 @@ class ScheduleService:
             }
         )
         self._reject_duplicate_valve(schedule.valve_pin)
-        return self._repository.add(schedule.to_dict())
+        created = self._repository.add(schedule.to_dict())
+        self._notify_schedule(NotificationEvent.SCHEDULE_CREATED, created)
+        return created
 
     def update(
         self,
@@ -141,7 +314,9 @@ class ScheduleService:
             }
         )
         self._reject_duplicate_valve(edited.valve_pin, exclude_id=edited.id)
-        return self._repository.update(edited.to_dict())
+        updated = self._repository.update(edited.to_dict())
+        self._notify_schedule(NotificationEvent.SCHEDULE_UPDATED, updated)
+        return updated
 
     def _reject_duplicate_valve(
         self, valve_pin: int, exclude_id: str | None = None
@@ -174,7 +349,39 @@ class ScheduleService:
         deleted = self._repository.delete([record_id])
         if deleted and schedule.status and valves is not None:
             self._release_valve_if_unused(schedule, valves)
+        if deleted:
+            self._notify_schedule(
+                NotificationEvent.SCHEDULE_DELETED, schedule.to_dict()
+            )
         return deleted
+
+    def _notify_schedule(
+        self, event: NotificationEvent, schedule: dict[str, Any]
+    ) -> None:
+        if self._notifications is not None:
+            valve_pin = schedule.get("valve_pin")
+            self._notifications.notify(
+                event,
+                schedule_id=schedule.get("id"),
+                times=schedule.get("times", schedule.get("time")),
+                duration_minutes=schedule.get("duration_minutes"),
+                valve_pin=valve_pin,
+                section=self._section_name(valve_pin),
+            )
+
+    def _section_name(self, valve_pin: Any) -> str | None:
+        if self._valve_repository is None:
+            return None
+        try:
+            for valve in self._valve_repository.list_all():
+                if int(valve["pin"]) == int(valve_pin):
+                    return str(valve["section"])
+        except Exception:
+            LOGGER.warning(
+                "Valve section could not be resolved for schedule notification",
+                exc_info=True,
+            )
+        return None
 
     def _release_valve_if_unused(
         self, schedule: Schedule, valves: ValveService
@@ -198,10 +405,16 @@ class ValveService:
     VALVE_IN_USE_MESSAGE = "This valve/section is still used by a schedule"
     VALVE_SENSOR_IN_USE_MESSAGE = "This valve/section is still used by a sensor"
 
-    def __init__(self, repository: Repository, gpio: GpioController) -> None:
+    def __init__(
+        self,
+        repository: Repository,
+        gpio: GpioController,
+        notifications: NotificationService | None = None,
+    ) -> None:
         self._repository = repository
         self._gpio = gpio
         self._configured = False
+        self._notifications = notifications
 
     def configure(self) -> None:
         valves = self.list_all()
@@ -219,6 +432,7 @@ class ValveService:
         self._reject_duplicate_pin(valve.pin)
         created = Valve.from_dict(self._repository.add(valve.to_dict()))
         self._configured = False
+        self._notify_section(NotificationEvent.SECTION_CREATED, created)
         return created
 
     def update(self, valve_id: str, pin: Any, section: Any) -> Valve:
@@ -230,6 +444,7 @@ class ValveService:
             edited = replace(edited, status=False, manually_turned_off=False)
         updated = Valve.from_dict(self._repository.update(edited.to_dict()))
         self._configured = False
+        self._notify_section(NotificationEvent.SECTION_UPDATED, updated)
         return updated
 
     def remove(
@@ -256,7 +471,17 @@ class ValveService:
         deleted = self._repository.delete([valve_id])
         if deleted:
             self._configured = False
+            self._notify_section(NotificationEvent.SECTION_DELETED, valve)
         return deleted
+
+    def _notify_section(self, event: NotificationEvent, valve: Valve) -> None:
+        if self._notifications is not None:
+            self._notifications.notify(
+                event,
+                section_id=valve.id,
+                section=valve.section,
+                pin=valve.pin,
+            )
 
     def get(self, record_id: str) -> Valve:
         data = self._repository.find_by_id(str(record_id).strip())
@@ -722,8 +947,13 @@ class SettingsService:
 
 
 class AuthService:
-    def __init__(self, repository: Repository) -> None:
+    def __init__(
+        self,
+        repository: Repository,
+        notifications: NotificationService | None = None,
+    ) -> None:
         self._repository = repository
+        self._notifications = notifications
 
     def ensure_default_credentials(self) -> None:
         if self._repository.list_all():
@@ -772,13 +1002,19 @@ class AuthService:
                 f"new password must contain at least {MIN_PASSWORD_LENGTH} characters"
             )
 
-        return self._repository.update(
+        updated = self._repository.update(
             {
                 "id": str(credential["id"]),
                 "username": str(credential["username"]),
                 "password_hash": self._hash_password(password),
             }
         )
+        if self._notifications is not None:
+            self._notifications.notify(
+                NotificationEvent.PASSWORD_CHANGED,
+                username=str(credential["username"]),
+            )
+        return updated
 
     def _credential_for(self, username: Any) -> dict[str, Any] | None:
         normalized_username = str(username).strip()
@@ -868,6 +1104,7 @@ class ManualControlService:
         clock: Clock,
         poll_interval: float = 2.0,
         schedules: ScheduleService | None = None,
+        notifications: NotificationService | None = None,
     ) -> None:
         self._valves = valves
         self._settings = settings
@@ -875,6 +1112,7 @@ class ManualControlService:
         self._clock = clock
         self._poll_interval = poll_interval
         self._schedules = schedules
+        self._notifications = notifications
 
     def turn_on(
         self,
@@ -902,9 +1140,17 @@ class ManualControlService:
         return True
 
     def turn_off(self, pin: int, schedule_id: str | None = None) -> bool:
+        valve = self._valves.get_by_pin(pin)
         schedule_changed = self._set_manual_schedule_status(schedule_id, False)
         valve_changed = self._valves.turn_off(pin, manual=True)
-        return valve_changed or schedule_changed
+        changed = valve_changed or schedule_changed
+        if changed and self._notifications is not None:
+            self._notifications.notify(
+                NotificationEvent.SECTION_OFF,
+                section=valve.section,
+                pin=valve.pin,
+            )
+        return changed
 
     def _manual_duration_minutes(self, duration_minutes: Any = None) -> int:
         if duration_minutes in (None, ""):
@@ -956,6 +1202,13 @@ class ManualControlService:
         end = start + timedelta(minutes=duration)
         if valve_changed:
             self._history.record(valve.section, start, end, HISTORY_MODE_MANUAL)
+        if self._notifications is not None:
+            self._notifications.notify(
+                NotificationEvent.SECTION_ON,
+                section=valve.section,
+                pin=valve.pin,
+                duration_minutes=duration,
+            )
         if wait:
             self._wait_for_auto_turn_off(pin, end, preserve_manual_stop, schedule_id)
 
@@ -1048,6 +1301,7 @@ class IrrigationController:
         clock: Clock,
         poll_interval: float = 2.0,
         runtime_health: RuntimeHealthService | None = None,
+        notifications: NotificationService | None = None,
     ) -> None:
         self._schedules = schedules
         self._valves = valves
@@ -1055,6 +1309,7 @@ class IrrigationController:
         self._clock = clock
         self._poll_interval = poll_interval
         self._runtime_health = runtime_health
+        self._notifications = notifications
         self._started_in_this_process: set[str] = set()
 
     def run_once(self) -> None:
@@ -1191,12 +1446,34 @@ class IrrigationController:
         self._history.record(valve.section, now, end, mode)
         start, _ = schedule.interval_at(now)
         self._started_in_this_process.add(self._started_key(schedule, start))
+        if self._notifications is not None:
+            self._notifications.notify(
+                (
+                    NotificationEvent.SCHEDULE_RESTARTED
+                    if restarted
+                    else NotificationEvent.SECTION_ON
+                ),
+                schedule_id=schedule.id,
+                times=schedule.times,
+                duration_minutes=schedule.duration_minutes,
+                valve_pin=schedule.valve_pin,
+                section=valve.section,
+            )
 
     def _stop(self, schedule: Schedule, keep_valve_on: bool = False) -> None:
         valve = self._valves.get_by_pin(schedule.valve_pin)
         if not keep_valve_on and not valve.manually_turned_off:
             self._valves.turn_off(schedule.valve_pin)
         self._schedules.set_status(schedule.id, False)
+        if self._notifications is not None:
+            self._notifications.notify(
+                NotificationEvent.SECTION_OFF,
+                schedule_id=schedule.id,
+                times=schedule.times,
+                duration_minutes=schedule.duration_minutes,
+                valve_pin=schedule.valve_pin,
+                section=valve.section,
+            )
         self._started_in_this_process = {
             key
             for key in self._started_in_this_process

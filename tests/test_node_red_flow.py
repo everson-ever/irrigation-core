@@ -670,7 +670,11 @@ def test_settings_tab_has_password_change_flow():
     assert "current_password" in settings_template["format"]
     assert "confirm_password" in settings_template["format"]
     assert settings_template["wires"] == [
-        ["bd0f9d62.31aa54", "035sensor.action.format"]
+        [
+            "bd0f9d62.31aa54",
+            "035sensor.action.format",
+            "041notification.action.format",
+        ]
     ]
 
     assert 'payload.ui_action === "change_password"' in formatter["func"]
@@ -845,6 +849,8 @@ def test_all_cli_invocations_use_the_structured_stdin_adapter():
         "034retention.fetch",
         "035sensor.action.exec",
         "035sensor.fetch",
+        "041notification.action.exec",
+        "041notification.fetch",
     }
 
     assert not [node for node in nodes.values() if node.get("type") == "exec"]
@@ -883,8 +889,63 @@ def test_settings_tab_has_sensor_crud_status_and_single_poll_flow():
     assert nodes["d6f0b5a1.42c8e3"]["wires"][0] == [
         "bd0f9d62.31aa54",
         "035sensor.action.format",
+        "041notification.action.format",
     ]
     assert nodes["035sensor.poll"]["repeat"] == "10"
     assert 'command: "sensor", action: "list"' in fetch["func"]
     assert fetch["wires"][0] == ["035sensor.list.format"]
     assert nodes["035sensor.list.format"]["wires"] == [["d6f0b5a1.42c8e3"]]
+
+
+def test_settings_tab_has_discord_webhook_and_event_flow():
+    nodes = load_nodes()
+    template = nodes["d6f0b5a1.42c8e3"]["format"]
+    formatter = nodes["041notification.action.format"]
+
+    assert "isConfigSectionActive('discord')" in template
+    assert '<span class="ir-section-number">05</span>' in template
+    assert 'id="discord-section-title">Discord</h2>' in template
+    assert "scope.submitWebhookForm = function(event)" in template
+    assert "scope.toggleNotificationEvent = function(event)" in template
+    assert "scope.openWebhookDeleteConfirmation = function()" in template
+    assert 'ng-if="webhook_delete_state.open"' in template
+    assert 'ui_action: "save_discord_webhook"' in template
+    assert 'ui_action: "delete_discord_webhook"' in template
+    assert 'ui_action: "toggle_discord_event"' in template
+    assert 'ui_action: "load_discord_config"' in template
+    assert 'msg.topic === "notification_config"' in template
+    assert 'msg.topic === "notification_error"' in template
+    for event in (
+        "section_on",
+        "section_off",
+        "schedule_restarted",
+        "schedule_created",
+        "schedule_updated",
+        "schedule_deleted",
+        "section_created",
+        "section_updated",
+        "section_deleted",
+        "password_changed",
+    ):
+        assert event in template
+    assert '{ id: "section_on", label: "Seção ligada" }' in template
+    assert '{ id: "section_off", label: "Seção desligada" }' in template
+    assert 'id: "manual_on"' not in template
+    assert 'id: "manual_off"' not in template
+    assert 'id: "schedule_on"' not in template
+    assert 'id: "schedule_off"' not in template
+
+    assert 'command: "notifications"' in formatter["func"]
+    assert 'save_discord_webhook: "save-webhook"' in formatter["func"]
+    assert 'delete_discord_webhook: "delete-webhook"' in formatter["func"]
+    assert 'toggle_discord_event: "set-event"' in formatter["func"]
+    assert 'payload.ui_action === "load_discord_config"' in formatter["func"]
+    assert formatter["outputs"] == 3
+    assert formatter["wires"][2] == ["041notification.fetch"]
+    assert nodes["041notification.poll"]["once"] is True
+    assert nodes["041notification.poll"]["repeat"] == ""
+    assert nodes["041notification.fetch"]["wires"][0] == ["041notification.format"]
+    assert nodes["041notification.format"]["wires"] == [["d6f0b5a1.42c8e3"]]
+    assert nodes["041notification.action.ok"]["wires"] == [
+        ["d6f0b5a1.42c8e3", "041notification.fetch"]
+    ]
