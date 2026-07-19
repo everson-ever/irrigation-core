@@ -687,6 +687,33 @@ def test_settings_show_returns_current_database_row(capsys):
     assert output == {"id": "1", "default_duration_minutes": 5}
 
 
+def test_history_retention_show_defaults_to_seven_days(capsys):
+    exit_code = execute(["history-retention", "show"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output == {"id": "1", "retention_days": 7}
+
+
+def test_history_retention_round_trips_through_set_and_show(capsys):
+    assert execute(["history-retention", "30"]) == 0
+    capsys.readouterr()
+
+    exit_code = execute(["history-retention", "show"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output == {"id": "1", "retention_days": 30}
+
+
+def test_history_retention_rejects_disallowed_period(capsys):
+    exit_code = execute(["history-retention", "45"])
+    output = capsys.readouterr().err
+
+    assert exit_code == 2
+    assert "retention days must be one of" in output
+
+
 def test_auth_login_uses_seeded_default_credentials(capsys):
     exit_code = _execute_stdin(
         {

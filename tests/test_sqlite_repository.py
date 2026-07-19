@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
-from irrigation.application.services import SettingsService
-from irrigation.domain.exceptions import RecordNotFoundError
+from irrigation.application.services import HistorySettingsService, SettingsService
+from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
 from irrigation.infrastructure.sqlite_repository import (
     ScheduleSqliteRepository,
     SqliteRepository,
@@ -63,6 +63,33 @@ def test_settings_service_inserts_once_then_updates_the_single_row(tmp_path):
         "default_duration_minutes": 10,
     }
     assert repository.list_all() == [{"id": "1", "default_duration_minutes": 10}]
+
+
+def test_history_settings_service_defaults_then_updates_the_single_row(tmp_path):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "history_settings"
+    )
+    service = HistorySettingsService(repository)
+
+    assert repository.list_all() == []
+    assert service.retention_days() == 7
+
+    assert service.update_retention_days(15) == {"id": "1", "retention_days": 15}
+    assert service.retention_days() == 15
+
+    assert service.update_retention_days(90) == {"id": "1", "retention_days": 90}
+    assert repository.list_all() == [{"id": "1", "retention_days": 90}]
+
+
+@pytest.mark.parametrize("value", [1, 10, 200, "not-a-number", None])
+def test_history_settings_service_rejects_disallowed_periods(tmp_path, value):
+    repository = SqliteRepository(
+        connect_database(tmp_path / "irrigation.db"), "history_settings"
+    )
+    service = HistorySettingsService(repository)
+
+    with pytest.raises(ValidationError):
+        service.update_retention_days(value)
 
 
 def test_schedule_weekdays_are_normalized_replaced_and_cascaded(tmp_path):

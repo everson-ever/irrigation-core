@@ -30,9 +30,11 @@ HISTORY_MODE_AUTOMATIC = "Automatic"
 HISTORY_MODE_AUTOMATIC_LATE_START = "Automatic: started after scheduled time"
 HISTORY_MODE_RESTARTED = "Restarted"
 
-# Keep only the last week of execution history; older records are pruned when a
-# new one is recorded, bounding storage on the target hardware.
-HISTORY_RETENTION_DAYS = 7
+# Keep only the configured window of execution history; older records are
+# pruned when a new one is recorded, bounding storage on the target hardware.
+# 7 days is the default until the user configures a different period.
+HISTORY_RETENTION_DEFAULT_DAYS = 7
+HISTORY_RETENTION_ALLOWED_DAYS = (7, 15, 30, 90)
 
 DEFAULT_AUTH_USERNAME = "admin"
 DEFAULT_AUTH_PASSWORD = "10203040"
@@ -334,10 +336,44 @@ class ValveService:
                 raise ValidationError(self.DUPLICATE_PIN_MESSAGE)
 
 
+class HistorySettingsService:
+    def __init__(self, repository: Repository) -> None:
+        self._repository = repository
+
+    def retention_days(self) -> int:
+        records = self._repository.list_all()
+        if not records:
+            return HISTORY_RETENTION_DEFAULT_DAYS
+        return int(records[0]["retention_days"])
+
+    def update_retention_days(self, value: Any) -> dict[str, Any]:
+        try:
+            days = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("retention days must be an integer") from exc
+        if days not in HISTORY_RETENTION_ALLOWED_DAYS:
+            raise ValidationError(
+                "retention days must be one of "
+                f"{', '.join(str(item) for item in HISTORY_RETENTION_ALLOWED_DAYS)}"
+            )
+        records = self._repository.list_all()
+        if records:
+            return self._repository.update(
+                {"id": str(records[0]["id"]), "retention_days": days}
+            )
+        return self._repository.add({"retention_days": days})
+
+
 class HistoryService:
-    def __init__(self, history: Repository, search_result: Repository) -> None:
+    def __init__(
+        self,
+        history: Repository,
+        search_result: Repository,
+        retention: HistorySettingsService | None = None,
+    ) -> None:
         self._history = history
         self._search_result = search_result
+        self._retention = retention
 
     def record(
         self,
@@ -363,7 +399,12 @@ class HistoryService:
         prune = getattr(self._history, "delete_before", None)
         if not callable(prune):
             return
-        cutoff = reference - timedelta(days=HISTORY_RETENTION_DAYS)
+        retention_days = (
+            self._retention.retention_days()
+            if self._retention is not None
+            else HISTORY_RETENTION_DEFAULT_DAYS
+        )
+        cutoff = reference - timedelta(days=retention_days)
         prune(cutoff.isoformat())
 
     def has_active_manual(self, valve: str, now: datetime) -> bool:

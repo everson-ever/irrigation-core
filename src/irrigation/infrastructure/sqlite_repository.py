@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS runtime_health (
     last_seen_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS history_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    retention_days INTEGER NOT NULL CHECK (retention_days IN (7, 15, 30, 90))
+);
+
 CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);
 """
 
@@ -73,6 +78,7 @@ _TABLE_COLUMNS = {
     "settings": ("default_duration_minutes",),
     "credentials": ("username", "password_hash"),
     "history": ("valve", "date", "start", "end", "weekday", "mode"),
+    "history_settings": ("retention_days",),
 }
 
 

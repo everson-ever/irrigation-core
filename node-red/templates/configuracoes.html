@@ -462,6 +462,10 @@ body.nr-dashboard-theme {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h16"/><path d="M7 20V8l5-4 5 4v12"/><path d="M9 13h6"/></svg>
               Seções
             </button>
+            <button class="ir-config-menu-button" type="button" ng-class="{'is-active': isConfigSectionActive('history')}" ng-click="selectConfigSection('history')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Histórico
+            </button>
           </nav>
         </aside>
 
@@ -571,6 +575,43 @@ body.nr-dashboard-theme {
               </div>
             </div>
           </div>
+
+          <div ng-if="isConfigSectionActive('history')" aria-labelledby="history-section-title">
+            <div class="ir-config-section-head">
+              <span class="ir-section-number">03</span>
+              <div>
+                <h2 class="ir-section-title" id="history-section-title">Histórico</h2>
+                <p class="ir-section-description">Defina por quanto tempo os acionamentos ficam disponíveis no histórico.</p>
+              </div>
+            </div>
+
+            <div class="ir-section-card" aria-labelledby="history-retention-title">
+              <div class="ir-section-head">
+                <p class="ir-eyebrow">Retenção</p>
+                <h3 class="ir-card-title" id="history-retention-title">Período de retenção</h3>
+                <p class="ir-card-text">Acionamentos mais antigos que o período escolhido são removidos automaticamente do histórico.</p>
+              </div>
+
+              <form class="ir-form-grid" ng-submit="submitHistoryRetentionForm($event)" autocomplete="off">
+                <label class="ir-field">
+                  <span>Manter histórico por</span>
+                  <select ng-model="history_retention_form.days">
+                    <option value="7">7 dias</option>
+                    <option value="15">15 dias</option>
+                    <option value="30">1 mês</option>
+                    <option value="90">3 meses</option>
+                  </select>
+                </label>
+                <button class="ir-primary-button" type="submit" ng-disabled="history_retention_state.submitting">
+                  {{ history_retention_state.submitting ? "Salvando..." : "Salvar período" }}
+                </button>
+              </form>
+
+              <div class="ir-feedback" ng-if="history_retention_feedback" ng-class="history_retention_feedback_class">
+                {{ history_retention_feedback }}
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </main>
@@ -612,6 +653,10 @@ body.nr-dashboard-theme {
   scope.valve_delete_state = scope.valve_delete_state || { open: false, valve: null, id: "", pin: "", section: "" };
   scope.valve_feedback = scope.valve_feedback || "";
   scope.valve_feedback_class = scope.valve_feedback_class || "is-success";
+  scope.history_retention_form = scope.history_retention_form || { days: "7" };
+  scope.history_retention_state = scope.history_retention_state || { submitting: false };
+  scope.history_retention_feedback = scope.history_retention_feedback || "";
+  scope.history_retention_feedback_class = scope.history_retention_feedback_class || "is-success";
 
   scope.navigateToTab = function(index, event) {
     var targetPath = "/" + index;
@@ -723,6 +768,12 @@ body.nr-dashboard-theme {
     scope.valve_state.deleting_id = "";
   }
 
+  function showHistoryRetentionFeedback(message, cssClass) {
+    scope.history_retention_feedback = message;
+    scope.history_retention_feedback_class = cssClass;
+    scope.history_retention_state.submitting = false;
+  }
+
   scope.submitPasswordChange = function(event) {
     if (event && event.preventDefault) {
       event.preventDefault();
@@ -821,6 +872,20 @@ body.nr-dashboard-theme {
     });
   };
 
+  scope.submitHistoryRetentionForm = function(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
+    scope.history_retention_feedback = "";
+    scope.history_retention_state.submitting = true;
+    scope.send({
+      payload: {
+        ui_action: "update_history_retention",
+        retention_days: parseInt(scope.history_retention_form.days, 10)
+      }
+    });
+  };
+
   scope.$watch("msg", function(msg) {
     if (!msg || !msg.topic) {
       return;
@@ -858,6 +923,18 @@ body.nr-dashboard-theme {
     }
     if (msg.topic === "valve_error") {
       showValveFeedback(msg.payload || "Não foi possível salvar a seção.", "is-error");
+    }
+    if (msg.topic === "history_retention") {
+      var days = msg.payload && msg.payload.retention_days;
+      if (days && !scope.history_retention_state.submitting) {
+        scope.history_retention_form.days = String(days);
+      }
+    }
+    if (msg.topic === "history_retention_saved") {
+      showHistoryRetentionFeedback("Período de retenção atualizado.", "is-success");
+    }
+    if (msg.topic === "history_retention_error") {
+      showHistoryRetentionFeedback(msg.payload || "Não foi possível atualizar o período de retenção.", "is-error");
     }
   });
 })(scope);

@@ -7,6 +7,7 @@ from irrigation.application.services import (
     DEFAULT_AUTH_USERNAME,
     AuthService,
     HistoryService,
+    HistorySettingsService,
     IrrigationController,
     ManualControlService,
     ScheduleService,
@@ -1524,6 +1525,72 @@ def _history_service(tmp_path):
 
 def test_record_prunes_history_older_than_retention_window(tmp_path):
     service, history_repo = _history_service(tmp_path)
+    for day in ("2026-07-01", "2026-07-08", "2026-07-09"):
+        history_repo.add(
+            {
+                "valve": "Horta",
+                "date": day,
+                "start": "10:00",
+                "end": "10:05",
+                "weekday": "Wednesday",
+                "mode": "Manual",
+            }
+        )
+
+    service.record(
+        "Horta",
+        datetime(2026, 7, 16, 10, 0),
+        datetime(2026, 7, 16, 10, 5),
+        "Manual",
+    )
+
+    assert [item["date"] for item in history_repo.list_all()] == [
+        "2026-07-09",
+        "2026-07-16",
+    ]
+
+
+def _history_service_with_retention(tmp_path):
+    connection = connect_database(tmp_path / "irrigation.db")
+    history_repo = SqliteRepository(connection, "history")
+    result_repo = JsonLinesRepository(tmp_path / "results.json")
+    retention = HistorySettingsService(SqliteRepository(connection, "history_settings"))
+    return HistoryService(history_repo, result_repo, retention), history_repo, retention
+
+
+def test_record_prunes_history_using_the_configured_retention_window(tmp_path):
+    service, history_repo, retention = _history_service_with_retention(tmp_path)
+    retention.update_retention_days(15)
+    for day in ("2026-06-25", "2026-06-30", "2026-07-01", "2026-07-08"):
+        history_repo.add(
+            {
+                "valve": "Horta",
+                "date": day,
+                "start": "10:00",
+                "end": "10:05",
+                "weekday": "Wednesday",
+                "mode": "Manual",
+            }
+        )
+
+    service.record(
+        "Horta",
+        datetime(2026, 7, 16, 10, 0),
+        datetime(2026, 7, 16, 10, 5),
+        "Manual",
+    )
+
+    # Cutoff is 2026-07-16 - 15 days = 2026-07-01: 07-08 survives here even
+    # though it would have been pruned under the 7-day default (cutoff 07-09).
+    assert [item["date"] for item in history_repo.list_all()] == [
+        "2026-07-01",
+        "2026-07-08",
+        "2026-07-16",
+    ]
+
+
+def test_record_falls_back_to_default_retention_when_unconfigured(tmp_path):
+    service, history_repo, _retention = _history_service_with_retention(tmp_path)
     for day in ("2026-07-01", "2026-07-08", "2026-07-09"):
         history_repo.add(
             {

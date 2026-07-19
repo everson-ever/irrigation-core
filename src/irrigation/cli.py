@@ -205,6 +205,15 @@ def _settings_command(app: Application, args: argparse.Namespace):
     return service.update_default_duration(value)
 
 
+def _history_retention_command(app: Application, args: argparse.Namespace):
+    service = app.history_settings()
+    stdin = _stdin_request(args)
+    value = _required(stdin, "value") if stdin is not None else args.value
+    if value == "show":
+        return {"id": "1", "retention_days": service.retention_days()}
+    return service.update_retention_days(value)
+
+
 def _auth_command(app: Application, args: argparse.Namespace):
     service = app.auth()
     stdin = _stdin_request(args)
@@ -259,6 +268,7 @@ _COMMAND_HANDLERS = {
     "schedule": _schedule_command,
     "valve": _valve_command,
     "settings": _settings_command,
+    "history-retention": _history_retention_command,
     "auth": _auth_command,
     "history": _history_command,
 }
@@ -311,6 +321,11 @@ def create_parser() -> argparse.ArgumentParser:
 
     settings = subcommands.add_parser("settings")
     settings.add_argument("value", help="show or default duration in minutes")
+
+    history_retention = subcommands.add_parser("history-retention")
+    history_retention.add_argument(
+        "value", help="show or retention period in days (7, 15, 30, or 90)"
+    )
 
     auth = subcommands.add_parser("auth")
     auth_actions = auth.add_subparsers(dest="action", required=True)

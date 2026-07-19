@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from irrigation.application.services import (
     AuthService,
     HistoryService,
+    HistorySettingsService,
     IrrigationController,
     ManualControlService,
     RuntimeHealthService,
@@ -48,6 +49,11 @@ class Application:
     def runtime_settings(self) -> SettingsService:
         return SettingsService(SqliteRepository(self._connection, "settings"))
 
+    def history_settings(self) -> HistorySettingsService:
+        return HistorySettingsService(
+            SqliteRepository(self._connection, "history_settings")
+        )
+
     def auth(self) -> AuthService:
         return AuthService(SqliteRepository(self._connection, "credentials"))
 
@@ -55,6 +61,7 @@ class Application:
         return HistoryService(
             SqliteRepository(self._connection, "history"),
             JsonLinesRepository(self.settings.history_search_results_path),
+            self.history_settings(),
         )
 
     def runtime_health(self) -> RuntimeHealthService:

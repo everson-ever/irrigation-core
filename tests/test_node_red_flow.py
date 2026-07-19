@@ -651,13 +651,14 @@ def test_settings_tab_has_password_change_flow():
     assert 'command: "auth"' in formatter["func"]
     assert 'action: "change-password"' in formatter["func"]
     assert "current_password: current" in formatter["func"]
-    assert formatter["outputs"] == 5
+    assert formatter["outputs"] == 6
     assert formatter["wires"] == [
         ["71b3e8a9.0df426"],
         ["d6f0b5a1.42c8e3"],
         ["019valve.add.exec"],
         ["019valve.update.exec"],
         ["019valve.delete.exec"],
+        ["034retention.exec"],
     ]
 
     assert exec_node["type"] == "function"
@@ -742,6 +743,61 @@ def test_settings_tab_has_valve_section_crud_flow():
     assert error["wires"] == [["d6f0b5a1.42c8e3"]]
 
 
+def test_settings_tab_has_history_retention_flow():
+    nodes = load_nodes()
+
+    settings_template = nodes["d6f0b5a1.42c8e3"]["format"]
+    history_template = nodes["dad8cd89.f8f81"]["format"]
+    formatter = nodes["bd0f9d62.31aa54"]
+    poll_injector = nodes["034retention.poll"]
+    fetch = nodes["034retention.fetch"]
+    fetch_formatter = nodes["034retention.format"]
+    exec_node = nodes["034retention.exec"]
+    success = nodes["034retention.ok"]
+    error = nodes["034retention.error"]
+
+    assert "Histórico" in settings_template
+    assert "isConfigSectionActive('history')" in settings_template
+    assert "scope.history_retention_form = scope.history_retention_form ||" in (
+        settings_template
+    )
+    assert "scope.submitHistoryRetentionForm = function(event)" in settings_template
+    assert 'ui_action: "update_history_retention"' in settings_template
+    assert 'msg.topic === "history_retention"' in settings_template
+    assert 'msg.topic === "history_retention_saved"' in settings_template
+    assert 'msg.topic === "history_retention_error"' in settings_template
+    assert '<option value="7">7 dias</option>' in settings_template
+    assert '<option value="15">15 dias</option>' in settings_template
+    assert '<option value="30">1 mês</option>' in settings_template
+    assert '<option value="90">3 meses</option>' in settings_template
+
+    assert 'msg.topic === "history_retention"' in history_template
+    assert "scope.history_retention_days = Number(days)" in history_template
+
+    assert 'payload.ui_action === "update_history_retention"' in formatter["func"]
+    assert "HISTORY_RETENTION_ALLOWED_DAYS" in formatter["func"]
+    assert 'command: "history-retention"' in formatter["func"]
+
+    assert poll_injector["type"] == "inject"
+    assert poll_injector["wires"] == [["034retention.fetch"]]
+    assert fetch["type"] == "function"
+    assert 'global.get("invokeIrrigationNode")' in fetch["func"]
+    assert 'command: "history-retention", value: "show"' in fetch["func"]
+    assert fetch["wires"][0] == ["034retention.format"]
+    assert 'msg.topic = "history_retention"' in fetch_formatter["func"]
+    assert fetch_formatter["wires"] == [["d6f0b5a1.42c8e3", "dad8cd89.f8f81"]]
+
+    assert exec_node["type"] == "function"
+    assert 'global.get("invokeIrrigationNode")' in exec_node["func"]
+    assert exec_node["wires"][0] == ["034retention.ok"]
+    assert exec_node["wires"][1] == ["034retention.error"]
+    assert 'msg.topic = "history_retention_saved"' in success["func"]
+    assert success["wires"] == [["d6f0b5a1.42c8e3"]]
+    assert 'msg.topic = "history_retention_error"' in error["func"]
+    assert 'replace(/^Error:\\s*/, "")' in error["func"]
+    assert error["wires"] == [["d6f0b5a1.42c8e3"]]
+
+
 def test_all_cli_invocations_use_the_structured_stdin_adapter():
     nodes = load_nodes()
     invocation_ids = {
@@ -758,6 +814,8 @@ def test_all_cli_invocations_use_the_structured_stdin_adapter():
         "019valve.add.exec",
         "019valve.update.exec",
         "019valve.delete.exec",
+        "034retention.exec",
+        "034retention.fetch",
     }
 
     assert not [node for node in nodes.values() if node.get("type") == "exec"]
