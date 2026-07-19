@@ -106,7 +106,11 @@ changes. Webhook URLs and password data are never included in messages.
   [Installation](#installation-on-raspberry-pi)); not required on the target
   device if you install a binary built elsewhere.
 - Access to GPIO pins.
-- Node-RED to use the web dashboard.
+- Internet access during installation when Node.js or npm is not already
+  installed; the installer obtains both from the Raspberry Pi OS package
+  repositories.
+- Node-RED to use the web dashboard; the installer preserves and configures an
+  existing `nodered.service`, but does not install Node-RED itself.
 - The `node-red-dashboard` module to import the existing dashboard.
 
 ## Installation on Raspberry Pi
@@ -130,24 +134,52 @@ cd Sistema-de-irriga-o
 This compiles `src/irrigation` with [Nuitka](https://nuitka.net/) into
 `dist/irrigation`, a single self-contained executable. It installs build-only
 tooling (`build-essential`, `patchelf`, a throwaway `.venv-build`) that is not
-needed at runtime.
+needed at runtime. The build also creates
+`dist/irrigation-deploy-<version>.zip`, containing the executable, clean
+default data, the Node-RED files, and the systemd templates.
 
 ### 2. Install on the target device
 
-Copy `dist/irrigation`, `data/`, `node-red/`, `deploy/`, and
-`scripts/install-raspberry.sh` to the target Pi — `src/` and `pyproject.toml`
-are not required there. Then run:
+If the build was created on the same Raspberry Pi that will run the system,
+install directly from the repository root; no file-copy step is needed:
 
 ```bash
 sudo ./scripts/install-raspberry.sh
 ```
 
+If the target is a different Raspberry Pi, copy the generated deployment ZIP
+instead of selecting folders manually. For example, from the build machine:
+
+```bash
+scp dist/irrigation-deploy-*.zip app@RASPBERRY_IP:~/
+```
+
+Then, on the target Pi, extract the ZIP, enter the extracted
+`irrigation-deploy-<version>` directory, and install:
+
+```bash
+unzip irrigation-deploy-*.zip
+cd irrigation-deploy-*/
+sudo ./scripts/install-raspberry.sh
+```
+
+The source checkout intentionally ignores the operational `data/` directory.
+When installing directly from a clean checkout, the installer creates it from
+`deploy/data-defaults` without overwriting an existing database or legacy JSON
+files. The deployment ZIP already includes a clean `data/` directory.
+
 The script:
 
-1. installs the compiled binary at `/opt/irrigation/bin/irrigation`;
-2. adds the user to the `gpio` group;
-3. installs and starts the `irrigation.service` service;
-4. configures the Node-RED service directory and `PATH` when it exists.
+1. initializes `data/` from the deployment defaults when it is absent;
+2. installs Node.js and npm through `apt` when either command is missing;
+3. installs the compiled binary at `/opt/irrigation/bin/irrigation`;
+4. adds the user to the `gpio` group;
+5. installs and starts the `irrigation.service` service;
+6. configures the Node-RED service directory and `PATH` when it exists.
+
+The service uses the installation directory as its working directory and keeps
+operational state in its `data/` folder. Do not move or remove that directory
+after installation.
 
 After the first installation, restart the session or reboot the Raspberry Pi so
 the `gpio` group change takes effect:
@@ -158,7 +190,8 @@ sudo reboot
 
 ### Configure Node-RED
 
-If the dashboard is not installed yet, run the following command with the user
+Node.js and npm are installed automatically by the irrigation installer. If the
+dashboard module is not installed yet, run the following command with the user
 that runs Node-RED:
 
 ```bash

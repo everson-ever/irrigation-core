@@ -19,7 +19,10 @@ file needed to install it — **without the Python source code**.
 
 - Raspberry Pi OS (or another Debian-based distro) with the same
   architecture used to compile the binary (armv7l or aarch64).
-- Node-RED installed, if you want to use the web dashboard.
+- Internet access during installation if Node.js or npm is missing; the
+  installer obtains both through `apt`.
+- Node-RED installed, if you want to use the web dashboard. The installer
+  configures an existing `nodered.service` but does not install Node-RED itself.
 
 ## Steps
 
@@ -37,14 +40,21 @@ file needed to install it — **without the Python source code**.
    ```
 
    The script:
+   - preserves the package's existing `data/` directory;
+   - installs Node.js and npm through `apt` when either command is missing;
    - copies the binary to `/opt/irrigation/bin/irrigation`;
    - adds the user to the `gpio` group;
    - installs and starts the `irrigation.service` systemd service;
    - configures the Node-RED service (`PATH`, working directory, and
      `node-red/settings.js`), if it already exists on the system.
 
-3. If `node-red-dashboard` is not installed yet, run the following with the
-   user that runs Node-RED:
+   The service continues using this folder for operational data and Node-RED
+   configuration. Do not move or remove the extracted folder after
+   installation. Running the installer again is safe and does not replace an
+   existing database.
+
+3. Node.js and npm are installed automatically. If `node-red-dashboard` is not
+   installed yet, run the following with the user that runs Node-RED:
 
    ```bash
    cd ~/.node-red
