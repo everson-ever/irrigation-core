@@ -184,6 +184,14 @@ Como o Raspberry Pi não possui entradas analógicas:
 
 # Exemplo de Montagem
 
+> **Convenção obrigatória de pinos:** o software e o painel aceitam somente o
+> número do **pino físico (BOARD)** do conector de 40 pinos. Nomes como `GPIO23`
+> são identificadores BCM e são ambíguos sem conversão. Nos exemplos abaixo a
+> equivalência aparece apenas para ajudar a ler diagramas antigos; cadastre o
+> número físico e confira o pinout do modelo exato do Raspberry Pi. Os pinos são
+> exemplos, não uma recomendação de instalação, e podem conflitar com bomba ou
+> válvulas já cadastradas.
+
 ## Alimentação
 
 ```text
@@ -215,17 +223,17 @@ Fonte 12V
 ## Raspberry Pi
 
 ```text
-GPIO17 ─────► MOSFET 1
+Pino físico 11 (BCM17) ─────► MOSFET 1
 
-GPIO18 ─────► MOSFET 2
+Pino físico 12 (BCM18) ─────► MOSFET 2
 
-GPIO19 ─────► MOSFET 3
+Pino físico 35 (BCM19) ─────► MOSFET 3
 
-GPIO20 ─────► MOSFET 4
+Pino físico 38 (BCM20) ─────► MOSFET 4
 
-GPIO21 ─────► MOSFET 5
+Pino físico 40 (BCM21) ─────► MOSFET 5
 
-GPIO22 ─────► MOSFET 6
+Pino físico 15 (BCM22) ─────► MOSFET 6
 ```
 
 ---
@@ -297,7 +305,7 @@ Sensor
 
 ↓
 
-GPIO23
+Pino físico 16 (BCM23)
 ```
 
 ---
@@ -309,7 +317,7 @@ Sensor
 
 ↓
 
-GPIO24
+Pino físico 18 (BCM24)
 ```
 
 ---
@@ -321,7 +329,7 @@ Boia
 
 ↓
 
-GPIO25
+Pino físico 22 (BCM25)
 ```
 
 ---
@@ -431,6 +439,13 @@ Raspberry      Válvulas
 ---
 
 # Funcionamento
+
+Atualmente, `Configurações > Sensores` cadastra apenas a identidade e mostra o
+último estado comum dos tipos nível do reservatório, vazão, umidade do solo,
+pressão da linha e chuva. Esse cadastro não instala o componente, não valida a
+fiação e ainda não altera decisões de irrigação. Leitura real, calibração e
+regras de segurança passam a existir somente depois da implementação do driver
+específico correspondente.
 
 1. Raspberry Pi verifica sensores.
 2. Se um setor precisar irrigar:

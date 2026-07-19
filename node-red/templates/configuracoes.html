@@ -230,7 +230,8 @@ body.nr-dashboard-theme {
 .ir-form-grid { display: grid; gap: 14px; }
 .ir-field label,
 .ir-field > span { display: block; margin-bottom: 7px; color: #26312f; font-size: 12px; font-weight: 800; }
-.ir-field input {
+.ir-field input,
+.ir-field select {
   width: 100%;
   height: 44px;
   border: 1px solid #d4dada;
@@ -241,7 +242,8 @@ body.nr-dashboard-theme {
   color: var(--ir-ink);
   font-size: 14px;
 }
-.ir-field input:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
+.ir-field input:focus,
+.ir-field select:focus { border-color: var(--ir-green); box-shadow: 0 0 0 3px rgba(17, 135, 125, .1); }
 .ir-primary-button {
   display: inline-flex;
   min-height: 42px;
@@ -315,6 +317,36 @@ body.nr-dashboard-theme {
   grid-template-columns: 140px minmax(0, 1fr);
   gap: 14px;
 }
+.ir-sensor-list { display: grid; gap: 12px; margin: 0 0 24px; }
+.ir-sensor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--ir-line);
+  border-radius: 12px;
+  background: #fbfcfc;
+}
+.ir-sensor-title { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.ir-sensor-title strong { color: var(--ir-ink); font-size: 15px; }
+.ir-sensor-meta { margin-top: 5px; color: var(--ir-muted); font-size: 12px; line-height: 1.45; }
+.ir-sensor-state { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.ir-sensor-state div { padding: 9px 10px; border-radius: 9px; background: #f0f4f4; }
+.ir-sensor-state span { display: block; color: var(--ir-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.ir-sensor-state strong { display: block; margin-top: 3px; color: var(--ir-ink); font-size: 12px; }
+.ir-sensor-error { margin: 10px 0 0; color: #c92f2f; font-size: 12px; font-weight: 700; }
+.ir-badge { display: inline-flex; align-items: center; min-height: 23px; border-radius: 999px; padding: 0 8px; background: #edf2f2; color: #52605e; font-size: 10px; font-weight: 900; }
+.ir-badge.is-ok { background: #e5f7ef; color: #147a58; }
+.ir-badge.is-warning, .ir-badge.is-stale { background: #fff3dc; color: #a25b00; }
+.ir-badge.is-fault { background: #ffeaea; color: #c92f2f; }
+.ir-badge.is-disabled { background: #eceff0; color: #687274; }
+.ir-badge.is-unsupported { background: #eef0ff; color: #5556a8; }
+.ir-sensor-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.ir-toggle-button.is-on { background: #dff5ed; color: #0d756c; }
+.ir-sensor-slot { padding: 13px 14px; border: 1px dashed #cbd6d4; border-radius: 10px; background: #f7faf9; color: var(--ir-muted); font-size: 12px; line-height: 1.5; }
+.ir-sensor-note { margin: 0 0 20px; padding: 13px 14px; border-radius: 10px; background: #fff7e9; color: #8a5607; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.ir-checkbox { display: flex; align-items: center; gap: 9px; color: #26312f; font-size: 12px; font-weight: 800; }
+.ir-checkbox input { width: 18px; height: 18px; accent-color: var(--ir-green); }
 .ir-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -397,6 +429,9 @@ body.nr-dashboard-theme {
   .ir-config-section-head { padding: 18px; }
   .ir-section-card { padding: 18px; }
   .ir-valve-row { grid-template-columns: 1fr; }
+  .ir-sensor-row { grid-template-columns: 1fr; }
+  .ir-sensor-actions { flex-direction: row; flex-wrap: wrap; }
+  .ir-sensor-state { grid-template-columns: 1fr; }
   .ir-valve-actions { justify-content: flex-start; }
   .ir-form-split { grid-template-columns: 1fr; }
   .ir-modal { padding: 20px 16px; }
@@ -466,6 +501,10 @@ body.nr-dashboard-theme {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
               Histórico
             </button>
+            <button class="ir-config-menu-button" type="button" ng-class="{'is-active': isConfigSectionActive('sensors')}" ng-click="selectConfigSection('sensors')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1"/><circle cx="12" cy="12" r="4"/><path d="M10 20h4"/></svg>
+              Sensores
+            </button>
           </nav>
         </aside>
 
@@ -523,7 +562,7 @@ body.nr-dashboard-theme {
               <span class="ir-section-number">02</span>
               <div>
                 <h2 class="ir-section-title" id="valves-section-title">Seções</h2>
-                <p class="ir-section-description">Cadastre e gerencie os nomes das seções e seus pinos GPIO.</p>
+                <p class="ir-section-description">Cadastre e gerencie os nomes das seções e seus pinos físicos (BOARD).</p>
               </div>
             </div>
 
@@ -539,7 +578,7 @@ body.nr-dashboard-theme {
                 <div class="ir-valve-row" ng-repeat="valve in valves track by valve.id">
                   <div>
                     <strong>{{ valve.section }}</strong>
-                    <span>Pino GPIO {{ valve.pin }}</span>
+                    <span>Pino físico (BOARD) {{ valve.pin }}</span>
                   </div>
                   <span>ID {{ valve.id }}</span>
                   <div class="ir-valve-actions">
@@ -554,7 +593,7 @@ body.nr-dashboard-theme {
               <form class="ir-form-grid" ng-submit="submitValveForm($event)" autocomplete="off">
                 <div class="ir-form-split">
                   <label class="ir-field">
-                    <span>Pino GPIO</span>
+                    <span>Pino físico (BOARD)</span>
                     <input type="number" min="1" step="1" ng-model="valve_form.pin" required>
                   </label>
                   <label class="ir-field">
@@ -612,6 +651,98 @@ body.nr-dashboard-theme {
               </div>
             </div>
           </div>
+
+          <div ng-if="isConfigSectionActive('sensors')" aria-labelledby="sensors-section-title">
+            <div class="ir-config-section-head">
+              <span class="ir-section-number">04</span>
+              <div>
+                <h2 class="ir-section-title" id="sensors-section-title">Sensores</h2>
+                <p class="ir-section-description">Cadastre a identidade, associação e estado de ativação dos sensores planejados.</p>
+              </div>
+            </div>
+
+            <div class="ir-section-card" aria-labelledby="sensors-list-title">
+              <div class="ir-section-head">
+                <p class="ir-eyebrow">Monitoramento</p>
+                <h3 class="ir-card-title" id="sensors-list-title">Sensores configurados</h3>
+                <p class="ir-card-text">O estado abaixo é o último snapshot recebido. Um cadastro não significa que o hardware esteja conectado ou operacional.</p>
+              </div>
+
+              <p class="ir-sensor-note">A configuração do painel não substitui a ligação física. Use sempre a numeração <strong>pino físico (BOARD)</strong>; testes reais só estarão disponíveis quando o driver do tipo de sensor for implementado.</p>
+
+              <div class="ir-empty-inline" ng-if="sensors.length === 0">Nenhum sensor cadastrado.</div>
+              <div class="ir-sensor-list" ng-if="sensors.length > 0">
+                <article class="ir-sensor-row" ng-repeat="sensor in sensors track by sensor.id">
+                  <div>
+                    <div class="ir-sensor-title">
+                      <strong>{{ sensor.name }}</strong>
+                      <span class="ir-badge">Configurado</span>
+                      <span class="ir-badge" ng-class="sensorAvailabilityClass(sensor)">{{ sensorAvailabilityLabel(sensor) }}</span>
+                    </div>
+                    <div class="ir-sensor-meta">{{ sensorKindLabel(sensor.kind) }}<span ng-if="sensor.section"> · Seção {{ sensor.section }}</span><span ng-if="!sensor.section"> · Sem seção associada</span></div>
+                    <div class="ir-sensor-state">
+                      <div>
+                        <span>Última leitura</span>
+                        <strong>{{ sensorValueLabel(sensor) }}</strong>
+                      </div>
+                      <div>
+                        <span>Atualização</span>
+                        <strong>{{ sensorReadTime(sensor) }}</strong>
+                      </div>
+                    </div>
+                    <p class="ir-sensor-error" ng-if="sensor.state.error_message">{{ sensor.state.error_message }}</p>
+                  </div>
+                  <div class="ir-sensor-actions">
+                    <button class="ir-secondary-button ir-toggle-button" ng-class="{'is-on': sensor.enabled}" type="button" ng-click="toggleSensorEnabled(sensor)" ng-disabled="sensor_state.toggling_id === sensor.id || sensor_state.submitting">
+                      {{ sensor_state.toggling_id === sensor.id ? "Atualizando..." : (sensor.enabled ? "Desabilitar" : "Habilitar") }}
+                    </button>
+                    <button class="ir-secondary-button" type="button" ng-click="startSensorEdit(sensor)" ng-disabled="sensor_state.submitting">Editar</button>
+                    <button class="ir-danger-button" type="button" ng-click="openSensorDeleteConfirmation(sensor)" ng-disabled="sensor_state.deleting_id === sensor.id">
+                      {{ sensor_state.deleting_id === sensor.id ? "Excluindo..." : "Excluir" }}
+                    </button>
+                  </div>
+                </article>
+              </div>
+
+              <form class="ir-form-grid" ng-submit="submitSensorForm($event)" autocomplete="off">
+                <div class="ir-form-split">
+                  <label class="ir-field">
+                    <span>Nome do sensor</span>
+                    <input type="text" maxlength="100" ng-model="sensor_form.name" required>
+                  </label>
+                  <label class="ir-field">
+                    <span>Tipo</span>
+                    <select ng-model="sensor_form.kind" required>
+                      <option value="" disabled>Selecione um tipo</option>
+                      <option ng-repeat="kind in sensor_kind_options track by kind.id" value="{{ kind.id }}">{{ kind.label }}</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="ir-field">
+                  <span>Seção / válvula (opcional)</span>
+                  <select ng-model="sensor_form.valve_id">
+                    <option value="">Sem associação</option>
+                    <option ng-repeat="valve in valves track by valve.id" value="{{ valve.id }}">{{ valve.section }} · pino físico (BOARD) {{ valve.pin }}</option>
+                  </select>
+                </label>
+                <label class="ir-checkbox"><input type="checkbox" ng-model="sensor_form.enabled"> Sensor habilitado</label>
+
+                <div class="ir-sensor-slot" ng-if="sensor_form.kind" data-sensor-kind="{{ sensor_form.kind }}">
+                  <strong>{{ sensorKindLabel(sensor_form.kind) }}</strong><br>
+                  Os campos de conexão, pino físico (BOARD), calibração e teste ao vivo serão adicionados pelo driver específico sem alterar este cadastro comum.
+                </div>
+
+                <div class="ir-valve-actions">
+                  <button class="ir-secondary-button" type="button" ng-if="sensor_form.id" ng-click="resetSensorForm()" ng-disabled="sensor_state.submitting">Cancelar edição</button>
+                  <button class="ir-primary-button" type="submit" ng-disabled="sensor_state.submitting">
+                    {{ sensor_state.submitting ? "Salvando..." : (sensor_form.id ? "Salvar sensor" : "Cadastrar sensor") }}
+                  </button>
+                </div>
+              </form>
+
+              <div class="ir-feedback" ng-if="sensor_feedback" ng-class="sensor_feedback_class">{{ sensor_feedback }}</div>
+            </div>
+          </div>
         </section>
       </div>
     </main>
@@ -622,7 +753,7 @@ body.nr-dashboard-theme {
   <div class="ir-modal is-small" ng-click="$event.stopPropagation()">
     <p class="ir-eyebrow">Excluir seção</p>
     <h2 class="ir-modal-title">Confirmar exclusão?</h2>
-    <p class="ir-modal-text">A seção {{ valve_delete_state.section }} no pino GPIO {{ valve_delete_state.pin }} será removida. Esta ação não pode ser desfeita.</p>
+    <p class="ir-modal-text">A seção {{ valve_delete_state.section }} no pino físico (BOARD) {{ valve_delete_state.pin }} será removida. Esta ação não pode ser desfeita.</p>
     <div class="ir-modal-warning" ng-if="isValveDeleteBlocked()">
       Esta seção está cadastrada em {{ linkedScheduleCount(valve_delete_state.valve) }} agendamento(s). Para excluir a seção, exclua primeiro os agendamentos que usam este pino; depois volte aqui e confirme a exclusão.
     </div>
@@ -630,6 +761,20 @@ body.nr-dashboard-theme {
       <button type="button" class="ir-secondary-button" ng-click="closeValveDeleteConfirmation()">Cancelar</button>
       <button type="button" class="ir-danger-button" ng-click="deleteValve()" ng-disabled="isValveDeleteBlocked() || valve_state.deleting_id === valve_delete_state.id">
         {{ valve_state.deleting_id === valve_delete_state.id ? "Excluindo..." : "Excluir seção" }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="ir-modal-backdrop" ng-if="sensor_delete_state.open" ng-click="closeSensorDeleteConfirmation()">
+  <div class="ir-modal is-small" ng-click="$event.stopPropagation()">
+    <p class="ir-eyebrow">Excluir sensor</p>
+    <h2 class="ir-modal-title">Confirmar exclusão?</h2>
+    <p class="ir-modal-text">O sensor {{ sensor_delete_state.name }} e seu snapshot atual serão removidos. Esta ação não pode ser desfeita.</p>
+    <div class="ir-modal-actions">
+      <button type="button" class="ir-secondary-button" ng-click="closeSensorDeleteConfirmation()">Cancelar</button>
+      <button type="button" class="ir-danger-button" ng-click="deleteSensor()" ng-disabled="sensor_state.deleting_id === sensor_delete_state.id">
+        {{ sensor_state.deleting_id === sensor_delete_state.id ? "Excluindo..." : "Excluir sensor" }}
       </button>
     </div>
   </div>
@@ -657,6 +802,19 @@ body.nr-dashboard-theme {
   scope.history_retention_state = scope.history_retention_state || { submitting: false };
   scope.history_retention_feedback = scope.history_retention_feedback || "";
   scope.history_retention_feedback_class = scope.history_retention_feedback_class || "is-success";
+  scope.sensors = scope.sensors || [];
+  scope.sensor_kind_options = [
+    { id: "reservoir_level", label: "Nível do reservatório" },
+    { id: "flow", label: "Vazão" },
+    { id: "soil_moisture", label: "Umidade do solo" },
+    { id: "line_pressure", label: "Pressão da linha" },
+    { id: "rain", label: "Chuva" }
+  ];
+  scope.sensor_form = scope.sensor_form || { id: "", name: "", kind: "", enabled: true, valve_id: "" };
+  scope.sensor_state = scope.sensor_state || { submitting: false, toggling_id: "", deleting_id: "" };
+  scope.sensor_delete_state = scope.sensor_delete_state || { open: false, id: "", name: "" };
+  scope.sensor_feedback = scope.sensor_feedback || "";
+  scope.sensor_feedback_class = scope.sensor_feedback_class || "is-success";
 
   scope.navigateToTab = function(index, event) {
     var targetPath = "/" + index;
@@ -774,6 +932,14 @@ body.nr-dashboard-theme {
     scope.history_retention_state.submitting = false;
   }
 
+  function showSensorFeedback(message, cssClass) {
+    scope.sensor_feedback = message;
+    scope.sensor_feedback_class = cssClass;
+    scope.sensor_state.submitting = false;
+    scope.sensor_state.toggling_id = "";
+    scope.sensor_state.deleting_id = "";
+  }
+
   scope.submitPasswordChange = function(event) {
     if (event && event.preventDefault) {
       event.preventDefault();
@@ -840,7 +1006,7 @@ body.nr-dashboard-theme {
     }
     scope.valve_feedback = "";
     if (!scope.valve_form.pin || parseInt(scope.valve_form.pin, 10) < 1) {
-      showValveFeedback("Informe um pino GPIO válido.", "is-error");
+      showValveFeedback("Informe um pino físico (BOARD) válido.", "is-error");
       return;
     }
     if (!scope.valve_form.section || !String(scope.valve_form.section).trim()) {
@@ -884,6 +1050,98 @@ body.nr-dashboard-theme {
         retention_days: parseInt(scope.history_retention_form.days, 10)
       }
     });
+  };
+
+  scope.sensorKindLabel = function(kind) {
+    for (var i = 0; i < scope.sensor_kind_options.length; i += 1) {
+      if (scope.sensor_kind_options[i].id === kind) return scope.sensor_kind_options[i].label;
+    }
+    return "Tipo não suportado";
+  };
+  scope.sensorAvailabilityLabel = function(sensor) {
+    var labels = {
+      disabled: "Desabilitado",
+      unsupported: "Driver indisponível",
+      stale: "Leitura desatualizada",
+      fault: "Falha",
+      warning: "Atenção",
+      operational: "Operacional",
+      unknown: "Sem leitura"
+    };
+    return labels[(sensor && sensor.availability) || "unknown"] || "Sem leitura";
+  };
+  scope.sensorAvailabilityClass = function(sensor) {
+    var availability = (sensor && sensor.availability) || "unknown";
+    if (availability === "operational") return "is-ok";
+    return "is-" + availability;
+  };
+  scope.sensorValueLabel = function(sensor) {
+    var state = sensor && sensor.state;
+    if (!state || state.value === null || typeof state.value === "undefined") return "Sem leitura disponível";
+    return String(state.value) + (state.unit ? " " + state.unit : "");
+  };
+  scope.sensorReadTime = function(sensor) {
+    var timestamp = sensor && sensor.state && sensor.state.latest_read_at;
+    if (!timestamp) return "Nunca lido";
+    var parsed = new Date(timestamp);
+    return isNaN(parsed.getTime()) ? String(timestamp) : parsed.toLocaleString("pt-BR");
+  };
+  scope.resetSensorForm = function() {
+    scope.sensor_form = { id: "", name: "", kind: "", enabled: true, valve_id: "" };
+  };
+  scope.startSensorEdit = function(sensor) {
+    scope.sensor_feedback = "";
+    scope.sensor_form = {
+      id: sensor.id,
+      name: sensor.name,
+      kind: sensor.kind,
+      enabled: !!sensor.enabled,
+      valve_id: sensor.valve_id ? String(sensor.valve_id) : ""
+    };
+  };
+  scope.submitSensorForm = function(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    scope.sensor_feedback = "";
+    if (!scope.sensor_form.name || !String(scope.sensor_form.name).trim()) {
+      showSensorFeedback("Informe o nome do sensor.", "is-error");
+      return;
+    }
+    if (!scope.sensor_form.kind) {
+      showSensorFeedback("Selecione um tipo de sensor.", "is-error");
+      return;
+    }
+    scope.sensor_state.submitting = true;
+    scope.send({ payload: {
+      ui_action: scope.sensor_form.id ? "update_sensor" : "add_sensor",
+      id: scope.sensor_form.id,
+      name: String(scope.sensor_form.name).trim(),
+      kind: scope.sensor_form.kind,
+      enabled: scope.sensor_form.enabled ? 1 : 0,
+      valve_id: scope.sensor_form.valve_id || null
+    }});
+  };
+  scope.toggleSensorEnabled = function(sensor) {
+    if (!sensor || scope.sensor_state.toggling_id) return;
+    scope.sensor_feedback = "";
+    scope.sensor_state.toggling_id = sensor.id;
+    scope.send({ payload: {
+      ui_action: "toggle_sensor",
+      id: sensor.id,
+      enabled: sensor.enabled ? 0 : 1
+    }});
+  };
+  scope.openSensorDeleteConfirmation = function(sensor) {
+    scope.sensor_feedback = "";
+    scope.sensor_delete_state = { open: true, id: sensor.id, name: sensor.name };
+  };
+  scope.closeSensorDeleteConfirmation = function() {
+    if (scope.sensor_state.deleting_id) return;
+    scope.sensor_delete_state = { open: false, id: "", name: "" };
+  };
+  scope.deleteSensor = function() {
+    if (!scope.sensor_delete_state.id) return;
+    scope.sensor_state.deleting_id = scope.sensor_delete_state.id;
+    scope.send({ payload: { ui_action: "delete_sensor", id: scope.sensor_delete_state.id }});
   };
 
   scope.$watch("msg", function(msg) {
@@ -935,6 +1193,24 @@ body.nr-dashboard-theme {
     }
     if (msg.topic === "history_retention_error") {
       showHistoryRetentionFeedback(msg.payload || "Não foi possível atualizar o período de retenção.", "is-error");
+    }
+    if (msg.topic === "sensors") {
+      scope.sensors = Array.isArray(msg.payload) ? msg.payload : [];
+    }
+    if (msg.topic === "sensor_saved") {
+      scope.resetSensorForm();
+      showSensorFeedback("Sensor salvo com sucesso.", "is-success");
+    }
+    if (msg.topic === "sensor_enabled") {
+      showSensorFeedback("Estado do sensor atualizado.", "is-success");
+    }
+    if (msg.topic === "sensor_deleted") {
+      scope.resetSensorForm();
+      showSensorFeedback("Sensor excluído com sucesso.", "is-success");
+      scope.closeSensorDeleteConfirmation();
+    }
+    if (msg.topic === "sensor_error") {
+      showSensorFeedback(msg.payload || "Não foi possível atualizar o sensor.", "is-error");
     }
   });
 })(scope);

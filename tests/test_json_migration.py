@@ -123,3 +123,10 @@ def test_deployment_database_contains_the_default_settings_row():
         is not None
     )
     assert connection.execute("SELECT count(*) FROM runtime_health").fetchone()[0] == 0
+    assert {
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name IN ('sensors', 'sensor_state')"
+        ).fetchall()
+    } == {"sensors", "sensor_state"}

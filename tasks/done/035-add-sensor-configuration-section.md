@@ -1,5 +1,5 @@
 ---
-status: backlog
+status: done
 priority: high
 type: feature
 ---
@@ -159,22 +159,22 @@ must consistently identify physical pins and reject ambiguous values.
 
 ### Unit tests
 
-- [ ] Validate supported kinds, names, enabled state, associations, and state
+- [x] Validate supported kinds, names, enabled state, associations, and state
   serialization.
-- [ ] Verify CRUD rules and disabled/unknown/stale presentation.
+- [x] Verify CRUD rules and disabled/unknown/stale presentation.
 
 ### Integration tests
 
-- [ ] Verify schema initialization on new and existing databases.
-- [ ] Verify all structured stdin CLI actions and error JSON.
-- [ ] Verify the settings page can list, add, edit, toggle, and delete sensor
+- [x] Verify schema initialization on new and existing databases.
+- [x] Verify all structured stdin CLI actions and error responses.
+- [x] Verify the settings page can list, add, edit, toggle, and delete sensor
   records using mocked state data.
 
 ### Regression tests
 
-- [ ] Existing schedule, valve, history, authentication, and settings behavior
+- [x] Existing schedule, valve, history, authentication, and settings behavior
   remains unchanged.
-- [ ] `flows.json` remains synchronized with the HTML template.
+- [x] `flows.json` remains synchronized with the HTML template.
 
 ### Test data and fixtures
 
@@ -183,25 +183,25 @@ must consistently identify physical pins and reject ambiguous values.
 
 ## Acceptance criteria
 
-- [ ] Configurações contains a responsive **Sensores** section numbered 04.
-- [ ] Users can manage common sensor configuration entirely through the UI.
-- [ ] The CLI and SQLite contracts support all five planned sensor kinds.
-- [ ] Sensor health, last reading, last-read time, and errors are visible.
-- [ ] The UI distinguishes configured, disabled, unsupported, stale, and faulty
+- [x] Configurações contains a responsive **Sensores** section numbered 04.
+- [x] Users can manage common sensor configuration entirely through the UI.
+- [x] The CLI and SQLite contracts support all five planned sensor kinds.
+- [x] Sensor health, last reading, last-read time, and errors are visible.
+- [x] The UI distinguishes configured, disabled, unsupported, stale, and faulty
   sensors without claiming unavailable hardware is operational.
-- [ ] Validation is enforced by the backend and errors are actionable.
-- [ ] No real sensor controls irrigation in this foundational task.
-- [ ] Tests, linting, formatting, and template synchronization checks pass.
+- [x] Validation is enforced by the backend and errors are actionable.
+- [x] No real sensor controls irrigation in this foundational task.
+- [x] Tests, linting, formatting, and template synchronization checks pass.
 
 ## Implementation checklist
 
-- [ ] Inspect the listed files and confirm the deployed schema constraints.
-- [ ] Implement the smallest common model and persistence contract.
-- [ ] Add CLI and dashboard integration.
-- [ ] Add focused and regression tests.
-- [ ] Run `python3 scripts/sync_flows_templates.py`.
-- [ ] Run the full validation suite.
-- [ ] Validate every acceptance criterion before moving the task to `done`.
+- [x] Inspect the listed files and confirm the deployed schema constraints.
+- [x] Implement the smallest common model and persistence contract.
+- [x] Add CLI and dashboard integration.
+- [x] Add focused and regression tests.
+- [x] Run `python3 scripts/sync_flows_templates.py`.
+- [x] Run the full validation suite.
+- [x] Validate every acceptance criterion before moving the task to `done`.
 
 ## Notes
 
@@ -209,4 +209,3 @@ must consistently identify physical pins and reject ambiguous values.
   `GPIO23`-style labels from the hardware guide without an explicit mapping.
 - Type-specific tables are intentionally deferred so each later task can add
   strict constraints without a wide nullable common table.
-

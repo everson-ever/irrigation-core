@@ -20,6 +20,8 @@ The CLI JSON output is part of the current dashboard contract.
 - Configurable automatic shutdown time for manual mode.
 - History logging and search by day or date range.
 - Valve state visualization in the Node-RED dashboard.
+- Common configuration and latest-status dashboard for reservoir-level, flow,
+  soil-moisture, line-pressure, and rain sensors.
 - Support for schedules that cross midnight.
 - Simulated GPIO driver for development without a Raspberry Pi.
 
@@ -79,6 +81,14 @@ installation.
 Use proper relay/transistor modules: GPIO pins must not power the pump or
 solenoid valves directly. Also confirm the electrical logic of your relay before
 energizing the circuit; this implementation treats high level as on.
+
+Sensors can be registered, edited, enabled, disabled, inspected, and removed in
+`Configurações > Sensores` or through `irrigation sensor`. Every UI and API pin
+label uses the physical connector number (**BOARD**), never an ambiguous BCM
+label such as `GPIO23`. The current sensor foundation does not read hardware or
+change irrigation decisions; wiring validation and live tests become available
+only when each type-specific driver is implemented. Dashboard configuration is
+not a substitute for safe physical wiring or voltage-level protection.
 
 ## Requirements
 
@@ -273,6 +283,12 @@ irrigation schedule delete 1
 irrigation valve '13,on'
 irrigation valve '13,off'
 irrigation valve list
+
+# Common sensor configuration (no hardware reading in this foundation)
+irrigation sensor add 'Reservoir level,reservoir_level'
+irrigation sensor list
+irrigation sensor status 1
+irrigation sensor enabled '1,0'
 
 # Change the default manual time
 irrigation settings 5

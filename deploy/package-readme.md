@@ -84,6 +84,12 @@ These pin numbers are only examples. Replace them with the physical pins used
 in the installation. `history_search_results.json` remains an empty transient
 dashboard snapshot.
 
+Common sensor records can be managed in `Configurações > Sensores`. This
+foundation stores only configuration and the latest state; it does not read
+hardware or change irrigation decisions. Use physical pin numbers (BOARD) when
+future type-specific driver fields become available, and do not treat dashboard
+configuration as a substitute for safe wiring.
+
 Upgrades from the legacy JSON Lines format are automatic: if
 `data/irrigation.db` does not exist, the first application start imports
 `schedules.json`, `valves.json`, `settings.json`, and `history.json`, preserving

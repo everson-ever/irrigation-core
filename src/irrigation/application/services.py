@@ -12,8 +12,21 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from irrigation.domain.exceptions import RecordNotFoundError, ValidationError
-from irrigation.domain.models import HistoryRecord, Schedule, Valve
-from irrigation.domain.ports import Clock, GpioController, Repository
+from irrigation.domain.models import (
+    HistoryRecord,
+    Schedule,
+    Sensor,
+    SensorHealth,
+    SensorKind,
+    SensorState,
+    Valve,
+)
+from irrigation.domain.ports import (
+    Clock,
+    GpioController,
+    Repository,
+    SensorStateRepository,
+)
 
 WEEKDAY_NAMES = (
     "Monday",
@@ -183,6 +196,7 @@ class ScheduleService:
 class ValveService:
     DUPLICATE_PIN_MESSAGE = "This GPIO pin is already registered for another section"
     VALVE_IN_USE_MESSAGE = "This valve/section is still used by a schedule"
+    VALVE_SENSOR_IN_USE_MESSAGE = "This valve/section is still used by a sensor"
 
     def __init__(self, repository: Repository, gpio: GpioController) -> None:
         self._repository = repository
@@ -218,7 +232,12 @@ class ValveService:
         self._configured = False
         return updated
 
-    def remove(self, valve_id: str, schedules: ScheduleService) -> bool:
+    def remove(
+        self,
+        valve_id: str,
+        schedules: ScheduleService,
+        sensors: SensorService | None = None,
+    ) -> bool:
         valve_id = str(valve_id).strip()
         if not valve_id:
             raise ValidationError("valve id is required")
@@ -228,6 +247,10 @@ class ValveService:
         valve = Valve.from_dict(existing)
         if any(schedule.valve_pin == valve.pin for schedule in schedules.list_all()):
             raise ValidationError(self.VALVE_IN_USE_MESSAGE)
+        if sensors is not None and any(
+            sensor.valve_id == valve.id for sensor in sensors.list_all()
+        ):
+            raise ValidationError(self.VALVE_SENSOR_IN_USE_MESSAGE)
         if valve.status:
             self.turn_off(valve.pin)
         deleted = self._repository.delete([valve_id])
@@ -334,6 +357,205 @@ class ValveService:
                 continue
             if valve.pin == pin:
                 raise ValidationError(self.DUPLICATE_PIN_MESSAGE)
+
+
+class SensorService:
+    """Common sensor lifecycle and latest-status use cases."""
+
+    DUPLICATE_NAME_MESSAGE = "A sensor with this name already exists"
+    SENSOR_IN_USE_MESSAGE = "This sensor is still referenced by a safety policy"
+
+    def __init__(
+        self,
+        repository: Repository,
+        state_repository: SensorStateRepository,
+        valves: ValveService,
+        available_kinds: Iterable[SensorKind | str] = (),
+    ) -> None:
+        self._repository = repository
+        self._state_repository = state_repository
+        self._valves = valves
+        self._available_kinds = {SensorKind(kind) for kind in available_kinds}
+
+    def list_all(self) -> list[Sensor]:
+        return [Sensor.from_dict(item) for item in self._repository.list_all()]
+
+    def list_with_status(self) -> list[dict[str, Any]]:
+        states = {
+            str(item["sensor_id"]): SensorState.from_dict(item)
+            for item in self._state_repository.list_all()
+        }
+        sections = {valve.id: valve.section for valve in self._valves.list_all()}
+        return [
+            self._presentation(sensor, states.get(sensor.id), sections)
+            for sensor in self.list_all()
+        ]
+
+    def get(self, record_id: Any) -> Sensor:
+        sensor_id = self._sensor_id(record_id)
+        data = self._repository.find_by_id(sensor_id)
+        if data is None:
+            raise RecordNotFoundError(f"sensor {sensor_id} not found")
+        return Sensor.from_dict(data)
+
+    def get_with_status(self, record_id: Any) -> dict[str, Any]:
+        sensor = self.get(record_id)
+        state_data = self._state_repository.find_by_sensor_id(sensor.id)
+        state = None if state_data is None else SensorState.from_dict(state_data)
+        sections = {valve.id: valve.section for valve in self._valves.list_all()}
+        return self._presentation(sensor, state, sections)
+
+    def add(
+        self,
+        name: Any,
+        kind: Any,
+        enabled: Any = 1,
+        valve_id: Any = None,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        sensor = Sensor(
+            id="",
+            name=name,
+            kind=kind,
+            enabled=enabled,
+            valve_id=valve_id,
+            created_at=now,
+            updated_at=now,
+        )
+        self._validate_name(sensor.name)
+        self._validate_valve(sensor.valve_id)
+        created = Sensor.from_dict(self._repository.add(sensor.to_dict()))
+        return self.get_with_status(created.id)
+
+    def update(
+        self,
+        record_id: Any,
+        name: Any,
+        kind: Any,
+        enabled: Any,
+        valve_id: Any = None,
+    ) -> dict[str, Any]:
+        current = self.get(record_id)
+        edited = Sensor(
+            id=current.id,
+            name=name,
+            kind=kind,
+            enabled=enabled,
+            valve_id=valve_id,
+            created_at=current.created_at,
+            updated_at=datetime.now(timezone.utc),
+        )
+        self._validate_name(edited.name, exclude_id=edited.id)
+        self._validate_valve(edited.valve_id)
+        self._repository.update(edited.to_dict())
+        return self.get_with_status(edited.id)
+
+    def set_enabled(self, record_id: Any, enabled: Any) -> dict[str, Any]:
+        current = self.get(record_id)
+        edited = Sensor(
+            id=current.id,
+            name=current.name,
+            kind=current.kind,
+            enabled=enabled,
+            valve_id=current.valve_id,
+            created_at=current.created_at,
+            updated_at=datetime.now(timezone.utc),
+        )
+        self._repository.update(edited.to_dict())
+        return self.get_with_status(edited.id)
+
+    def remove(
+        self,
+        record_id: Any,
+        referenced_sensor_ids: Iterable[str] = (),
+    ) -> bool:
+        sensor_id = self._sensor_id(record_id)
+        if self._repository.find_by_id(sensor_id) is None:
+            return False
+        if sensor_id in {str(item) for item in referenced_sensor_ids}:
+            raise ValidationError(self.SENSOR_IN_USE_MESSAGE)
+        return self._repository.delete([sensor_id])
+
+    def status(self, record_id: Any = None) -> Any:
+        if record_id is None or str(record_id).strip() == "":
+            return self.list_with_status()
+        return self.get_with_status(record_id)
+
+    def record_state(
+        self,
+        record_id: Any,
+        health: Any,
+        value: Any = None,
+        unit: Any = None,
+        raw_value: Any = None,
+        latest_read_at: datetime | str | None = None,
+        error_message: Any = None,
+    ) -> SensorState:
+        sensor = self.get(record_id)
+        now = datetime.now(timezone.utc)
+        state = SensorState(
+            sensor_id=sensor.id,
+            health=health,
+            value=value,
+            unit=unit,
+            raw_value=raw_value,
+            latest_read_at=latest_read_at,
+            error_message=error_message,
+            updated_at=now,
+        )
+        return SensorState.from_dict(self._state_repository.upsert(state.to_dict()))
+
+    def _presentation(
+        self,
+        sensor: Sensor,
+        state: SensorState | None,
+        sections: dict[str, str],
+    ) -> dict[str, Any]:
+        current = state or SensorState.unknown(sensor.id, sensor.updated_at)
+        record = sensor.to_dict()
+        record["section"] = sections.get(sensor.valve_id or "")
+        record["state"] = current.to_dict()
+        record["configuration_status"] = "configured"
+        record["driver_available"] = sensor.kind in self._available_kinds
+        if not sensor.enabled:
+            record["availability"] = "disabled"
+        elif current.health is SensorHealth.FAULT:
+            record["availability"] = "fault"
+        elif current.health is SensorHealth.STALE:
+            record["availability"] = "stale"
+        elif current.health is SensorHealth.WARNING:
+            record["availability"] = "warning"
+        elif not record["driver_available"] and current.latest_read_at is None:
+            record["availability"] = "unsupported"
+        elif current.health is SensorHealth.OK:
+            record["availability"] = "operational"
+        else:
+            record["availability"] = "unknown"
+        return record
+
+    def _validate_name(self, name: str, exclude_id: str | None = None) -> None:
+        normalized = name.casefold()
+        if any(
+            sensor.name.casefold() == normalized and sensor.id != exclude_id
+            for sensor in self.list_all()
+        ):
+            raise ValidationError(self.DUPLICATE_NAME_MESSAGE)
+
+    def _validate_valve(self, valve_id: str | None) -> None:
+        if valve_id is not None:
+            try:
+                self._valves.get(valve_id)
+            except RecordNotFoundError as exc:
+                raise ValidationError(
+                    f"associated valve/section {valve_id} does not exist"
+                ) from exc
+
+    @staticmethod
+    def _sensor_id(value: Any) -> str:
+        sensor_id = str(value).strip()
+        if not sensor_id.isdigit() or int(sensor_id) < 1:
+            raise ValidationError("sensor id must be a positive integer")
+        return sensor_id
 
 
 class HistorySettingsService:

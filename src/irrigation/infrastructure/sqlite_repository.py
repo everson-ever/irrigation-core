@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -38,6 +39,34 @@ CREATE TABLE IF NOT EXISTS valves (
         CHECK (manually_turned_off IN (0, 1))
 );
 
+CREATE TABLE IF NOT EXISTS sensors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    kind TEXT NOT NULL CHECK (
+        kind IN (
+            'reservoir_level', 'flow', 'soil_moisture',
+            'line_pressure', 'rain'
+        )
+    ),
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    valve_id INTEGER REFERENCES valves(id) ON DELETE RESTRICT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sensor_state (
+    sensor_id INTEGER PRIMARY KEY REFERENCES sensors(id) ON DELETE CASCADE,
+    health TEXT NOT NULL DEFAULT 'unknown' CHECK (
+        health IN ('unknown', 'ok', 'warning', 'fault', 'stale')
+    ),
+    value_json TEXT,
+    unit TEXT,
+    raw_value_json TEXT,
+    latest_read_at TEXT,
+    error_message TEXT,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     default_duration_minutes INTEGER NOT NULL
@@ -71,6 +100,7 @@ CREATE TABLE IF NOT EXISTS history_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_history_date ON history(date);
+CREATE INDEX IF NOT EXISTS idx_sensors_valve_id ON sensors(valve_id);
 """
 
 _TABLE_COLUMNS = {
@@ -246,6 +276,225 @@ class RuntimeHealthSqliteRepository:
             "SELECT last_seen_at FROM runtime_health WHERE id = 1"
         ).fetchone()
         return None if row is None else str(row["last_seen_at"])
+
+
+class SensorSqliteRepository:
+    """Persists common sensor configuration and its initial state atomically."""
+
+    columns = ("name", "kind", "enabled", "valve_id", "created_at", "updated_at")
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def list_all(self) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            "SELECT id, name, kind, enabled, valve_id, created_at, updated_at "
+            "FROM sensors ORDER BY name COLLATE NOCASE, id"
+        ).fetchall()
+        return [self._record(row) for row in rows]
+
+    def find_by_id(self, record_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT id, name, kind, enabled, valve_id, created_at, updated_at "
+            "FROM sensors WHERE id = ?",
+            (str(record_id),),
+        ).fetchone()
+        return None if row is None else self._record(row)
+
+    def add(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        values = self._values(data)
+        if set(values) != set(self.columns):
+            raise ValidationError("all sensor fields are required for add")
+        try:
+            with _write_transaction(self.connection):
+                cursor = self.connection.execute(
+                    "INSERT INTO sensors "
+                    f"({', '.join(self.columns)}) VALUES "
+                    f"({', '.join('?' for _ in self.columns)})",
+                    tuple(values[column] for column in self.columns),
+                )
+                record_id = str(cursor.lastrowid)
+                self.connection.execute(
+                    "INSERT INTO sensor_state "
+                    "(sensor_id, health, updated_at) VALUES (?, 'unknown', ?)",
+                    (record_id, values["created_at"]),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValidationError(self._integrity_message(exc)) from exc
+        record = self.find_by_id(record_id)
+        assert record is not None
+        return record
+
+    def update(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        record_id = str(data.get("id", "")).strip()
+        if not record_id:
+            raise ValidationError("id is required for update")
+        values = self._values(data)
+        if set(values) != set(self.columns):
+            raise ValidationError("all sensor fields are required for update")
+        try:
+            with _write_transaction(self.connection):
+                cursor = self.connection.execute(
+                    "UPDATE sensors SET "
+                    + ", ".join(f"{column} = ?" for column in self.columns)
+                    + " WHERE id = ?",
+                    (*[values[column] for column in self.columns], record_id),
+                )
+                if cursor.rowcount == 0:
+                    raise RecordNotFoundError(f"sensor {record_id} not found")
+        except sqlite3.IntegrityError as exc:
+            raise ValidationError(self._integrity_message(exc)) from exc
+        record = self.find_by_id(record_id)
+        assert record is not None
+        return record
+
+    def delete(self, ids: Sequence[str]) -> bool:
+        targets = tuple(str(item) for item in ids)
+        if not targets:
+            return False
+        with _write_transaction(self.connection):
+            cursor = self.connection.execute(
+                f"DELETE FROM sensors WHERE id IN ({', '.join('?' for _ in targets)})",
+                targets,
+            )
+        return cursor.rowcount > 0
+
+    def replace_all(self, records: Sequence[Mapping[str, Any]]) -> None:
+        with _write_transaction(self.connection):
+            self.connection.execute("DELETE FROM sensors")
+            for record in records:
+                values = self._values(record)
+                record_id = str(record.get("id", "")).strip()
+                columns = (["id"] if record_id else []) + list(self.columns)
+                parameters = ([record_id] if record_id else []) + [
+                    values[column] for column in self.columns
+                ]
+                cursor = self.connection.execute(
+                    f"INSERT INTO sensors ({', '.join(columns)}) VALUES "
+                    f"({', '.join('?' for _ in columns)})",
+                    parameters,
+                )
+                sensor_id = record_id or str(cursor.lastrowid)
+                self.connection.execute(
+                    "INSERT INTO sensor_state "
+                    "(sensor_id, health, updated_at) VALUES (?, 'unknown', ?)",
+                    (sensor_id, values["created_at"]),
+                )
+
+    def _values(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        return {column: data[column] for column in self.columns if column in data}
+
+    @staticmethod
+    def _record(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "id": str(row["id"]),
+            "name": str(row["name"]),
+            "kind": str(row["kind"]),
+            "enabled": row["enabled"],
+            "valve_id": None if row["valve_id"] is None else str(row["valve_id"]),
+            "created_at": str(row["created_at"]),
+            "updated_at": str(row["updated_at"]),
+        }
+
+    @staticmethod
+    def _integrity_message(exc: sqlite3.IntegrityError) -> str:
+        message = str(exc).lower()
+        if "sensors.name" in message or "unique constraint" in message:
+            return "a sensor with this name already exists"
+        if "foreign key" in message:
+            return "associated valve/section does not exist"
+        return "sensor configuration violates a persistence constraint"
+
+
+class SensorStateSqliteRepository:
+    """Stores only the latest generic snapshot for every sensor."""
+
+    columns = (
+        "health",
+        "value_json",
+        "unit",
+        "raw_value_json",
+        "latest_read_at",
+        "error_message",
+        "updated_at",
+    )
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def list_all(self) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            "SELECT sensor_id, health, value_json, unit, raw_value_json, "
+            "latest_read_at, error_message, updated_at "
+            "FROM sensor_state ORDER BY sensor_id"
+        ).fetchall()
+        return [self._record(row) for row in rows]
+
+    def find_by_sensor_id(self, sensor_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT sensor_id, health, value_json, unit, raw_value_json, "
+            "latest_read_at, error_message, updated_at "
+            "FROM sensor_state WHERE sensor_id = ?",
+            (str(sensor_id),),
+        ).fetchone()
+        return None if row is None else self._record(row)
+
+    def upsert(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        sensor_id = str(data.get("sensor_id", "")).strip()
+        if not sensor_id:
+            raise ValidationError("sensor_id is required")
+        values = {
+            "health": data["health"],
+            "value_json": self._json_value(data.get("value")),
+            "unit": data.get("unit"),
+            "raw_value_json": self._json_value(data.get("raw_value")),
+            "latest_read_at": data.get("latest_read_at"),
+            "error_message": data.get("error_message"),
+            "updated_at": data["updated_at"],
+        }
+        try:
+            with _write_transaction(self.connection):
+                self.connection.execute(
+                    "INSERT INTO sensor_state "
+                    "(sensor_id, health, value_json, unit, raw_value_json, "
+                    "latest_read_at, error_message, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(sensor_id) DO UPDATE SET "
+                    "health = excluded.health, value_json = excluded.value_json, "
+                    "unit = excluded.unit, raw_value_json = excluded.raw_value_json, "
+                    "latest_read_at = excluded.latest_read_at, "
+                    "error_message = excluded.error_message, "
+                    "updated_at = excluded.updated_at",
+                    (sensor_id, *[values[column] for column in self.columns]),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise RecordNotFoundError(f"sensor {sensor_id} not found") from exc
+        record = self.find_by_sensor_id(sensor_id)
+        assert record is not None
+        return record
+
+    @staticmethod
+    def _json_value(value: Any) -> str | None:
+        return None if value is None else json.dumps(value, ensure_ascii=False)
+
+    @staticmethod
+    def _record(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "sensor_id": str(row["sensor_id"]),
+            "health": str(row["health"]),
+            "value": (
+                None if row["value_json"] is None else json.loads(row["value_json"])
+            ),
+            "unit": row["unit"],
+            "raw_value": (
+                None
+                if row["raw_value_json"] is None
+                else json.loads(row["raw_value_json"])
+            ),
+            "latest_read_at": row["latest_read_at"],
+            "error_message": row["error_message"],
+            "updated_at": str(row["updated_at"]),
+        }
 
 
 class ScheduleSqliteRepository:

@@ -669,7 +669,9 @@ def test_settings_tab_has_password_change_flow():
     assert 'window.location.href = "/ui/logout"' in settings_template["format"]
     assert "current_password" in settings_template["format"]
     assert "confirm_password" in settings_template["format"]
-    assert settings_template["wires"] == [["bd0f9d62.31aa54"]]
+    assert settings_template["wires"] == [
+        ["bd0f9d62.31aa54", "035sensor.action.format"]
+    ]
 
     assert 'payload.ui_action === "change_password"' in formatter["func"]
     assert "next !== confirm" in formatter["func"]
@@ -841,6 +843,8 @@ def test_all_cli_invocations_use_the_structured_stdin_adapter():
         "019valve.delete.exec",
         "034retention.exec",
         "034retention.fetch",
+        "035sensor.action.exec",
+        "035sensor.fetch",
     }
 
     assert not [node for node in nodes.values() if node.get("type") == "exec"]
@@ -851,3 +855,36 @@ def test_all_cli_invocations_use_the_structured_stdin_adapter():
         assert "command" not in invocation
         assert "addpay" not in invocation
         assert "useSpawn" not in invocation
+
+
+def test_settings_tab_has_sensor_crud_status_and_single_poll_flow():
+    nodes = load_nodes()
+    template = nodes["d6f0b5a1.42c8e3"]["format"]
+    formatter = nodes["035sensor.action.format"]
+    fetch = nodes["035sensor.fetch"]
+
+    assert "isConfigSectionActive('sensors')" in template
+    assert '<span class="ir-section-number">04</span>' in template
+    assert 'id="sensors-section-title">Sensores</h2>' in template
+    assert "scope.submitSensorForm = function(event)" in template
+    assert "scope.toggleSensorEnabled = function(sensor)" in template
+    assert "scope.openSensorDeleteConfirmation = function(sensor)" in template
+    assert 'ng-if="sensor_delete_state.open"' in template
+    assert "sensor.state.error_message" in template
+    assert "sensorReadTime(sensor)" in template
+    assert "pino físico (BOARD)" in template
+    assert "não substitui a ligação física" in template
+    assert 'msg.topic === "sensors"' in template
+    assert 'msg.topic === "sensor_error"' in template
+
+    assert 'add_sensor: "add"' in formatter["func"]
+    assert 'toggle_sensor: "enabled"' in formatter["func"]
+    assert 'command: "sensor"' in formatter["func"]
+    assert nodes["d6f0b5a1.42c8e3"]["wires"][0] == [
+        "bd0f9d62.31aa54",
+        "035sensor.action.format",
+    ]
+    assert nodes["035sensor.poll"]["repeat"] == "10"
+    assert 'command: "sensor", action: "list"' in fetch["func"]
+    assert fetch["wires"][0] == ["035sensor.list.format"]
+    assert nodes["035sensor.list.format"]["wires"] == [["d6f0b5a1.42c8e3"]]

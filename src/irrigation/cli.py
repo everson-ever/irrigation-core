@@ -129,7 +129,11 @@ def _valve_command(app: Application, args: argparse.Namespace):
                 _required(stdin, "section"),
             ).to_dict()
         if action == "delete":
-            return {"deleted": valves.remove(_required(stdin, "id"), app.schedules())}
+            return {
+                "deleted": valves.remove(
+                    _required(stdin, "id"), app.schedules(), app.sensors()
+                )
+            }
         if action != "manual":
             raise ValueError("unknown valve action")
 
@@ -163,7 +167,7 @@ def _valve_command(app: Application, args: argparse.Namespace):
         valve_id, pin, section = _csv(action_data, 3, "valve update")
         return valves.update(valve_id, pin, section).to_dict()
     if action == "delete":
-        return {"deleted": valves.remove(action_data, app.schedules())}
+        return {"deleted": valves.remove(action_data, app.schedules(), app.sensors())}
 
     valve_data = [part.strip() for part in args.data.split(",")]
     if len(valve_data) not in (2, 3, 4):
@@ -191,6 +195,60 @@ def _valve_command(app: Application, args: argparse.Namespace):
     else:
         raise ValueError("valve action must be on/off")
     return {"changed": changed}
+
+
+def _sensor_command(app: Application, args: argparse.Namespace):
+    service = app.sensors()
+    stdin = _stdin_request(args)
+    if stdin is not None:
+        action = _required(stdin, "action")
+        if action == "list":
+            return service.list_with_status()
+        if action == "get":
+            return service.get_with_status(_required(stdin, "id"))
+        if action == "add":
+            return service.add(
+                _required(stdin, "name"),
+                _required(stdin, "kind"),
+                stdin.get("enabled", 1),
+                stdin.get("valve_id"),
+            )
+        if action == "update":
+            return service.update(
+                _required(stdin, "id"),
+                _required(stdin, "name"),
+                _required(stdin, "kind"),
+                _required(stdin, "enabled"),
+                stdin.get("valve_id"),
+            )
+        if action == "enabled":
+            return service.set_enabled(
+                _required(stdin, "id"), _required(stdin, "enabled")
+            )
+        if action == "delete":
+            return {"deleted": service.remove(_required(stdin, "id"))}
+        if action == "status":
+            return service.status(stdin.get("id"))
+        raise ValueError("unknown sensor action")
+
+    if args.action == "list":
+        return service.list_with_status()
+    if args.action == "get":
+        return service.get_with_status(args.id)
+    if args.action == "add":
+        name, kind, enabled, valve_id = _sensor_argv_fields(args.data, update=False)
+        return service.add(name, kind, enabled, valve_id)
+    if args.action == "update":
+        sensor_id, name, kind, enabled, valve_id = _sensor_argv_fields(
+            args.data, update=True
+        )
+        return service.update(sensor_id, name, kind, enabled, valve_id)
+    if args.action == "enabled":
+        record_id, enabled = _csv(args.data, 2, "sensor enabled flag")
+        return service.set_enabled(record_id, enabled)
+    if args.action == "delete":
+        return {"deleted": service.remove(args.id)}
+    return service.status(args.id)
 
 
 def _settings_command(app: Application, args: argparse.Namespace):
@@ -267,6 +325,7 @@ _COMMAND_HANDLERS = {
     "health": _health_command,
     "schedule": _schedule_command,
     "valve": _valve_command,
+    "sensor": _sensor_command,
     "settings": _settings_command,
     "history-retention": _history_retention_command,
     "auth": _auth_command,
@@ -308,6 +367,22 @@ def create_parser() -> argparse.ArgumentParser:
         "data",
         help=("list, add, update, delete, or pin,on|off[,minutes][,schedule_id]"),
     )
+
+    sensor = subcommands.add_parser("sensor")
+    sensor_actions = sensor.add_subparsers(dest="action", required=True)
+    sensor_actions.add_parser("list")
+    sensor_get = sensor_actions.add_parser("get")
+    sensor_get.add_argument("id")
+    sensor_add = sensor_actions.add_parser("add")
+    sensor_add.add_argument("data", help="name,kind[,enabled][,valve_id]")
+    sensor_update = sensor_actions.add_parser("update")
+    sensor_update.add_argument("data", help="id,name,kind,enabled[,valve_id]")
+    sensor_enabled = sensor_actions.add_parser("enabled")
+    sensor_enabled.add_argument("data", help="id,0|1")
+    sensor_delete = sensor_actions.add_parser("delete")
+    sensor_delete.add_argument("id")
+    sensor_status = sensor_actions.add_parser("status")
+    sensor_status.add_argument("id", nargs="?", default=None)
     valve.add_argument(
         "action_data",
         nargs="*",
@@ -417,6 +492,27 @@ def _weekdays(request: Mapping[str, Any]) -> Any:
     if isinstance(value, list):
         return "+".join(str(item) for item in value)
     return value
+
+
+def _sensor_argv_fields(data: str, update: bool) -> list[Any]:
+    parts = [part.strip() for part in data.split(",")]
+    minimum = 4 if update else 2
+    maximum = 5 if update else 4
+    if len(parts) < minimum or len(parts) > maximum:
+        description = "sensor update" if update else "sensor"
+        raise ValueError(
+            f"{description} must contain {minimum} to {maximum} comma-separated fields"
+        )
+    if update:
+        while len(parts) < 5:
+            parts.append("")
+        parts[4] = parts[4] or None
+        return parts
+    while len(parts) < 4:
+        parts.append("")
+    parts[2] = parts[2] or "1"
+    parts[3] = parts[3] or None
+    return parts
 
 
 if __name__ == "__main__":

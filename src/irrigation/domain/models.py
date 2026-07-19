@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from enum import Enum
 from typing import Any
 
 from .exceptions import ValidationError
@@ -23,6 +25,22 @@ _WEEKDAY_ALIASES = {
 _ALL_WEEKDAY_ALIASES = {"all", "everyday", "every-day", "every_day", "daily"}
 
 
+class SensorKind(str, Enum):
+    RESERVOIR_LEVEL = "reservoir_level"
+    FLOW = "flow"
+    SOIL_MOISTURE = "soil_moisture"
+    LINE_PRESSURE = "line_pressure"
+    RAIN = "rain"
+
+
+class SensorHealth(str, Enum):
+    UNKNOWN = "unknown"
+    OK = "ok"
+    WARNING = "warning"
+    FAULT = "fault"
+    STALE = "stale"
+
+
 def _int_value(value: Any, field: str, minimum: int | None = None) -> int:
     try:
         number = int(value)
@@ -31,6 +49,41 @@ def _int_value(value: Any, field: str, minimum: int | None = None) -> int:
     if minimum is not None and number < minimum:
         raise ValidationError(f"{field} must be greater than or equal to {minimum}")
     return number
+
+
+def _boolean_value(value: Any, field: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str) and value.strip() in ("0", "1"):
+        return value.strip() == "1"
+    raise ValidationError(f"{field} must be 0 or 1")
+
+
+def _datetime_value(value: Any, field: str, optional: bool = False) -> datetime | None:
+    if value is None or str(value).strip() == "":
+        if optional:
+            return None
+        raise ValidationError(f"{field} is required")
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValidationError(f"{field} must be an ISO 8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _sensor_scalar(value: Any, field: str) -> Any:
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    raise ValidationError(f"{field} must be a finite JSON scalar")
 
 
 def _schedule_time(value: Any) -> str:
@@ -239,6 +292,156 @@ class Valve:
             "status": int(self.status),
             "section": self.section,
             "manually_turned_off": int(self.manually_turned_off),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class Sensor:
+    id: str
+    name: str
+    kind: SensorKind | str
+    enabled: bool
+    valve_id: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        name = str(self.name).strip()
+        if not name:
+            raise ValidationError("sensor name is required")
+        if len(name) > 100:
+            raise ValidationError("sensor name must contain at most 100 characters")
+        try:
+            kind = SensorKind(self.kind)
+        except ValueError as exc:
+            supported = ", ".join(item.value for item in SensorKind)
+            raise ValidationError(f"sensor kind must be one of: {supported}") from exc
+        valve_id = None if self.valve_id is None else str(self.valve_id).strip()
+        if valve_id == "":
+            valve_id = None
+        if valve_id is not None and (not valve_id.isdigit() or int(valve_id) < 1):
+            raise ValidationError("valve_id must be a positive integer")
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "enabled", _boolean_value(self.enabled, "enabled"))
+        object.__setattr__(self, "valve_id", valve_id)
+        object.__setattr__(
+            self, "created_at", _datetime_value(self.created_at, "created_at")
+        )
+        object.__setattr__(
+            self, "updated_at", _datetime_value(self.updated_at, "updated_at")
+        )
+        if self.updated_at < self.created_at:
+            raise ValidationError("updated_at must not be before created_at")
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Sensor:
+        return cls(
+            id=str(data.get("id", "")),
+            name=data.get("name", ""),
+            kind=data.get("kind", ""),
+            enabled=data.get("enabled", 1),
+            valve_id=data.get("valve_id"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "kind": self.kind.value,
+            "enabled": int(self.enabled),
+            "valve_id": self.valve_id,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SensorState:
+    sensor_id: str
+    health: SensorHealth | str
+    value: Any
+    unit: str | None
+    raw_value: Any
+    latest_read_at: datetime | None
+    error_message: str | None
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        sensor_id = str(self.sensor_id).strip()
+        if not sensor_id.isdigit() or int(sensor_id) < 1:
+            raise ValidationError("sensor_id must be a positive integer")
+        try:
+            health = SensorHealth(self.health)
+        except ValueError as exc:
+            supported = ", ".join(item.value for item in SensorHealth)
+            raise ValidationError(f"sensor health must be one of: {supported}") from exc
+        unit = None if self.unit is None else str(self.unit).strip()
+        if unit == "":
+            unit = None
+        if unit is not None and len(unit) > 32:
+            raise ValidationError("sensor unit must contain at most 32 characters")
+        error = None if self.error_message is None else str(self.error_message).strip()
+        if error == "":
+            error = None
+        if error is not None and len(error) > 300:
+            raise ValidationError(
+                "sensor error message must contain at most 300 characters"
+            )
+        if health is SensorHealth.FAULT and error is None:
+            raise ValidationError(
+                "fault sensor state requires an actionable error message"
+            )
+        object.__setattr__(self, "sensor_id", sensor_id)
+        object.__setattr__(self, "health", health)
+        object.__setattr__(self, "value", _sensor_scalar(self.value, "value"))
+        object.__setattr__(
+            self, "raw_value", _sensor_scalar(self.raw_value, "raw_value")
+        )
+        object.__setattr__(self, "unit", unit)
+        object.__setattr__(self, "error_message", error)
+        object.__setattr__(
+            self,
+            "latest_read_at",
+            _datetime_value(self.latest_read_at, "latest_read_at", optional=True),
+        )
+        object.__setattr__(
+            self, "updated_at", _datetime_value(self.updated_at, "updated_at")
+        )
+
+    @classmethod
+    def unknown(cls, sensor_id: str, at: datetime) -> SensorState:
+        return cls(sensor_id, SensorHealth.UNKNOWN, None, None, None, None, None, at)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> SensorState:
+        return cls(
+            sensor_id=str(data.get("sensor_id", "")),
+            health=data.get("health", SensorHealth.UNKNOWN.value),
+            value=data.get("value"),
+            unit=data.get("unit"),
+            raw_value=data.get("raw_value"),
+            latest_read_at=data.get("latest_read_at"),
+            error_message=data.get("error_message"),
+            updated_at=data.get("updated_at"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sensor_id": self.sensor_id,
+            "health": self.health.value,
+            "value": self.value,
+            "unit": self.unit,
+            "raw_value": self.raw_value,
+            "latest_read_at": (
+                self.latest_read_at.isoformat()
+                if self.latest_read_at is not None
+                else None
+            ),
+            "error_message": self.error_message,
+            "updated_at": self.updated_at.isoformat(),
         }
 
 

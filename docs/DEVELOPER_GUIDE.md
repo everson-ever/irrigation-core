@@ -49,13 +49,13 @@ and is injected in `bootstrap.py`.
 ```
 src/irrigation/
 ├── domain/            # Rules and contracts — does NOT import infrastructure
-│   ├── models.py      # Entities: Schedule, Valve, HistoryRecord (+ validation)
-│   ├── ports.py       # Protocols: Repository, GpioController, Clock
+│   ├── models.py      # Entities: Schedule, Valve, Sensor/State, HistoryRecord
+│   ├── ports.py       # Protocols: Repository, SensorStateRepository, GPIO, Clock
 │   └── exceptions.py  # IrrigationError, ValidationError, RecordNotFoundError, HardwareError
 ├── application/       # Use cases — orchestrates domain + ports
 │   └── services.py    # ScheduleService, ValveService, HistoryService,
 │                      # ManualControlService, IrrigationController,
-│                      # SettingsService, AuthService, RuntimeHealthService
+│                      # SensorService, SettingsService, AuthService, RuntimeHealthService
 ├── infrastructure/    # Concrete implementations of the ports
 │   ├── sqlite_repository.py   # Persistence (Repository)
 │   ├── gpio.py                # GPIORaspberryPi + MockGPIO (GpioController)
@@ -125,6 +125,19 @@ Key points:
 | `status` | On/off. |
 | `manually_turned_off` | Flag that prevents the controller from turning it back on after a manual off (see §6). |
 
+### `Sensor` and `SensorState`
+
+`Sensor` stores only the shared lifecycle contract: unique name, one of
+`reservoir_level`, `flow`, `soil_moisture`, `line_pressure`, or `rain`, enabled
+state, optional `valve_id`, and creation/update timestamps. `SensorState` is the
+single latest snapshot: `unknown|ok|warning|fault|stale`, normalized value/unit,
+raw scalar value, latest-read timestamp, and a public actionable error message.
+
+No reader or irrigation rule is implemented by this common layer. Connection,
+calibration, freshness windows, and hardware adapters belong to the
+type-specific sensor tasks and additive tables. Before the first real reading,
+the state is `unknown`; disabling a sensor preserves its last diagnostic value.
+
 ### `HistoryRecord`
 
 One completed/started watering row: `valve` (= `section`), `date`, `start`,
@@ -180,6 +193,7 @@ constructor.
 |---------|----------------|
 | `ScheduleService` | Schedule CRUD; rejects duplicate valve; `list_with_runtime_status` (enriches with `is_running`, `valve_status`, `remaining_seconds`). |
 | `ValveService` | Valve state + GPIO actuation. Lazy `configure()`; manages the `manually_turned_off` flag and `keep_pump_on`. |
+| `SensorService` | Common sensor CRUD, name/section validation, enable/disable, aggregate configuration + latest-state presentation, and state upsert for future readers. |
 | `HistoryService` | Records and searches history; computes the active interval (`active_end`, `has_active_manual`, `has_active_automatic`); writes the search snapshot as JSON. |
 | `ManualControlService` | Manual on/off, with wait (`wait`) until auto-off and synchronization of the associated schedule's `status`. |
 | `IrrigationController` | **The daemon.** `run()` = loop; `run_once()` = one sweep of all schedules. |
@@ -270,6 +284,8 @@ Database: `data/irrigation.db`. Opened by `connect_database()` with
 | `credentials` | `id=1, username (UNIQUE), password_hash` | PBKDF2. |
 | `history` | `valve, date, start, end, weekday, mode` | `idx_history_date` index for range search. |
 | `runtime_health` | `id=1, last_seen_at` | Daemon heartbeat. |
+| `sensors` | `name, kind, enabled, valve_id, created_at, updated_at` | Unique name; optional registered section. |
+| `sensor_state` | one row per `sensor_id` | Latest snapshot only; cascades when the sensor is deleted. |
 
 ### Two repository classes
 
@@ -280,6 +296,9 @@ Database: `data/irrigation.db`. Opened by `connect_database()` with
   `schedule_weekdays` table. Inserts/updates the days in a transaction and
   rebuilds `times` from the `time` column in `_record`.
 - **`RuntimeHealthSqliteRepository`** — heartbeat upsert (`ON CONFLICT`).
+- **`SensorSqliteRepository`** / **`SensorStateSqliteRepository`** — common
+  configuration and bounded latest-state persistence. Creation initializes an
+  `unknown` snapshot; deletion is transactional through the foreign-key cascade.
 
 All writes go through `_write_transaction` (atomic commit/rollback). `update`
 requires **all** columns of the table (full update, not partial).
@@ -341,6 +360,7 @@ builds a service already connected to its concrete ports over the same
 app = Application.create()          # reads Settings.from_env(), migrates legacy, opens DB, creates default credentials
 app.schedules()          # ScheduleService(ScheduleSqliteRepository(conn))
 app.valves()             # ValveService(SqliteRepository(conn, "valves"), create_gpio(...))
+app.sensors()            # SensorService(SensorSqliteRepository, SensorStateSqliteRepository, valves)
 app.manual_control()     # ManualControlService(valves, settings, history, SystemClock, poll, schedules)
 app.automatic_controller()  # IrrigationController(schedules, valves, history, SystemClock, poll, health)
 app.history() / app.runtime_settings() / app.auth() / app.runtime_health()
@@ -377,6 +397,12 @@ consumes):
 | `valve delete <id>` | Removes an unused valve. | `{deleted: bool}` |
 | `valve "pin,on[,minutes][,schedule_id]"` | Manual on (accepts `--no-wait`). | `{changed: bool}` |
 | `valve "pin,off[,schedule_id]"` | Manual off. | `{changed: bool}` |
+| `sensor list` / `sensor status [id]` | Configuration and latest state in one request. | array or sensor object |
+| `sensor get <id>` | Inspect one sensor and snapshot. | sensor object |
+| `sensor add` | `name,kind[,enabled][,valve_id]` | created sensor + `unknown` state |
+| `sensor update` | `id,name,kind,enabled[,valve_id]` | updated sensor + state |
+| `sensor enabled` | `id,0\|1` | updated sensor + preserved state |
+| `sensor delete <id>` | Removes configuration and latest state. | `{deleted: bool}` |
 | `settings show` | Default duration. | `{id, default_duration_minutes}` |
 | `settings <minutes>` | Updates the default duration. | record |
 | `auth login` | stdin JSON only; credentials are rejected in argv | `{authenticated: bool}` |
@@ -394,6 +420,11 @@ for example:
 ```json
 {"command":"valve","action":"add","pin":13,"section":"Jardim da frente"}
 ```
+
+Sensor requests use the same structured form, for example
+`{"command":"sensor","action":"add","name":"Chuva","kind":"rain","enabled":1}`.
+The dashboard polls `sensor list` once for all sensors; it must never spawn one
+CLI process per sensor.
 
 Schedule requests use named fields such as `times`, `duration_minutes`,
 `valve_pin`, and `weekdays`; auth requests use `username`, `password`,
@@ -418,7 +449,12 @@ stdout contract stable when adding commands.
 - **`settings.js`** — Node-RED runtime configuration and the sole process adapter.
   It uses `execFile` with the fixed argv `['--stdin']` and writes JSON to the
   child's stdin. Do not replace this with `exec`, shell pipelines, or payloads in
-  argv.
+argv.
+
+`Configurações > Sensores` manages the common records and shows the last state,
+including disabled, stale, fault, and driver-unavailable conditions. It does not
+claim that hardware is working: physical wiring and real validation remain
+unavailable until the corresponding driver is installed and implemented.
 
 The HTML files in `node-red/templates/` are the source of truth for dashboard
 screens. `node-red/flows.json` still contains the embedded `ui_template.format`

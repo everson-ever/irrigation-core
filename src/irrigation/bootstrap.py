@@ -13,6 +13,7 @@ from irrigation.application.services import (
     ManualControlService,
     RuntimeHealthService,
     ScheduleService,
+    SensorService,
     SettingsService,
     ValveService,
 )
@@ -24,6 +25,8 @@ from irrigation.infrastructure.json_repository import JsonLinesRepository
 from irrigation.infrastructure.sqlite_repository import (
     RuntimeHealthSqliteRepository,
     ScheduleSqliteRepository,
+    SensorSqliteRepository,
+    SensorStateSqliteRepository,
     SqliteRepository,
     connect_database,
 )
@@ -70,6 +73,13 @@ class Application:
     def valves(self) -> ValveService:
         gpio = create_gpio(self.settings.gpio_driver, self.settings.pump_pin)
         return ValveService(SqliteRepository(self._connection, "valves"), gpio)
+
+    def sensors(self) -> SensorService:
+        return SensorService(
+            SensorSqliteRepository(self._connection),
+            SensorStateSqliteRepository(self._connection),
+            self.valves(),
+        )
 
     def manual_control(self) -> ManualControlService:
         return ManualControlService(
