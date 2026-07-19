@@ -3,6 +3,12 @@ from pathlib import Path
 SETTINGS_PATH = Path(__file__).resolve().parents[1] / "node-red" / "settings.js"
 
 
+def test_flow_file_name_is_fixed_instead_of_hostname_based():
+    settings = SETTINGS_PATH.read_text()
+
+    assert 'flowFile: "flows.json"' in settings
+
+
 def test_dashboard_auth_uses_modern_login_form_instead_of_browser_prompt():
     settings = SETTINGS_PATH.read_text()
 

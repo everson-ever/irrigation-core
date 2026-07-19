@@ -349,6 +349,7 @@ function escapeHtml(value) {
 }
 
 module.exports = {
+  flowFile: "flows.json",
   functionGlobalContext: {
     invokeIrrigationNode,
   },
